@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
+import { NavigationContainer, useNavigation } from '@react-navigation/native';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BottomTabs from '../components/BottomTabs';
@@ -10,19 +11,14 @@ import DetailScreen from './DetailScreen';
 import LoginScreen from './LoginScreen';
 import RegisterScreen from './RegisterScreen';
 import PrimerosAuxilios from './PrimeroAuxilios';
-import WelcomeScreen from './WelcomeScreen';
 import { RootStackParamList } from '../types/navigationTypes';
-import { AuthContextProvider, useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import SettingsScreen from './SettingsScreen';
 import Profile from './Profile';
 import OnboardingScreen from '../onboarding/OnboardingScreen';
-import { lightTheme, darkTheme } from '../theme';
-import { useColorScheme } from 'react-native';
-import { createDrawerNavigator } from '@react-navigation/drawer';
 import Locales from './Locales';
 import LocalDetailScreen from './LocalDetailScreen';
 import DetailE from './DetailE';
-import { PharmacyProvider } from '../context/PharmacyContext';
 import EditProfileScreen from './EditProfileScreen';
 import ReportProblemScreen from './ReportProblemScreen';
 import HelpScreen from './HelpScreen';
@@ -33,18 +29,31 @@ import AdminTurnosScreen from './AdminTurnScreen';
 import AdminPanelScreen from './adminPanelScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
-const Drawer = createDrawerNavigator();
 
 type OnboardingStackProps = {
   setIsFirstLaunch: React.Dispatch<React.SetStateAction<boolean | null>>;
 };
-// Navigator for Authentication Screens
-const AuthStack = () => {
+// Simple screen shown when user is not admin
+const NotAuthorizedScreen = () => {
+  const navigation = useNavigation();
+  const { theme } = useTheme();
+  const { colors } = theme;
+  const { isGuest } = useAuth();
+
   return (
-    <Stack.Navigator>
-      <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
-    </Stack.Navigator>
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: colors.background }}>
+      <Text style={{ color: colors.text, fontSize: 18, marginBottom: 12, textAlign: 'center' }}>
+        No tienes permisos para acceder a esta sección.
+      </Text>
+      {isGuest && (
+        <TouchableOpacity
+          style={{ backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: 20, borderRadius: 8 }}
+          onPress={() => navigation.navigate('Login' as never)}
+        >
+          <Text style={{ color: colors.buttonText || '#fff', fontWeight: 'bold' }}>Iniciar sesión</Text>
+        </TouchableOpacity>
+      )}
+    </View>
   );
 };
 
@@ -61,6 +70,7 @@ const OnboardingStack: React.FC<OnboardingStackProps> = ({ setIsFirstLaunch }) =
 
 // Navigator for Main App Screens
 const AppStack = () => {
+  const { isAdmin, roleLoading } = useAuth();
   return (
     <>
     
@@ -77,8 +87,16 @@ const AppStack = () => {
       <Stack.Screen name="ReportProblem" component={ReportProblemScreen} options={{title: 'Reportar Problema'}} />
       <Stack.Screen name="Help" component={HelpScreen} options={{headerShown: false}} />
       <Stack.Screen name="ActualizarHorarios" component={BotonActualizarHorariosTodos} options={{headerShown: false}} />
-      <Stack.Screen name="Admin" component={AdminPanelScreen} options={{headerShown: false}} />
-      <Stack.Screen name="ActualizarTurnos" component={AdminTurnosScreen} options={{title: 'Turnos'}} />
+      <Stack.Screen
+        name="Admin"
+        component={!roleLoading && isAdmin ? AdminPanelScreen : NotAuthorizedScreen}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="ActualizarTurnos"
+        component={!roleLoading && isAdmin ? AdminTurnosScreen : NotAuthorizedScreen}
+        options={{title: 'Turnos'}}
+      />
       <Stack.Screen name="LocalDetail" component={LocalDetailScreen} options={{headerShown: false}} />
       <Stack.Screen name="Detail" component={DetailScreen} options={{headerShown: false}} />
       <Stack.Screen name="DetailE" component={DetailE} options={{headerShown: false}} />
@@ -89,11 +107,9 @@ const AppStack = () => {
   );
 };
 
-const AppNavigator: React.FC = ({ ...rest }) => {
-  const { user } = useAuth();
+const AppNavigator: React.FC = () => {
   const { navigationTheme } = useTheme();
   const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
-  const isDarkMode = useColorScheme() === 'dark';
 
   useEffect(() => {
     const checkFirstLaunch = async () => {
@@ -121,22 +137,14 @@ const AppNavigator: React.FC = ({ ...rest }) => {
           <Stack.Screen name="Onboarding" options={{ headerShown: false }}>
             {props => <OnboardingStack {...props} setIsFirstLaunch={setIsFirstLaunch} />}
           </Stack.Screen>
-        ) : user ? (
-          <>
-          <Stack.Screen name="App" component={AppStack} options={{ headerShown: false }} />
-          </>
         ) : (
-          <Stack.Screen name="Auth" component={AuthStack} options={{ headerShown: false }} />
+          <Stack.Screen name="App" component={AppStack} options={{ headerShown: false }} />
         )}
+        <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
       </Stack.Navigator>
     </NavigationContainer>
   );
 };
 
-export default () => (
-  <AuthContextProvider>
-    <PharmacyProvider>
-      <AppNavigator />
-    </PharmacyProvider>
-  </AuthContextProvider>
-);
+export default AppNavigator;

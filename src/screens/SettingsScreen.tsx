@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -6,18 +6,45 @@ import Icon from '@react-native-vector-icons/material-design-icons';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigationTypes';
 import AnimatedToggleSwitch from '../components/AnimatedToggleSwitch';
-import DeviceInfo from 'react-native-device-info'
+import DeviceInfo from 'react-native-device-info';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { requestNotificationPermission } from '../components/Permissions';
+import { cancelTurnoNotifications } from '../services/TurnoService';
 
 const SettingsScreen: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
-  const { colors, dark } = theme;
+  const { colors } = theme;
   const { logout, loading } = useAuth();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [isDarkTheme, setIsDarkTheme] = useState(theme.dark);
-  const version = DeviceInfo.getVersion();
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+
   const handleToggleTheme = () => {
     toggleTheme();
     setIsDarkTheme(!isDarkTheme);
+  };
+
+  useEffect(() => {
+    const loadNotifications = async () => {
+      const stored = await AsyncStorage.getItem('notificationsEnabled');
+      setNotificationsEnabled(stored !== 'false');
+    };
+    loadNotifications();
+  }, []);
+
+  const handleToggleNotifications = async () => {
+    if (notificationsEnabled) {
+      setNotificationsEnabled(false);
+      await AsyncStorage.setItem('notificationsEnabled', 'false');
+      await cancelTurnoNotifications();
+      return;
+    }
+
+    const granted = await requestNotificationPermission();
+    if (granted) {
+      setNotificationsEnabled(true);
+      await AsyncStorage.setItem('notificationsEnabled', 'true');
+    }
   };
 
   const handleLogout = async () => {
@@ -27,41 +54,70 @@ const SettingsScreen: React.FC = () => {
       console.error('Error logging out: ', error);
     }
   };
-  console.log('version', dark); 
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
-      <View style={styles.menu}>
-        <View style={styles.menuItem}>
-          <Text style={[styles.menuText, { color: colors.text }]}>Theme</Text>
-          <AnimatedToggleSwitch  isOn={isDarkTheme} onToggle={handleToggleTheme} />
+      <Text style={[styles.title, { color: colors.text }]}>Configuracion</Text>
+
+      <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Preferencias</Text>
+        <View style={[styles.row, { borderBottomColor: colors.border }]}>
+          <View style={styles.rowLeft}>
+            <Icon name="theme-light-dark" size={22} color={colors.text} />
+            <Text style={[styles.rowText, { color: colors.text }]}>Tema</Text>
+          </View>
+          <AnimatedToggleSwitch isOn={isDarkTheme} onToggle={handleToggleTheme} />
         </View>
-        <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('EditProfile')}>
-          <Icon name="account-edit" size={24} color={colors.text} />
-          <Text style={[styles.menuText, { color: colors.text }]}>Editar perfil</Text>
+        <View style={[styles.row, { borderBottomColor: colors.border }]}>
+          <View style={styles.rowLeft}>
+            <Icon name="bell-outline" size={22} color={colors.text} />
+            <Text style={[styles.rowText, { color: colors.text }]}>Notificaciones</Text>
+          </View>
+          <AnimatedToggleSwitch isOn={notificationsEnabled} onToggle={handleToggleNotifications} />
+        </View>
+      </View>
+
+      <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Cuenta</Text>
+        <TouchableOpacity style={[styles.row, { borderBottomColor: colors.border }]} onPress={() => navigation.navigate('EditProfile')}>
+          <View style={styles.rowLeft}>
+            <Icon name="account-edit" size={22} color={colors.text} />
+            <Text style={[styles.rowText, { color: colors.text }]}>Editar perfil</Text>
+          </View>
+          <Icon name="chevron-right" size={24} color={colors.text} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('ReportProblem')}>
-          <Icon name="alert-circle" size={24} color={colors.text} />
-          <Text style={[styles.menuText, { color: colors.text }]}>Reporte</Text>
+        <TouchableOpacity style={[styles.row, { borderBottomColor: colors.border }]} onPress={() => navigation.navigate('ReportProblem')}>
+          <View style={styles.rowLeft}>
+            <Icon name="alert-circle" size={22} color={colors.text} />
+            <Text style={[styles.rowText, { color: colors.text }]}>Reportar problema</Text>
+          </View>
+          <Icon name="chevron-right" size={24} color={colors.text} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Help')}>
-          <Icon name="help-circle-outline" size={24} color={colors.text} />
-          <Text style={[styles.menuText, { color: colors.text }]}>Ayuda</Text>
+        <TouchableOpacity style={styles.row} onPress={() => navigation.navigate('Help')}>
+          <View style={styles.rowLeft}>
+            <Icon name="help-circle-outline" size={22} color={colors.text} />
+            <Text style={[styles.rowText, { color: colors.text }]}>Ayuda</Text>
+          </View>
+          <Icon name="chevron-right" size={24} color={colors.text} />
         </TouchableOpacity>
+      </View>
+
+      <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Sesion</Text>
         {loading ? (
-          <View style={styles.menuItem}>
-            <ActivityIndicator size="large" color="#007bff" />
+          <View style={styles.row}>
+            <ActivityIndicator size="large" color={colors.primary} />
           </View>
         ) : (
-          <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
-            <Icon name="logout" size={24} color={colors.error} />
-            <Text style={[styles.menuText, { color: colors.error }]}>Cerrar sesion</Text>
+          <TouchableOpacity style={styles.logoutRow} onPress={handleLogout}>
+            <Icon name="logout" size={22} color={colors.error} />
+            <Text style={[styles.rowText, { color: colors.error }]}>Cerrar sesion</Text>
           </TouchableOpacity>
         )}
       </View>
-      <View style={styles.versionContainer}>
-        <Text style={[styles.versionText, { color: colors.text }]}>Versión {DeviceInfo.getVersion()}</Text>
+
+      <View style={[styles.versionContainer, { borderTopColor: colors.border }]}>
+        <Text style={[styles.versionText, { color: colors.text }]}>Version {DeviceInfo.getVersion()}</Text>
       </View>
     </View>
   );
@@ -75,38 +131,51 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: 12,
   },
-  menu: {
-    flex: 1,
+  section: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 14,
   },
-  menuItem: {
-   
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+    opacity: 0.9,
+  },
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 15,
+    justifyContent: 'space-between',
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
   },
-  menuText: {
-    flex: 1,
-    marginLeft: 20,
-    marginRight: 'auto',
+  rowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  rowText: {
     fontSize: 15,
-    color: '#333',
+  },
+  logoutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
   },
   versionContainer: {
-    
-    justifyContent: 'center',
-    width: '100%',
-    paddingVertical: 10,
+    marginTop: 'auto',
+    paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#ccc',
   },
   versionText: {
-    fontSize: 14,
-    
+    fontSize: 13,
+    textAlign: 'center',
+    opacity: 0.85,
   },
 });

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, Button, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
+import { useTheme } from '../context/ThemeContext';
 
 export default function PickerTurno({
   value,
@@ -12,11 +13,13 @@ export default function PickerTurno({
   label?: string
 }) {
   const [show, setShow] = useState(false);
+  const { theme } = useTheme();
+  const { colors } = theme;
 
   return (
-    <View style={{ marginBottom: 12 }}>
-      <TouchableOpacity style={styles.input} onPress={() => setShow(true)}>
-        <Text style={{ color: value ? '#222' : '#888' }}>
+    <View style={styles.container}>
+      <TouchableOpacity style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border }]} onPress={() => setShow(true)}>
+        <Text style={{ color: value ? colors.text : colors.placeholderText }}>
           {value
             ? value.toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short' })
             : label}
@@ -40,13 +43,14 @@ export default function PickerTurno({
 }
 
 const styles = StyleSheet.create({
+  container: {
+    marginBottom: 12,
+  },
   input: {
-    backgroundColor: '#f1f1f1',
-    borderRadius: 6,
-    paddingVertical: 14,
-    paddingHorizontal: 10,
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     marginBottom: 4,
-    borderColor: '#ccc',
     borderWidth: 1,
   },
 });

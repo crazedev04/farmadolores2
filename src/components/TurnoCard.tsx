@@ -72,12 +72,20 @@ const TurnoCard: React.FC<TurnoCardProps> = ({ item, onPress }) => {
     );
   };
 
+  const handlePress = () => {
+    if (onPress) {
+      onPress(item);
+      return;
+    }
+    navigation.navigate('Detail', { farmacia: item });
+  };
+
   return (
     <TouchableOpacity
-      onPress={() =>  navigation.navigate('Detail', { farmacia: item })}
+      onPress={handlePress}
       activeOpacity={0.88}
     >
-      <View style={[styles.card, { backgroundColor: colors.card, shadowColor:'#000' }]}>
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, shadowColor:'#000' }]}>
         <Image source={{ uri: item.detail || item.image }} style={styles.image} />
         <View style={styles.infoContainer}>
           <Text style={[styles.title, { color: colors.text }]}>{item.name}</Text>
@@ -100,42 +108,44 @@ export default TurnoCard;
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 12,
-    shadowOpacity: 0.13,
+    borderRadius: 16,
+    borderWidth: 1,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 5,
-    margin: 14,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+    marginHorizontal: 16,
+    marginVertical: 10,
     overflow: 'hidden',
   },
   image: {
     width: '100%',
-    height: 200,
-    backgroundColor: '#e6e6e6',
+    height: 190,
+    backgroundColor: '#0F172A',
   },
   infoContainer: {
     padding: 16,
   },
   title: {
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 7,
   },
   info: {
-    fontSize: 15,
+    fontSize: 14,
     marginBottom: 4,
   },
   subTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
   },
   turnoBadge: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    borderRadius: 6,
-    paddingVertical: 5,
-    paddingHorizontal: 11,
+    top: 12,
+    right: 12,
+    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
     shadowColor: '#000',
     shadowOpacity: 0.13,
     shadowRadius: 6,
@@ -144,7 +154,7 @@ const styles = StyleSheet.create({
   turnoText: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: 14,
-    letterSpacing: 1.2,
+    fontSize: 12,
+    letterSpacing: 0.8,
   },
 });

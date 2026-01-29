@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { BannerAd, BannerAdSize, BannerAdProps } from 'react-native-google-mobile-ads';
+import { BannerAd, BannerAdProps } from 'react-native-google-mobile-ads';
 
 interface AdBannerProps {
   size: BannerAdProps['size'];

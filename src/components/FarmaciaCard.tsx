@@ -65,39 +65,40 @@ const statusStyles = StyleSheet.create({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 5,
-    margin: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+    marginHorizontal: 16,
+    marginVertical: 10,
     overflow: 'hidden',
     position: 'relative',
   },
   image: {
     width: '100%',
-    height: 200,
-    backgroundColor: '#eee',
+    height: 190,
+    backgroundColor: '#0F172A',
   },
   infoContainer: {
-    padding: 20,
+    padding: 16,
   },
   title: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 10,
   },
   info: {
-    fontSize: 16,
+    fontSize: 14,
     marginBottom: 5,
   },
   statusBadge: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    borderRadius: 5,
-    paddingVertical: 5,
+    top: 12,
+    right: 12,
+    borderRadius: 8,
+    paddingVertical: 4,
     paddingHorizontal: 10,
   },
   statusText: {
@@ -131,12 +132,18 @@ const FarmaciaCard: React.FC<FarmaciaCardProps> = ({ item, onPress }) => {
     return () => clearInterval(intervalId);
   }, [horarios]);
 
+  const handlePress = () => {
+    if (onPress) {
+      onPress(item);
+      return;
+    }
+    navigation.navigate('Detail', { farmacia: item });
+  };
+
   return (
-    <TouchableOpacity
-      onPress={() =>  navigation.navigate('Detail', { farmacia: item })}
-    >
-      <View style={[styles.card, { backgroundColor: colors.card }]}>
-        <Image source={{ uri: detail }} style={styles.image} />
+    <TouchableOpacity onPress={handlePress}>
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, shadowColor: colors.dark ? '#000' : '#000' }]}>
+        <Image source={{ uri: item.image || detail }} style={styles.image} />
         <View style={styles.infoContainer}>
           <Text style={[styles.title, { color: colors.text }]}>{name}</Text>
           <Text style={[styles.info, { color: colors.text }]}>Dirección: {dir}</Text>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, FlatList, StyleSheet, TouchableWithoutFeedback, useWindowDimensions } from 'react-native';
+import { FlatList, StyleSheet, TouchableWithoutFeedback, useWindowDimensions } from 'react-native';
 import Animated, {
   AnimatedRef,
   SharedValue,
@@ -8,10 +8,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { useNavigation } from '@react-navigation/native';
 import { OnboardingData } from './data';
-import { NavigationProp } from '@react-navigation/native';
-import { RootStackParamList } from '../types/navigationTypes';
 import { requestPermissions } from '../components/Permissions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -25,8 +22,6 @@ type Props = {
 
 const CustomButton = ({ flatListRef, flatListIndex, dataLength, x, setIsFirstLaunch }: Props) => {
   const { width: SCREEN_WIDTH } = useWindowDimensions();
-  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-
   const handleContinue = async () => {
     if (flatListIndex.value < dataLength - 1) {
       flatListRef.current?.scrollToIndex({ index: flatListIndex.value + 1 });

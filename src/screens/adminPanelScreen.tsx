@@ -11,15 +11,15 @@ const AdminPanelScreen: React.FC = () => {
   const colors = theme.colors
   return (
     <View style={[{backgroundColor: colors.background},styles.container]}>
-      <Text style={styles.title}>Panel de Administración</Text>
+      <Text style={[styles.title, { color: colors.primary }]}>Panel de Administración</Text>
       <TouchableOpacity
-        style={styles.button}
+        style={[styles.button, { backgroundColor: colors.buttonBackground }]}
         onPress={() => navigation.navigate('ActualizarHorarios')}
       >
         <Text style={styles.buttonText}>Actualizar Horarios</Text>
       </TouchableOpacity>
       <TouchableOpacity
-        style={styles.button}
+        style={[styles.button, { backgroundColor: colors.buttonBackground }]}
         onPress={() => navigation.navigate('ActualizarTurnos')}
       >
         <Text style={styles.buttonText}>Actualizar Turnos</Text>
@@ -35,23 +35,20 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    //backgroundColor: '#f8f9fa',
     padding: 32,
   },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 32,
-    color: '#2d6cdf'
+    marginBottom: 20,
   },
   button: {
-    backgroundColor: '#2d6cdf',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 8,
-    marginVertical: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 12,
+    marginVertical: 10,
     minWidth: 220,
-    alignItems: 'center'
+    alignItems: 'center',
   },
   buttonText: {
     color: '#fff',

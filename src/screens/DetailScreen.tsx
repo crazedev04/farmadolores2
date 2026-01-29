@@ -4,7 +4,6 @@ import { RouteProp, useRoute } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../context/ThemeContext';
 import MapView, { Marker } from 'react-native-maps';
-import { GeoPoint } from 'firebase/firestore';
 import AdBanner from '../components/ads/AdBanner';
 import { BannerAdSize } from 'react-native-google-mobile-ads';
 
@@ -14,7 +13,7 @@ function capitalize(str: string) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-// --- Tabla de horarios, full theme ---
+// Tabla de horarios, full theme
 function HorarioTable({ horarios }: { horarios?: any }) {
   const { theme } = useTheme();
   const { colors } = theme;
@@ -65,10 +64,8 @@ const DetailScreen = () => {
   const route = useRoute<DetailScreenRouteProp>();
   const { farmacia } = route.params;
 
-  let latitude = 0, longitude = 0;
-  if (farmacia.gps && typeof farmacia.gps.toJSON === 'function') {
-    ({ latitude, longitude } = farmacia.gps.toJSON());
-  }
+  const latitude = farmacia.gps?.latitude ?? 0;
+  const longitude = farmacia.gps?.longitude ?? 0;
 
   const makeCall = (phoneNumber: string) => {
     Linking.openURL(`tel:${phoneNumber}`);
@@ -79,8 +76,8 @@ const DetailScreen = () => {
   return (
     <>
       <ScrollView contentContainerStyle={[{ backgroundColor: colors.background }, styles.container]}>
-        <Image source={{ uri: farmacia.image }} style={[styles.image, { borderColor: colors.border }]} />
-        <View style={[styles.card, { backgroundColor: colors.card, shadowColor: '#000' }]}>
+        <Image source={{ uri: farmacia.image || farmacia.detail }} style={[styles.image, { borderColor: colors.border }]} />
+        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, shadowColor: '#000' }]}>
           <Text style={[styles.title, { color: colors.text }]}>{farmacia.name}</Text>
           <Text style={[styles.info, { color: colors.text }]}>Dirección: {farmacia.dir}</Text>
           <TouchableOpacity onPress={() => makeCall(farmacia.tel)}>
@@ -92,15 +89,15 @@ const DetailScreen = () => {
           ) : (
             <>
               <Text style={[styles.info, { color: colors.text }]}>
-                Mañana: {farmacia.horarioAperturaMañana?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {farmacia.horarioCierreMañana?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                Mañana: {farmacia.horarioAperturaMañana?.toDate?.().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || '-'} - {farmacia.horarioCierreMañana?.toDate?.().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || '-'}
               </Text>
               <Text style={[styles.info, { color: colors.text }]}>
-                Tarde: {farmacia.horarioAperturaTarde?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {farmacia.horarioCierreTarde?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                Tarde: {farmacia.horarioAperturaTarde?.toDate?.().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || '-'} - {farmacia.horarioCierreTarde?.toDate?.().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || '-'}
               </Text>
             </>
           )}
         </View>
-        {latitude && longitude && (
+        {latitude !== 0 && longitude !== 0 && (
           <View style={[styles.mapContainer, { borderColor: colors.border }]}>
             <MapView
               style={styles.map}
@@ -134,43 +131,44 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '100%',
-    height: 300,
-    borderRadius: 18,
-    marginBottom: 22,
-    borderWidth: 1.5,
+    height: 260,
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 1,
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.13,
-    shadowRadius: 7,
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
   },
   card: {
-    borderRadius: 14,
-    padding: 22,
-    marginBottom: 22,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 18,
+    marginBottom: 18,
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.09,
-    shadowRadius: 7,
-    elevation: 6,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
   },
   title: {
-    fontSize: 25,
+    fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 8,
   },
   subTitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
   },
   info: {
-    fontSize: 17,
+    fontSize: 14,
     marginBottom: 4,
   },
   mapContainer: {
-    height: Dimensions.get('window').height * 0.29,
+    height: Dimensions.get('window').height * 0.26,
     borderRadius: 13,
     overflow: 'hidden',
     marginTop: 10,
-    marginBottom: 24,
+    marginBottom: 18,
     borderWidth: 1,
   },
   map: {

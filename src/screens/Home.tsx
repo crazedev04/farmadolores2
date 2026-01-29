@@ -2,7 +2,6 @@ import React from 'react';
 import { StatusBar, StyleSheet, Text, TouchableOpacity, View, ScrollView } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import Turno from '../components/Turno';
-import AdScreen from '../components/ads/AdScreen';
 import AdBanner from '../components/ads/AdBanner';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -59,7 +58,6 @@ const Home = () => {
         </View>
         {/* Puedes poner más cosas abajo si quieres */}
       </ScrollView>
-      <AdScreen />
     </SafeAreaView>
   );
 };
@@ -76,15 +74,17 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   button: {
-    width: '95%',
-    borderRadius: 10,
-    padding: 15,
+    width: '92%',
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
     alignItems: 'center',
     marginTop: 20,
-    elevation: 5,
+    borderWidth: 1,
+    elevation: 2,
   },
   buttonText: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: 'bold',
   },
 });

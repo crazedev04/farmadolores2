@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Linking, FlatList } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import AdBanner from '../components/ads/AdBanner';
 import { BannerAdSize } from 'react-native-google-mobile-ads';
@@ -158,6 +158,10 @@ const PrimerosAuxilios = () => {
         data={guides}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <RenderItem item={item} />}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        removeClippedSubviews
         />
     </View>
     <AdBanner size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER} />

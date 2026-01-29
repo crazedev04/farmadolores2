@@ -3,7 +3,9 @@ import { checkAndNotifyTurnos } from './src/services/TurnoService';
 
 // Headless task invoked when the app is terminated.
 const BackgroundFetchHeadlessTask = async (event: any) => {
-  console.log('[BackgroundFetch HeadlessTask] start');
+  if (__DEV__) {
+    console.log('[BackgroundFetch HeadlessTask] start');
+  }
   try {
     await checkAndNotifyTurnos();
   } finally {

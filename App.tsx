@@ -4,7 +4,6 @@ import { StatusBar, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 // Tu navegación y contextos
-import { NavigationContainer } from '@react-navigation/native';
 import { AuthContextProvider } from './src/context/AuthContext';
 import AppNavigator from './src/screens/AppNavigator';
 
@@ -14,15 +13,13 @@ import AppNavigator from './src/screens/AppNavigator';
 import BackgroundFetch from 'react-native-background-fetch';
 // Importamos la función que hace el chequeo y la notificación
 import { checkAndNotifyTurnos } from './src/services/TurnoService'; 
-import { ThemeContextProvider,useTheme } from './src/context/ThemeContext';
+import { ThemeContextProvider, useTheme } from './src/context/ThemeContext';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { PharmacyProvider } from './src/context/PharmacyContext';
 
-
-const App = () => {
-
-
-  const {theme} = useTheme()
-  const {colors,dark} = theme;
+const AppContent = () => {
+  const { theme } = useTheme();
+  const { colors, dark } = theme;
   const style = StyleSheet.create({
     container: {
       flex: 1,
@@ -42,15 +39,18 @@ const App = () => {
           requiredNetworkType: BackgroundFetch.NETWORK_TYPE_ANY,
         },
         async (taskId) => {
-          console.log('[BackgroundFetch] Task start:', taskId);
+          if (__DEV__) {
+            console.log('[BackgroundFetch] Task start:', taskId);
+          }
           // Llamamos a nuestra lógica para revisar turnos y programar notificaciones
           await checkAndNotifyTurnos();
-          console.log('solicitando notificasion')
           // MUY IMPORTANTE: marcar la tarea como finalizada
           BackgroundFetch.finish(taskId);
         },
         (error) => {
-          console.log('[BackgroundFetch] configure error:', error);
+          if (__DEV__) {
+            console.log('[BackgroundFetch] configure error:', error);
+          }
         },
       );
 
@@ -62,20 +62,28 @@ const App = () => {
   }, []);
 
   return (
+    <SafeAreaView style={style.container} edges={['top', 'bottom']}>
+      <StatusBar
+        barStyle={dark ? 'light-content' : 'dark-content'}
+        backgroundColor={colors.background} // Cambia el color de fondo del StatusBar
+      />
+      {/* Navegación principal */}
+      <AppNavigator />
+    </SafeAreaView>
+  );
+};
+
+const App = () => {
+  return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-      <AuthContextProvider>
         <ThemeContextProvider>
-        <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-          <StatusBar
-            barStyle={dark ? 'light-content' : 'dark-content'}
-            backgroundColor={colors.background} // Cambia el color de fondo del StatusBar
-          />
-          {/* Navegación principal */}
-        <AppNavigator />
-          </SafeAreaView>
+          <AuthContextProvider>
+            <PharmacyProvider>
+              <AppContent />
+            </PharmacyProvider>
+          </AuthContextProvider>
         </ThemeContextProvider>
-      </AuthContextProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

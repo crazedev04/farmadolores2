@@ -1,21 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import firestore, { FirebaseFirestoreTypes, GeoPoint } from '@react-native-firebase/firestore';
-import { DateTime } from 'luxon';
-
-type Farmacia = {
-  id: string;
-  name: string;
-  dir: string;
-  tel: string;
-  horarioAperturaMañana: string;
-  horarioCierreMañana: string;
-  horarioAperturaTarde: string;
-  horarioCierreTarde: string;
-  image: string;
-  detail: string;
-  turn: FirebaseFirestoreTypes.Timestamp[];
-  gps: GeoPoint;
-};
+import firestore from '@react-native-firebase/firestore';
+import { Farmacia } from '../types/navigationTypes';
 
 type PharmacyContextType = {
   farmacias: Farmacia[];
@@ -36,7 +21,7 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
       .onSnapshot(
         snapshot => {
           const fetchedFarmacias: Farmacia[] = snapshot.docs.map(doc => {
-            const data = doc.data() as Farmacia;  // Ajusta tipo si hace falta
+            const data = doc.data() as Farmacia;
             return { ...data, id: doc.id };
           });
 

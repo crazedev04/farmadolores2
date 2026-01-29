@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, FlatList, Image, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, FlatList, ActivityIndicator, Text } from 'react-native';
 import React, { useState, useEffect } from 'react';
 import firestore, { GeoPoint } from '@react-native-firebase/firestore';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
@@ -14,7 +14,7 @@ type Emergencia = {
   tel: string;
   image: string;
   detail: string;
-  gps: GeoPoint;
+  gps?: GeoPoint;
 };
 
 
@@ -29,6 +29,8 @@ const Emergencias: React.FC<Props> = () => {
   const navigation = useNavigation<EmergenciasNavigationProp>();
   const [emergencias, setEmergencias] = useState<Emergencia[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const { theme } = useTheme();
+  const { colors } = theme;
 
   useEffect(() => {
     const unsubscribe = firestore().collection('emergencias').onSnapshot(snapshot => {
@@ -41,7 +43,7 @@ const Emergencias: React.FC<Props> = () => {
           tel: data.tel || '',
           image: data.image || '',
           detail: data.detail || '',
-          gps: data.gps || '',
+          gps: data.gps,
         };
       });
 
@@ -55,23 +57,32 @@ const Emergencias: React.FC<Props> = () => {
   }, []);
 
   const handlePress = (item: Emergencia) => {
-    navigation.navigate('DetailScreen', item);
+    navigation.navigate('DetailE', { emergencia: item });
   };
 
   if (loading) {
-    return <ActivityIndicator size="large" color="#0000ff" />;
+    return <ActivityIndicator size="large" color={colors.primary} />;
   }
 
   return (
     <>
     <AdBanner size={BannerAdSize.FULL_BANNER} />
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <FlatList
         data={emergencias}
         renderItem={({ item }) => <EmergenciaCard item={item} onPress={handlePress} />}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <Text style={[styles.emptyText, { color: colors.text }]}>
+            No hay emergencias disponibles.
+          </Text>
+        }
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        removeClippedSubviews
         />
     </View>
         </>
@@ -86,7 +97,7 @@ const styles = StyleSheet.create({
     
   },
   listContainer: {
-    padding: 20,
+    paddingVertical: 6,
   },
   card: {
     backgroundColor: '#fff',
@@ -114,5 +125,10 @@ const styles = StyleSheet.create({
   info: {
     fontSize: 16,
     marginBottom: 5,
+  },
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 40,
+    fontSize: 16,
   },
 });

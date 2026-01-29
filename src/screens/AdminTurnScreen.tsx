@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Alert, FlatList, ScrollView
+  ActivityIndicator, Alert, ScrollView
 } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import PickerTurno from '../components/PikerTurno'; // Cambia ruta si es necesario
@@ -19,8 +19,9 @@ const AdminCambiarTurnoFarmacia: React.FC = () => {
   const [farmaciaSeleccionada, setFarmaciaSeleccionada] = useState<Farmacia | null>(null);
   const [turnos, setTurnos] = useState<(Date | null)[]>([]);
   const [loading, setLoading] = useState(false);
-  const {theme} = useTheme()
-  const colors = theme
+  const [turnoFilter, setTurnoFilter] = useState<'all' | 'future' | 'past'>('future');
+  const { theme } = useTheme();
+  const colors = theme.colors;
 
   // Buscar farmacias por nombre (mayúscula)
   const buscarFarmaciasPorNombre = async (nombre: string) => {
@@ -76,6 +77,19 @@ const AdminCambiarTurnoFarmacia: React.FC = () => {
   const removeTurno = (idx: number) =>
     setTurnos(prev => prev.filter((_, i) => i !== idx));
 
+  const now = new Date();
+  const filteredTurnos = useMemo(() => {
+    const normalized = turnos.filter(Boolean) as Date[];
+    const sorted = normalized.sort((a, b) => a.getTime() - b.getTime());
+    if (turnoFilter === 'future') {
+      return sorted.filter(t => t.getTime() >= now.getTime());
+    }
+    if (turnoFilter === 'past') {
+      return sorted.filter(t => t.getTime() < now.getTime());
+    }
+    return sorted;
+  }, [turnos, turnoFilter, now]);
+
   // Guardar todos los turnos en Firebase
   const guardarTurnos = async () => {
     if (!farmaciaSeleccionada) {
@@ -101,11 +115,15 @@ const AdminCambiarTurnoFarmacia: React.FC = () => {
   };
 
   return (
-    <ScrollView contentContainerStyle={[{backgroundColor: colors.background},styles.scrollContainer]}>
-      <View style={styles.form}>
-        <Text style={styles.titulo}>Editar turnos de una farmacia</Text>
+    <ScrollView contentContainerStyle={[{ backgroundColor: colors.background }, styles.scrollContainer]}>
+      <View style={[styles.form, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.titulo, { color: colors.text }]}>Editar turnos de una farmacia</Text>
+        <Text style={[styles.subTitle, { color: colors.mutedText || colors.placeholderText }]}>
+          Buscá por nombre y ajustá los turnos. Podés filtrar futuros o pasados.
+        </Text>
+
         <TextInput
-          style={styles.inputId}
+          style={[styles.inputId, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]}
           placeholder="Buscar farmacia por nombre"
           value={busqueda}
           onChangeText={text => {
@@ -113,60 +131,103 @@ const AdminCambiarTurnoFarmacia: React.FC = () => {
             buscarFarmaciasPorNombre(text);
           }}
           autoCapitalize="words"
+          placeholderTextColor={colors.placeholderText}
         />
+
+        {!loading && busqueda.length >= 2 && farmacias.length === 0 && (
+          <Text style={[styles.emptyText, { color: colors.mutedText || colors.placeholderText }]}>
+            No hay resultados.
+          </Text>
+        )}
+
         {!loading && farmacias.length > 0 && (
-          <FlatList
-            data={farmacias}
-            keyExtractor={item => item.id}
-            renderItem={({ item }) => (
+          <View style={styles.suggestions}>
+            {farmacias.map(item => (
               <TouchableOpacity
+                key={item.id}
                 style={[
                   styles.suggestionItem,
+                  { borderColor: colors.border, backgroundColor: colors.inputBackground },
                   farmaciaSeleccionada?.id === item.id && styles.suggestionItemActive
                 ]}
                 onPress={() => handleSelectFarmacia(item)}
               >
                 <Text style={{
-                  color: farmaciaSeleccionada?.id === item.id ? '#fff' : '#333'
+                  color: farmaciaSeleccionada?.id === item.id ? '#fff' : colors.text
                 }}>
                   {item.name.charAt(0).toUpperCase() + item.name.slice(1)}
                 </Text>
               </TouchableOpacity>
-            )}
-            style={{ maxHeight: 140, marginBottom: 12 }}
-          />
+            ))}
+          </View>
         )}
         {loading && <ActivityIndicator style={{ marginVertical: 8 }} />}
+
         {farmaciaSeleccionada && (
           <View style={{ marginBottom: 16 }}>
-            <Text style={{
-              color: '#28a745', fontWeight: 'bold', fontSize: 16, marginBottom: 8
-            }}>
+            <Text style={[styles.selected, { color: colors.success }]}>
               Farmacia seleccionada: {farmaciaSeleccionada.name.charAt(0).toUpperCase() + farmaciaSeleccionada.name.slice(1)}
             </Text>
-            <Text style={{ marginBottom: 4, color: '#2d6cdf', fontWeight: 'bold' }}>
-              Turnos:
-            </Text>
-            {turnos.map((fecha, idx) => (
-              <View key={idx} style={styles.turnoRow}>
+
+            <View style={styles.filterRow}>
+              {(['all', 'future', 'past'] as const).map(option => (
+                <TouchableOpacity
+                  key={option}
+                  style={[
+                    styles.filterChip,
+                    { borderColor: colors.border, backgroundColor: colors.card },
+                    turnoFilter === option && { backgroundColor: colors.buttonBackground },
+                  ]}
+                  onPress={() => setTurnoFilter(option)}
+                >
+                  <Text style={[
+                    styles.filterText,
+                    { color: turnoFilter === option ? colors.buttonText : colors.text }
+                  ]}>
+                    {option === 'all' ? 'Todos' : option === 'future' ? 'Futuros' : 'Pasados'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Turnos</Text>
+            {filteredTurnos.length === 0 && (
+              <Text style={[styles.emptyText, { color: colors.mutedText || colors.placeholderText }]}>
+                No hay turnos para mostrar con este filtro.
+              </Text>
+            )}
+
+            {filteredTurnos.map((fecha, idx) => (
+              <View key={`${fecha.toISOString()}-${idx}`} style={styles.turnoRow}>
                 <PickerTurno
                   value={fecha}
-                  onChange={date => setTurno(idx, date)}
+                  onChange={date => {
+                    const originalIndex = turnos.findIndex(t => t?.getTime?.() === fecha.getTime());
+                    if (originalIndex >= 0) {
+                      setTurno(originalIndex, date);
+                    }
+                  }}
                   label="Seleccionar fecha y hora"
                 />
                 <TouchableOpacity
                   style={styles.deleteBtn}
-                  onPress={() => removeTurno(idx)}
+                  onPress={() => {
+                    const originalIndex = turnos.findIndex(t => t?.getTime?.() === fecha.getTime());
+                    if (originalIndex >= 0) {
+                      removeTurno(originalIndex);
+                    }
+                  }}
                 >
                   <Text style={{ color: '#fff', fontWeight: 'bold' }}>🗑</Text>
                 </TouchableOpacity>
               </View>
             ))}
+
             <TouchableOpacity style={styles.addBtn} onPress={addTurno}>
-              <Text style={{ color: '#2d6cdf', fontWeight: 'bold' }}>+ Agregar turno</Text>
+              <Text style={{ color: colors.buttonBackground, fontWeight: 'bold' }}>+ Agregar turno</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
+              style={[styles.button, { backgroundColor: colors.buttonBackground }, loading && styles.buttonDisabled]}
               onPress={guardarTurnos}
               disabled={loading}
             >
@@ -182,37 +243,74 @@ const AdminCambiarTurnoFarmacia: React.FC = () => {
 const styles = StyleSheet.create({
   scrollContainer: { paddingBottom: 32 },
   form: {
-    //backgroundColor: '#f8f9fa',
     borderRadius: 12,
     margin: 16,
     padding: 16,
-    elevation: 3,
+    elevation: 2,
+    borderWidth: 1,
   },
   titulo: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 16,
+    marginBottom: 6,
     textAlign: 'center',
     color: '#333',
   },
+  subTitle: {
+    textAlign: 'center',
+    fontSize: 13,
+    marginBottom: 12,
+  },
   inputId: {
-    backgroundColor: '#fff',
     borderRadius: 6,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    borderColor: '#ccc',
     borderWidth: 1,
     marginVertical: 16,
   },
+  suggestions: {
+    maxHeight: 160,
+    marginBottom: 12,
+    gap: 8,
+  },
   suggestionItem: {
     padding: 10,
-    backgroundColor: '#eee',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc'
+    borderWidth: 1,
+    borderRadius: 10,
   },
   suggestionItemActive: {
     backgroundColor: '#2d6cdf',
+  },
+  selected: {
+    fontWeight: 'bold',
+    fontSize: 15,
+    marginBottom: 10,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  filterChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  filterText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 13,
+    marginBottom: 10,
+    textAlign: 'center',
   },
   turnoRow: {
     flexDirection: 'row',
@@ -230,10 +328,9 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start'
   },
   button: {
-    backgroundColor: '#2d6cdf',
     paddingVertical: 13,
     paddingHorizontal: 18,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
     marginTop: 12,
     minWidth: 120,

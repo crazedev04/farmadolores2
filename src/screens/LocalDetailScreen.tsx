@@ -17,12 +17,14 @@ const LocalDetailScreen: React.FC = () => {
   return (
     <>
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Image source={{ uri: local.image }} style={styles.image} />
-      <Text style={[styles.name, { color: colors.text }]}>{local.name}</Text>
-      <Text style={[styles.descrip, { color: colors.text }]}>{local.descrip}</Text>
-      <Text style={[styles.direccion, { color: colors.text }]}>{local.direccion}</Text>
-      <Text style={[styles.tel, { color: colors.text }]}>{local.tel}</Text>
-      <Button title="Visitar" color={colors.primary} onPress={() => Linking.openURL(local.url)} />
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Image source={{ uri: local.image }} style={styles.image} />
+        <Text style={[styles.name, { color: colors.text }]}>{local.name}</Text>
+        <Text style={[styles.descrip, { color: colors.text }]}>{local.descrip}</Text>
+        <Text style={[styles.direccion, { color: colors.text }]}>{local.direccion}</Text>
+        <Text style={[styles.tel, { color: colors.text }]}>{local.tel}</Text>
+        <Button title="Visitar" color={colors.buttonBackground} onPress={() => Linking.openURL(local.url)} />
+      </View>
     </View>
     <AdBanner size={BannerAdSize.FULL_BANNER} />
     </>
@@ -37,28 +39,34 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: 'center',
   },
+  card: {
+    width: '100%',
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+  },
   image: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    marginBottom: 20,
+    width: '100%',
+    height: 220,
+    borderRadius: 14,
+    marginBottom: 16,
   },
   name: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
   },
   descrip: {
-    fontSize: 16,
+    fontSize: 14,
     textAlign: 'center',
     marginBottom: 10,
   },
   direccion: {
-    fontSize: 16,
+    fontSize: 14,
     textAlign: 'center',
     marginBottom: 10,
   },
   tel: {
-    fontSize: 16,
+    fontSize: 14,
     textAlign: 'center',
     marginBottom: 20,
   },

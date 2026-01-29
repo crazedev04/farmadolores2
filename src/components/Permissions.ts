@@ -1,25 +1,21 @@
 // permissions.ts
 import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import notifee, { AuthorizationStatus } from '@notifee/react-native';
 
 export const requestPermissions = async (): Promise<boolean> => {
   try {
-    // Solicitar permisos de notificación
-    const notificationSettings = await notifee.getNotificationSettings();
-    if (notificationSettings.authorizationStatus !== AuthorizationStatus.AUTHORIZED) {
-      const { authorizationStatus } = await notifee.requestPermission();
-      if (authorizationStatus !== AuthorizationStatus.AUTHORIZED) {
-        Alert.alert('Permiso de notificaciones denegado', 'No se otorgó el permiso para mostrar notificaciones.');
-        return false;
-      }
+    const notificationsGranted = await requestNotificationPermission();
+    if (!notificationsGranted) {
+      return false;
     }
 
-    // Solicitar permisos adicionales
-    const permissions = [
-      PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
-      
-    ];
+    // Solicitar permisos adicionales (ubicación)
+    const permissions = Platform.select({
+      android: [PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION],
+      ios: [PERMISSIONS.IOS.LOCATION_WHEN_IN_USE],
+      default: [],
+    }) || [];
 
     for (const permission of permissions) {
       const status = await check(permission);
@@ -35,6 +31,35 @@ export const requestPermissions = async (): Promise<boolean> => {
     return true;
   } catch (error) {
     console.error('Error solicitando permisos:', error);
+    return false;
+  }
+};
+
+export const requestNotificationPermission = async (): Promise<boolean> => {
+  try {
+    const notificationSettings = await notifee.getNotificationSettings();
+    if (notificationSettings.authorizationStatus !== AuthorizationStatus.AUTHORIZED) {
+      const { authorizationStatus } = await notifee.requestPermission();
+      if (authorizationStatus !== AuthorizationStatus.AUTHORIZED) {
+        Alert.alert('Permiso de notificaciones denegado', 'No se otorgó el permiso para mostrar notificaciones.');
+        return false;
+      }
+    }
+
+    if (Platform.OS === 'android' && PERMISSIONS.ANDROID.POST_NOTIFICATIONS) {
+      const status = await check(PERMISSIONS.ANDROID.POST_NOTIFICATIONS);
+      if (status !== RESULTS.GRANTED) {
+        const requestStatus = await request(PERMISSIONS.ANDROID.POST_NOTIFICATIONS);
+        if (requestStatus !== RESULTS.GRANTED) {
+          Alert.alert('Permiso denegado', 'No se otorgó el permiso para notificaciones.');
+          return false;
+        }
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error solicitando permisos de notificaciones:', error);
     return false;
   }
 };

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Button, PermissionsAndroid, Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Carousel from 'react-native-reanimated-carousel';
@@ -38,7 +38,6 @@ const WelcomeScreen: React.FC = () => {
 
   const handleContinue = async () => {
     if (currentSlide === slides.length - 1) {
-        console.log(slides.length)
       const permissionsGranted = await requestPermissions();
       if (!permissionsGranted) {
         Alert.alert("Permissions not granted", "You need to grant all permissions to proceed.");

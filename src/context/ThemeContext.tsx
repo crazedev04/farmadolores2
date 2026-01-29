@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ThemeProvider as NavigationThemeProvider, DefaultTheme as NavDefaultTheme, DarkTheme as NavDarkTheme, Theme as NavTheme } from '@react-navigation/native';
+import { DefaultTheme as NavDefaultTheme, DarkTheme as NavDarkTheme, Theme as NavTheme } from '@react-navigation/native';
 import { lightTheme, darkTheme } from '../theme';
 
 type ThemeType = typeof lightTheme;
@@ -23,9 +23,9 @@ const ThemeContext = createContext<ThemeContextType>({
   toggleTheme: () => {},
   resetTheme: () => {},
   navigationTheme: {
-    ...NavDefaultTheme,
-    colors: { ...NavDefaultTheme.colors, ...themes.light.colors },
-    fonts: NavDefaultTheme.fonts,
+    ...NavDarkTheme,
+    colors: { ...NavDarkTheme.colors, ...themes.dark.colors },
+    fonts: NavDarkTheme.fonts,
   },
 });
 
@@ -39,7 +39,7 @@ export const ThemeContextProvider: React.FC<{ children: ReactNode }> = ({ childr
   useEffect(() => {
     (async () => {
       const saved = await AsyncStorage.getItem(STORAGE_KEY);
-      setTheme(saved === 'dark' ? themes.dark : themes.light);
+      setTheme(saved === 'light' ? themes.light : themes.dark);
     })();
   }, []);
 
@@ -51,7 +51,7 @@ export const ThemeContextProvider: React.FC<{ children: ReactNode }> = ({ childr
   };
 
   const resetTheme = async () => {
-    setTheme(themes.light);
+    setTheme(themes.dark);
     await AsyncStorage.removeItem(STORAGE_KEY);
   };
 

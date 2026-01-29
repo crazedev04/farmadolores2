@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TouchableOpacity, Alert, Text, ActivityIndicator, StyleSheet, View, TextInput, ScrollView, FlatList } from 'react-native';
+import { TouchableOpacity, Alert, Text, ActivityIndicator, StyleSheet, View, TextInput, ScrollView } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import { useTheme } from '../context/ThemeContext';
 
@@ -23,15 +23,11 @@ interface Farmacia {
   name: string;
 }
 
-interface BotonActualizarHorariosTodosProps {
-  visible: boolean;
-}
-
 // Función para poner primera letra en mayúscula
 const capitalizar = (s: string) =>
   s.length === 0 ? '' : s[0].toUpperCase() + s.slice(1).toLowerCase();
 
-export const BotonActualizarHorariosTodos: React.FC<BotonActualizarHorariosTodosProps> = () => {
+export const BotonActualizarHorariosTodos: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [farmaciaNombre, setFarmaciaNombre] = useState('');
   const [farmaciaSeleccionada, setFarmaciaSeleccionada] = useState<Farmacia | null>(null);
@@ -154,11 +150,11 @@ export const BotonActualizarHorariosTodos: React.FC<BotonActualizarHorariosTodos
  
   return (
     <ScrollView contentContainerStyle={[{backgroundColor: colors.background},styles.scrollContainer]}>
-      <View style={styles.form}>
-        <Text style={styles.titulo}>Editar horarios para todos o una farmacia específica</Text>
+      <View style={[styles.form, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.titulo, { color: colors.text }]}>Editar horarios para todos o una farmacia específica</Text>
         {/* Buscador por nombre */}
         <TextInput
-          style={styles.inputId}
+          style={[styles.inputId, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]}
           placeholder="Buscar farmacia por nombre"
           value={farmaciaNombre}
           onChangeText={text => {
@@ -166,6 +162,7 @@ export const BotonActualizarHorariosTodos: React.FC<BotonActualizarHorariosTodos
             buscarFarmaciasPorNombre(text);
           }}
           autoCapitalize="words"
+          placeholderTextColor={colors.placeholderText}
         />
         {/* Sugerencias */}
        {!loading && farmacias.length > 0 && (
@@ -180,7 +177,7 @@ export const BotonActualizarHorariosTodos: React.FC<BotonActualizarHorariosTodos
         onPress={() => setFarmaciaSeleccionada(item)}
       >
         <Text style={{
-          color: farmaciaSeleccionada?.id === item.id ? '#fff' : '#333'
+          color: farmaciaSeleccionada?.id === item.id ? '#fff' : colors.text
         }}>
           {item.name.charAt(0).toUpperCase() + item.name.slice(1)}
         </Text>
@@ -201,23 +198,25 @@ export const BotonActualizarHorariosTodos: React.FC<BotonActualizarHorariosTodos
         {/* Horarios por día y franja */}
         {dias.map(dia => (
           <View key={dia} style={[{backgroundColor: colors.card },styles.diaSection]}>
-            <Text style={styles.diaTitulo}>{capitalizar(dia)}</Text>
+            <Text style={[styles.diaTitulo, { color: colors.primary }]}>{capitalizar(dia)}</Text>
             {horarios[dia].map((franja, idx) => (
               <View key={idx} style={styles.franjaRow}>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]}
                   placeholder="Abre (hh:mm)"
                   value={franja.abre}
                   onChangeText={text => setFranja(dia, idx, 'abre', text)}
                   keyboardType="numeric"
+                  placeholderTextColor={colors.placeholderText}
                 />
                 <Text style={{ fontWeight: 'bold', marginHorizontal: 4 }}>-</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]}
                   placeholder="Cierra (hh:mm)"
                   value={franja.cierra}
                   onChangeText={text => setFranja(dia, idx, 'cierra', text)}
                   keyboardType="numeric"
+                  placeholderTextColor={colors.placeholderText}
                 />
                 <TouchableOpacity
                   onPress={() => removeFranja(dia, idx)}
@@ -266,11 +265,11 @@ const styles = StyleSheet.create({
     paddingBottom: 32
   },
   form: {
-    //backgroundColor: '#f8f9fa',
     borderRadius: 12,
     margin: 16,
     padding: 16,
-    elevation: 3,
+    elevation: 2,
+    borderWidth: 1,
   },
   titulo: {
     fontSize: 18,
@@ -299,20 +298,18 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    backgroundColor: '#e7e7e7',
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 6,
     marginHorizontal: 2,
     fontSize: 15,
+    borderWidth: 1,
   },
   inputId: {
-    backgroundColor: '#fff',
     borderRadius: 6,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    borderColor: '#ccc',
     borderWidth: 1,
     marginVertical: 16,
   },

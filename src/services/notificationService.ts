@@ -49,9 +49,6 @@ export const showNotification = async (
           id: 'default',
           launchActivity: 'default',
         },
-        // Si quieres que suene inmediatamente, aunque sea programada, 
-        // pones el timestamp. Pero usualmente con programadas no hace falta.
-        timestamp: Date.now() + 5 * 1000,
       },
       data: { ...data },
       id: notificationId,

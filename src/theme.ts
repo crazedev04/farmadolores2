@@ -1,45 +1,47 @@
 export const lightTheme = {
   dark: false,
   colors: {
-    primary: '#262626',           // Negro
-    background: '#fafafa',        // Blanco humo
-    card: '#ffffff',              // Blanco
-    text: '#262626',              // Negro
-    border: '#dbdbdb',            // Gris claro
-    notification: '#ed4956',      // Rojo de notificación
-    buttonBackground: '#3897f0',  // Azul para botones principales
-    buttonText: '#ffffff',        // Blanco para texto de botones
-    inputBackground: '#ffffff',   // Blanco para campos de entrada
-    placeholderText: '#999999',   // Gris claro para texto de marcador de posición
-    iconActive: '#262626',        // Negro para iconos activos
-    iconInactive: '#999999',      // Gris para iconos inactivos
-    tabBarBackground: '#ffffff',  // Blanco para el fondo de la barra de pestañas
-    tabBarBorder: '#dbdbdb',      // Gris claro para el borde de la barra de pestañas
-    warning: '#f39c12',           // Amarillo para advertencias
-    error: '#e74c3c',             // Rojo para errores
-    success: '#2ecc71',           // Verde para éxito
+    primary: '#0F172A',
+    background: '#F5F7FA',
+    card: '#FFFFFF',
+    text: '#0F172A',
+    border: '#E2E8F0',
+    notification: '#EF4444',
+    buttonBackground: '#2563EB',
+    buttonText: '#FFFFFF',
+    inputBackground: '#FFFFFF',
+    placeholderText: '#94A3B8',
+    iconActive: '#0F172A',
+    iconInactive: '#94A3B8',
+    tabBarBackground: '#FFFFFF',
+    tabBarBorder: '#E2E8F0',
+    warning: '#F59E0B',
+    error: '#EF4444',
+    success: '#10B981',
+    mutedText: '#64748B',
   },
 };
 
 export const darkTheme = {
   dark: true,
   colors: {
-    primary: '#ffffff',           // Blanco
-    background: '#000000',        // Negro
-    card: '#1c1c1c',              // Negro muy oscuro
-    text: '#ffffff',              // Blanco
-    border: '#333333',            // Gris oscuro
-    notification: '#ed4956',      // Rojo de notificación
-    buttonBackground: '#3897f0',  // Azul para botones principales
-    buttonText: '#ffffff',        // Blanco para texto de botones
-    inputBackground: '#2c2c2c',   // Gris oscuro para campos de entrada
-    placeholderText: '#999999',   // Gris claro para texto de marcador de posición
-    iconActive: '#ffffff',        // Blanco para iconos activos
-    iconInactive: '#999999',      // Gris para iconos inactivos
-    tabBarBackground: '#000000',  // Negro para el fondo de la barra de pestañas
-    tabBarBorder: '#333333',      // Gris oscuro para el borde de la barra de pestañas
-    warning: '#f39c12',           // Amarillo para advertencias
-    error: '#e74c3c',             // Rojo para errores
-    success: '#2ecc71',           // Verde para éxito
+    primary: '#E2E8F0',
+    background: '#0B0F14',
+    card: '#131A22',
+    text: '#E5E7EB',
+    border: '#1F2A37',
+    notification: '#EF4444',
+    buttonBackground: '#3B82F6',
+    buttonText: '#FFFFFF',
+    inputBackground: '#0F172A',
+    placeholderText: '#64748B',
+    iconActive: '#E5E7EB',
+    iconInactive: '#64748B',
+    tabBarBackground: '#0B0F14',
+    tabBarBorder: '#111827',
+    warning: '#F59E0B',
+    error: '#EF4444',
+    success: '#10B981',
+    mutedText: '#94A3B8',
   },
 };

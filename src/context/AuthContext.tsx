@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import firestore from '@react-native-firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { useTheme } from './ThemeContext';
-import { ToastAndroid } from 'react-native';
+import { Alert, Platform, ToastAndroid } from 'react-native';
 
 // Configura Google Sign-In
 GoogleSignin.configure({
@@ -13,7 +14,11 @@ GoogleSignin.configure({
 type AuthContextType = {
   user: FirebaseAuthTypes.User | null;
   isAuth: boolean;
+  role: 'guest' | 'user' | 'admin';
+  isGuest: boolean;
+  isAdmin: boolean;
   loading: boolean;
+  roleLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
@@ -24,10 +29,14 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const {resetTheme, toggleTheme} = useTheme()
+  const { resetTheme } = useTheme();
   const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
   const [isAuth, setIsAuth] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
+  const [role, setRole] = useState<AuthContextType['role']>('guest');
+  const [roleLoading, setRoleLoading] = useState<boolean>(false);
+  const isAdmin = role === 'admin';
+  const isGuest = role === 'guest';
 
   useEffect(() => {
     const checkUser = async () => {
@@ -57,9 +66,39 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const fetchRole = async () => {
+      if (!user) {
+        setRole('guest');
+        setRoleLoading(false);
+        return;
+      }
+      setRoleLoading(true);
+      try {
+        const adminDoc = await firestore().collection('admins').doc(user.uid).get();
+        const isAdminDoc = adminDoc.exists && adminDoc.data()?.role === 'admin';
+        setRole(isAdminDoc ? 'admin' : 'user');
+      } catch (error) {
+        setRole('user');
+      } finally {
+        setRoleLoading(false);
+      }
+    };
+
+    fetchRole();
+  }, [user]);
+
+  const notify = (message: string, long = false) => {
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, long ? ToastAndroid.LONG : ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Aviso', message);
+    }
+  };
+
   const login = async (email: string, password: string) => {
     if (!email || !password) {
-      ToastAndroid.show('Email y contraseña requeridos', ToastAndroid.SHORT);
+      notify('Email y contraseña requeridos');
       return;
     }
 
@@ -67,7 +106,7 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
     try {
       await auth().signInWithEmailAndPassword(email, password);
     } catch (error: any) {
-      ToastAndroid.show(error.message || 'Error iniciando sesión', ToastAndroid.LONG);
+      notify(error.message || 'Error iniciando sesión', true);
       console.error('Login error:', error);
     } finally {
       setLoading(false);
@@ -76,7 +115,7 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const register = async (email: string, password: string) => {
     if (!email || !password) {
-      ToastAndroid.show('Email y contraseña requeridos', ToastAndroid.SHORT);
+      notify('Email y contraseña requeridos');
       return;
     }
 
@@ -84,7 +123,7 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
     try {
       await auth().createUserWithEmailAndPassword(email, password);
     } catch (error: any) {
-      ToastAndroid.show(error.message || 'Error registrando usuario', ToastAndroid.LONG);
+      notify(error.message || 'Error registrando usuario', true);
       console.error('Register error:', error);
     } finally {
       setLoading(false);
@@ -99,7 +138,7 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const googleCredential = auth.GoogleAuthProvider.credential(userInfo?.data?.idToken);
       await auth().signInWithCredential(googleCredential);
     } catch (error: any) {
-      ToastAndroid.show(error.message || 'Error con Google Sign-In', ToastAndroid.LONG);
+      notify(error.message || 'Error con Google Sign-In', true);
       console.error('Google login error:', error);
     } finally {
       setLoading(false);
@@ -112,7 +151,7 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
       await auth().signOut();
       await GoogleSignin.signOut();
     } catch (error: any) {
-      ToastAndroid.show('Error cerrando sesión', ToastAndroid.LONG);
+      notify('Error cerrando sesión', true);
       console.error('Logout error:', error);
     } finally {
       setUser(null);
@@ -129,7 +168,11 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
       value={{
         user,
         isAuth,
+        role,
+        isGuest,
+        isAdmin,
         loading,
+        roleLoading,
         login,
         register,
         loginWithGoogle,

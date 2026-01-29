@@ -6,6 +6,10 @@ import { createNotificationChannels } from '../constants/notificationChannels';
 import { TriggerType, TimestampTrigger } from '@notifee/react-native';
 import { Farmacia } from '../types/navigationTypes';
 import notifee from '@notifee/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const LAST_TURNO_PHARMACY_KEY = 'lastTurnoPharmacyId';
+const NOTIFICATIONS_ENABLED_KEY = 'notificationsEnabled';
 
 interface NotificationSchedule {
   readonly hour: number;
@@ -44,6 +48,13 @@ const NOTIFICATION_SCHEDULES: NotificationSchedule[] = [
  */
 export async function checkAndNotifyTurnos(): Promise<void> {
   try {
+    const notificationsEnabledRaw = await AsyncStorage.getItem(NOTIFICATIONS_ENABLED_KEY);
+    const notificationsEnabled = notificationsEnabledRaw !== 'false';
+    if (!notificationsEnabled) {
+      await cancelTurnoNotifications();
+      return;
+    }
+
     await createNotificationChannels();
     // 1. Consulta farmacias
     const snapshot = await firestore().collection('farmacias').get();
@@ -71,13 +82,28 @@ export async function checkAndNotifyTurnos(): Promise<void> {
       });
     });
     if (!matchingPharmacy) {
-      console.log('[TurnoService] No hay farmacia de turno.');
-      // Cancela notificaciones previas del canal si quieres
-      await notifee.cancelAllNotifications();
+      if (__DEV__) {
+        console.log('[TurnoService] No hay farmacia de turno.');
+      }
+      const lastPharmacyId = await AsyncStorage.getItem(LAST_TURNO_PHARMACY_KEY);
+      if (lastPharmacyId) {
+        for (const schedule of NOTIFICATION_SCHEDULES) {
+          await notifee.cancelNotification(`${lastPharmacyId}_${schedule.hour}_${schedule.minute}`);
+        }
+        await AsyncStorage.removeItem(LAST_TURNO_PHARMACY_KEY);
+      }
       return;
     }
-    // 3. Evitar duplicados: cancela notificaciones futuras de este canal
-    await notifee.cancelAllNotifications();
+    // 3. Evitar duplicados: cancela notificaciones futuras solo de estas IDs
+    const lastPharmacyId = await AsyncStorage.getItem(LAST_TURNO_PHARMACY_KEY);
+    if (lastPharmacyId && lastPharmacyId !== matchingPharmacy.id) {
+      for (const schedule of NOTIFICATION_SCHEDULES) {
+        await notifee.cancelNotification(`${lastPharmacyId}_${schedule.hour}_${schedule.minute}`);
+      }
+    }
+    for (const schedule of NOTIFICATION_SCHEDULES) {
+      await notifee.cancelNotification(`${matchingPharmacy.id}_${schedule.hour}_${schedule.minute}`);
+    }
     // 4. Programar notificaciones
     for (const schedule of NOTIFICATION_SCHEDULES) {
       const notificationTime = now.set({
@@ -93,7 +119,9 @@ export async function checkAndNotifyTurnos(): Promise<void> {
         };
         // ID único por farmacia y horario
         const notificationId = `${matchingPharmacy.id}_${schedule.hour}_${schedule.minute}`;
-        console.log(`[TurnoService] Programando notificación ${notificationId} para ${notificationTime.toISO()}`);
+        if (__DEV__) {
+          console.log(`[TurnoService] Programando notificación ${notificationId} para ${notificationTime.toISO()}`);
+        }
         try {
           await showNotification(
             schedule.title,
@@ -107,13 +135,27 @@ export async function checkAndNotifyTurnos(): Promise<void> {
             trigger,
             notificationId
           );
-          console.log(`[TurnoService] Notificación programada: ${notificationId}`);
+          if (__DEV__) {
+            console.log(`[TurnoService] Notificación programada: ${notificationId}`);
+          }
         } catch (err) {
           console.error(`[TurnoService] Error programando notificación ${notificationId}:`, err);
         }
       }
     }
+    await AsyncStorage.setItem(LAST_TURNO_PHARMACY_KEY, matchingPharmacy.id);
   } catch (error) {
     console.error('[checkAndNotifyTurnos] Error:', error);
   }
+}
+
+export async function cancelTurnoNotifications(): Promise<void> {
+  const lastPharmacyId = await AsyncStorage.getItem(LAST_TURNO_PHARMACY_KEY);
+  if (!lastPharmacyId) {
+    return;
+  }
+  for (const schedule of NOTIFICATION_SCHEDULES) {
+    await notifee.cancelNotification(`${lastPharmacyId}_${schedule.hour}_${schedule.minute}`);
+  }
+  await AsyncStorage.removeItem(LAST_TURNO_PHARMACY_KEY);
 }

@@ -1,19 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { StyleSheet, Text, View, Image, TouchableOpacity } from 'react-native';
-import firestore, { GeoPoint } from '@react-native-firebase/firestore';
-import { useNavigation } from '@react-navigation/native';
-import { NavigationProp } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
-
-type Emergencia = {
-  id: string;
-  name: string;
-  dir: string;
-  tel: string;
-  image: string;
-  detail: string;
-  gps: GeoPoint;
-};
+import { Emergencia } from '../types/navigationTypes';
 
 type EmergenciaCardProps = {
   item: Emergencia;
@@ -21,15 +9,14 @@ type EmergenciaCardProps = {
 };
 
 const EmergenciaCard: React.FC<EmergenciaCardProps> = ({ item, onPress }) => {
-  const navigation = useNavigation<NavigationProp<any>>();
   const { theme } = useTheme();
   const { colors } = theme;
   const { name, dir, tel, image, detail } = item;
 
   return (
-    <TouchableOpacity onPress={() => navigation.navigate('DetailE', { emergencia: item })}>
-      <View style={[styles.card, { backgroundColor: colors.card }]}>
-        <Image source={{ uri: detail }} style={styles.image} />
+    <TouchableOpacity onPress={() => onPress(item)}>
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, shadowColor: '#000' }]}>
+        <Image source={{ uri: image || detail }} style={styles.image} />
         <View style={styles.infoContainer}>
           <Text style={[styles.title, { color: colors.text }]}>{name}</Text>
           <Text style={[styles.info, { color: colors.text }]}>Dirección: {dir}</Text>
@@ -42,29 +29,30 @@ const EmergenciaCard: React.FC<EmergenciaCardProps> = ({ item, onPress }) => {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 5,
-    margin: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+    marginHorizontal: 16,
+    marginVertical: 10,
     overflow: 'hidden',
   },
   image: {
     width: '100%',
-    height: 150,
+    height: 160,
   },
   infoContainer: {
-    padding: 20,
+    padding: 16,
   },
   title: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 10,
   },
   info: {
-    fontSize: 16,
+    fontSize: 14,
     marginBottom: 5,
   },
 });

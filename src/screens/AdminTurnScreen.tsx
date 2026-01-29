@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ActivityIndicator, Alert, ScrollView
@@ -16,12 +16,54 @@ interface Farmacia {
 const AdminCambiarTurnoFarmacia: React.FC = () => {
   const [busqueda, setBusqueda] = useState('');
   const [farmacias, setFarmacias] = useState<Farmacia[]>([]);
+  const [farmaciasListado, setFarmaciasListado] = useState<Farmacia[]>([]);
+  const [lastFarmaciaDoc, setLastFarmaciaDoc] = useState<any>(null);
+  const [loadingListado, setLoadingListado] = useState(false);
   const [farmaciaSeleccionada, setFarmaciaSeleccionada] = useState<Farmacia | null>(null);
   const [turnos, setTurnos] = useState<(Date | null)[]>([]);
   const [loading, setLoading] = useState(false);
   const [turnoFilter, setTurnoFilter] = useState<'all' | 'future' | 'past'>('future');
   const { theme } = useTheme();
   const colors = theme.colors;
+
+  useEffect(() => {
+    fetchFarmaciasListado(true);
+  }, []);
+
+  // Listado inicial de farmacias
+  const fetchFarmaciasListado = async (reset = false) => {
+    if (loadingListado) return;
+    setLoadingListado(true);
+    try {
+      let query = firestore().collection('farmacias').orderBy('name').limit(12);
+      if (!reset && lastFarmaciaDoc) {
+        query = query.startAfter(lastFarmaciaDoc);
+      }
+      const snap = await query.get();
+      const results: Farmacia[] = snap.docs.map(doc => {
+        const data = doc.data();
+        let turnArr: (Date | null)[] = [];
+        if (Array.isArray(data.turn)) {
+          turnArr = data.turn.map((t: any) =>
+            t && typeof t.toDate === 'function'
+              ? t.toDate()
+              : (t instanceof Date ? t : null)
+          );
+        }
+        return {
+          id: doc.id,
+          name: data.name,
+          turn: turnArr
+        };
+      });
+      setLastFarmaciaDoc(snap.docs[snap.docs.length - 1] ?? null);
+      setFarmaciasListado(prev => (reset ? results : [...prev, ...results]));
+    } catch {
+      if (reset) setFarmaciasListado([]);
+    } finally {
+      setLoadingListado(false);
+    }
+  };
 
   // Buscar farmacias por nombre (mayúscula)
   const buscarFarmaciasPorNombre = async (nombre: string) => {
@@ -140,7 +182,7 @@ const AdminCambiarTurnoFarmacia: React.FC = () => {
           </Text>
         )}
 
-        {!loading && farmacias.length > 0 && (
+        {!loading && busqueda.length >= 2 && farmacias.length > 0 && (
           <View style={styles.suggestions}>
             {farmacias.map(item => (
               <TouchableOpacity
@@ -236,6 +278,47 @@ const AdminCambiarTurnoFarmacia: React.FC = () => {
           </View>
         )}
       </View>
+
+      <View style={[styles.listadoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Listado de farmacias</Text>
+        <Text style={[styles.subTitle, { color: colors.mutedText || colors.placeholderText }]}>
+          Tocá una farmacia para editar sus turnos o usá el buscador.
+        </Text>
+        {farmaciasListado.length === 0 && !loadingListado && (
+          <Text style={[styles.emptyText, { color: colors.mutedText || colors.placeholderText }]}>
+            No hay farmacias para mostrar.
+          </Text>
+        )}
+        <ScrollView
+          style={styles.listadoScroll}
+          contentContainerStyle={styles.listadoContent}
+          nestedScrollEnabled
+        >
+          {farmaciasListado.map(item => (
+            <TouchableOpacity
+              key={item.id}
+              style={[
+                styles.suggestionItem,
+                { borderColor: colors.border, backgroundColor: colors.inputBackground },
+                farmaciaSeleccionada?.id === item.id && styles.suggestionItemActive
+              ]}
+              onPress={() => handleSelectFarmacia(item)}
+            >
+              <Text style={{
+                color: farmaciaSeleccionada?.id === item.id ? '#fff' : colors.text
+              }}>
+                {item.name.charAt(0).toUpperCase() + item.name.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+        {loadingListado && <ActivityIndicator style={{ marginVertical: 8 }} />}
+        {!loadingListado && lastFarmaciaDoc && (
+          <TouchableOpacity style={styles.addBtn} onPress={() => fetchFarmaciasListado(false)}>
+            <Text style={{ color: colors.buttonBackground, fontWeight: 'bold' }}>Ver más</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </ScrollView>
   );
 };
@@ -245,6 +328,14 @@ const styles = StyleSheet.create({
   form: {
     borderRadius: 12,
     margin: 16,
+    padding: 16,
+    elevation: 2,
+    borderWidth: 1,
+  },
+  listadoCard: {
+    borderRadius: 12,
+    marginHorizontal: 16,
+    marginBottom: 24,
     padding: 16,
     elevation: 2,
     borderWidth: 1,
@@ -273,6 +364,18 @@ const styles = StyleSheet.create({
     maxHeight: 160,
     marginBottom: 12,
     gap: 8,
+  },
+  listadoScroll: {
+    maxHeight: 320,
+    marginBottom: 12,
+  },
+  listadoContent: {
+    gap: 8,
+    paddingBottom: 2,
+  },
+  listadoContainer: {
+    marginTop: 8,
+    marginBottom: 12,
   },
   suggestionItem: {
     padding: 10,

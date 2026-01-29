@@ -13,6 +13,8 @@ import AppNavigator from './src/screens/AppNavigator';
 import BackgroundFetch from 'react-native-background-fetch';
 // Importamos la función que hace el chequeo y la notificación
 import { checkAndNotifyTurnos } from './src/services/TurnoService'; 
+import { initPushNotifications } from './src/services/pushService';
+import { useAuth } from './src/context/AuthContext';
 import { ThemeContextProvider, useTheme } from './src/context/ThemeContext';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { PharmacyProvider } from './src/context/PharmacyContext';
@@ -20,6 +22,7 @@ import { PharmacyProvider } from './src/context/PharmacyContext';
 const AppContent = () => {
   const { theme } = useTheme();
   const { colors, dark } = theme;
+  const { user } = useAuth();
   const style = StyleSheet.create({
     container: {
       flex: 1,
@@ -60,6 +63,13 @@ const AppContent = () => {
 
     initBackgroundFetch();
   }, []);
+
+  useEffect(() => {
+    const stop = initPushNotifications(user?.uid || null);
+    return () => {
+      if (stop) stop();
+    };
+  }, [user?.uid]);
 
   return (
     <SafeAreaView style={style.container} edges={['top', 'bottom']}>

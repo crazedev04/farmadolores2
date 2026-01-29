@@ -9,6 +9,13 @@ export const createNotificationChannels = async () => {
   });
 
   await notifee.createChannel({
+    id: 'updates',
+    name: 'Actualizaciones y avisos',
+    importance: AndroidImportance.DEFAULT,
+    sound: 'default',
+  });
+
+  await notifee.createChannel({
     id: 'comment',
     name: 'Comment Notifications',
     importance: AndroidImportance.DEFAULT,

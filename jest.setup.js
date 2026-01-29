@@ -16,6 +16,7 @@ jest.mock('react-native-background-fetch', () => ({
 jest.mock('@notifee/react-native', () => ({
   createChannel: jest.fn(),
   createTriggerNotification: jest.fn(),
+  displayNotification: jest.fn(),
   cancelNotification: jest.fn(),
   cancelAllNotifications: jest.fn(),
   getNotificationSettings: jest.fn().mockResolvedValue({ authorizationStatus: 1 }),
@@ -47,6 +48,13 @@ jest.mock('@react-native-firebase/firestore', () => {
       },
       get: jest.fn().mockResolvedValue({ docs: [] }),
       doc: () => ({ update: jest.fn(), get: jest.fn().mockResolvedValue({ exists: false }) }),
+      orderBy: () => ({
+        onSnapshot: (cb) => {
+          cb({ docs: [] });
+          return () => {};
+        },
+        get: jest.fn().mockResolvedValue({ docs: [] }),
+      }),
       where: () => ({
         where: () => ({
           limit: () => ({
@@ -72,7 +80,22 @@ jest.mock('@react-native-firebase/firestore', () => {
       return new Date();
     }
   };
+  firestore.FieldValue = {
+    serverTimestamp: jest.fn(() => 'serverTimestamp'),
+  };
   return firestore;
+});
+
+jest.mock('@react-native-firebase/messaging', () => {
+  const messaging = () => ({
+    requestPermission: jest.fn().mockResolvedValue(1),
+    registerDeviceForRemoteMessages: jest.fn(),
+    getToken: jest.fn().mockResolvedValue('mock-token'),
+    onTokenRefresh: jest.fn(() => jest.fn()),
+    onMessage: jest.fn(() => jest.fn()),
+    setBackgroundMessageHandler: jest.fn(),
+  });
+  return messaging;
 });
 
 jest.mock('react-native-google-mobile-ads', () => ({
@@ -100,6 +123,8 @@ jest.mock('react-native-maps', () => {
 
 jest.mock('react-native-device-info', () => ({
   getVersion: jest.fn(() => '0.0.0'),
+  getUniqueId: jest.fn(() => Promise.resolve('mock-device')),
+  getUniqueIdSync: jest.fn(() => 'mock-device'),
 }));
 
 jest.mock('@react-native-google-signin/google-signin', () => ({

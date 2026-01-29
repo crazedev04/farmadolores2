@@ -56,6 +56,7 @@ const Profile: React.FC = () => {
           </TouchableOpacity>
         </View>
 
+
         {isAdmin && !roleLoading && (
           <TouchableOpacity
             style={[styles.adminEditButton, { backgroundColor: colors.primary }]}

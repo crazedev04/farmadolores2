@@ -24,6 +24,18 @@ const AdminPanelScreen: React.FC = () => {
       >
         <Text style={styles.buttonText}>Actualizar Turnos</Text>
       </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.button, { backgroundColor: colors.buttonBackground }]}
+        onPress={() => navigation.navigate('AdminHomeConfig')}
+      >
+        <Text style={styles.buttonText}>Config Home</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.button, { backgroundColor: colors.buttonBackground }]}
+        onPress={() => navigation.navigate('AdminSuggestions')}
+      >
+        <Text style={styles.buttonText}>Ver sugerencias</Text>
+      </TouchableOpacity>
     </View>
   );
 };

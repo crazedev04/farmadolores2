@@ -27,6 +27,9 @@ import AdScreen from '../components/ads/AdScreen';
 import { BotonActualizarHorariosTodos } from '../components/BotonActualizarHorariosTodos';
 import AdminTurnosScreen from './AdminTurnScreen';
 import AdminPanelScreen from './adminPanelScreen';
+import AdminHomeConfigScreen from './AdminHomeConfigScreen';
+import AdminSuggestionsScreen from './AdminSuggestionsScreen';
+import SuggestionsScreen from './SuggestionsScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -93,6 +96,16 @@ const AppStack = () => {
         options={{headerShown: false}}
       />
       <Stack.Screen
+        name="AdminHomeConfig"
+        component={!roleLoading && isAdmin ? AdminHomeConfigScreen : NotAuthorizedScreen}
+        options={{title: 'Config Home'}}
+      />
+      <Stack.Screen
+        name="AdminSuggestions"
+        component={!roleLoading && isAdmin ? AdminSuggestionsScreen : NotAuthorizedScreen}
+        options={{title: 'Sugerencias'}}
+      />
+      <Stack.Screen
         name="ActualizarTurnos"
         component={!roleLoading && isAdmin ? AdminTurnosScreen : NotAuthorizedScreen}
         options={{title: 'Turnos'}}
@@ -100,6 +113,7 @@ const AppStack = () => {
       <Stack.Screen name="LocalDetail" component={LocalDetailScreen} options={{headerShown: false}} />
       <Stack.Screen name="Detail" component={DetailScreen} options={{headerShown: false}} />
       <Stack.Screen name="DetailE" component={DetailE} options={{headerShown: false}} />
+      <Stack.Screen name="Suggestions" component={SuggestionsScreen} options={{title: 'Sugerencias'}} />
     </Stack.Navigator>
     <AdScreen />
 

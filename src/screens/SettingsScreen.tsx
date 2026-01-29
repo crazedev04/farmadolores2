@@ -86,6 +86,13 @@ const SettingsScreen: React.FC = () => {
           </View>
           <Icon name="chevron-right" size={24} color={colors.text} />
         </TouchableOpacity>
+        <TouchableOpacity style={[styles.row, { borderBottomColor: colors.border }]} onPress={() => navigation.navigate('Suggestions')}>
+          <View style={styles.rowLeft}>
+            <Icon name="message-text-outline" size={22} color={colors.text} />
+            <Text style={[styles.rowText, { color: colors.text }]}>Sugerencias</Text>
+          </View>
+          <Icon name="chevron-right" size={24} color={colors.text} />
+        </TouchableOpacity>
         <TouchableOpacity style={[styles.row, { borderBottomColor: colors.border }]} onPress={() => navigation.navigate('ReportProblem')}>
           <View style={styles.rowLeft}>
             <Icon name="alert-circle" size={22} color={colors.text} />

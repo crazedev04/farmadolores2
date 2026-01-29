@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:tools="http://schemas.android.com/tools">
 
 
   <uses-permission android:name="android.permission.INTERNET" />
@@ -46,6 +47,10 @@
     <meta-data
       android:name="com.google.android.geo.API_KEY"
       android:value="AIzaSyA9JvTARfT2vGaG6VyV6zZEzDeYJGjuoDw" />
+    <meta-data
+      android:name="com.google.firebase.messaging.default_notification_channel_id"
+      android:value="updates"
+      tools:replace="android:value" />
 
     <activity
       android:name=".MainActivity"

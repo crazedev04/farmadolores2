@@ -65,6 +65,8 @@ export type RootStackParamList = {
   Farmacias: undefined;
   Emergencias: undefined;
   Admin: undefined;
+  AdminHomeConfig: undefined;
+  AdminSuggestions: undefined;
   ActualizarHorarios: undefined;
   ActualizarTurnos: undefined;
   BottomTabs: undefined;
@@ -86,5 +88,6 @@ export type RootStackParamList = {
   LocalDetail: { local: Local };
   Help: undefined;
   ReportProblem: undefined;
+  Suggestions: undefined;
   EditProfile: undefined;
 };

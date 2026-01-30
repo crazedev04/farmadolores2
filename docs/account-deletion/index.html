@@ -26,7 +26,7 @@
         <ol class="steps">
           <li>
             Envia un correo a
-            <a class="link" href="mailto:contacto@tu-dominio.com">contacto@tu-dominio.com</a>
+            <a class="link" href="mailto:crazedevs@gmail.com">crazedevs@gmail.com</a>
             con el asunto <strong>Eliminar cuenta</strong>.
           </li>
           <li>
@@ -39,8 +39,37 @@
           </li>
         </ol>
         <p class="note">
-          Si preferis, podes usar este enlace de contacto: <span class="muted">[agrega tu formulario aqui]</span>.
+          Tambien podes enviar la solicitud desde el formulario de abajo.
         </p>
+      </section>
+
+      <section class="card">
+        <h2>Formulario rapido</h2>
+        <form
+          class="form"
+          action="mailto:crazedevs@gmail.com"
+          method="post"
+          enctype="text/plain"
+        >
+          <label class="field">
+            <span>Nombre (opcional)</span>
+            <input type="text" name="nombre" placeholder="Tu nombre" />
+          </label>
+          <label class="field">
+            <span>Correo registrado</span>
+            <input type="email" name="correo" placeholder="tu@email.com" required />
+          </label>
+          <label class="field">
+            <span>UID (opcional)</span>
+            <input type="text" name="uid" placeholder="UID de tu cuenta" />
+          </label>
+          <label class="field">
+            <span>Mensaje</span>
+            <textarea name="mensaje" rows="4" placeholder="Solicito eliminar mi cuenta."></textarea>
+          </label>
+          <button class="button" type="submit">Enviar solicitud</button>
+          <p class="note">El formulario abrira tu app de correo para enviar la solicitud.</p>
+        </form>
       </section>
 
       <section class="card">

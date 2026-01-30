@@ -1,3 +1,5 @@
+import groovy.json.JsonSlurper
+
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
@@ -73,6 +75,19 @@ def enableProguardInReleaseBuilds = true
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+def packageJson = new JsonSlurper().parseText(file('../../package.json').text)
+def rawVersionName = (packageJson?.version ?: '0.0.0') as String
+def cleanVersionName = rawVersionName.split('[+-]')[0]
+def versionParts = cleanVersionName.tokenize('.')
+def parsePart = { String value ->
+    try { return Integer.parseInt(value) } catch (Exception ignored) { return 0 }
+}
+def major = versionParts.size() > 0 ? parsePart(versionParts[0]) : 0
+def minor = versionParts.size() > 1 ? parsePart(versionParts[1]) : 0
+def patch = versionParts.size() > 2 ? parsePart(versionParts[2]) : 0
+def build = versionParts.size() > 3 ? parsePart(versionParts[3]) : 0
+def computedVersionCode = major * 1000000 + minor * 10000 + patch * 100 + build
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
@@ -83,8 +98,8 @@ android {
         applicationId "com.overcode.farmadolores"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 15
-        versionName "1.8.17"
+        versionCode computedVersionCode
+        versionName rawVersionName
     }
     signingConfigs {
         debug {

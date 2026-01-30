@@ -15,6 +15,22 @@
       },
       "oauth_client": [
         {
+          "client_id": "320257863836-dfe3soc6ku7pq4t0g453ulett9bl9qi0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.overcode.farmadolores",
+            "certificate_hash": "0c9e1fe77f39968310b713b3b3c3ae6fb7b81fbb"
+          }
+        },
+        {
+          "client_id": "320257863836-ogvoff5if5290lof3ehv1mekqtvtu3nn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.overcode.farmadolores",
+            "certificate_hash": "f3bea4d632754acbbdc2b7a832a01c3fde5da583"
+          }
+        },
+        {
           "client_id": "320257863836-ufdrcrgar74i7vpv47fo34luafi2jvba.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
@@ -22,6 +38,35 @@
             "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
           }
         },
+        {
+          "client_id": "320257863836-7mq4mav5bst0iuraeahu2lpoinjrtc02.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAcdB394WCGayuAepIXgz-GeEGf8_EayO4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "320257863836-7mq4mav5bst0iuraeahu2lpoinjrtc02.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:320257863836:android:fe4bf4c373281be3073d59",
+        "android_client_info": {
+          "package_name": "com.tourguideapp"
+        }
+      },
+      "oauth_client": [
         {
           "client_id": "320257863836-7mq4mav5bst0iuraeahu2lpoinjrtc02.apps.googleusercontent.com",
           "client_type": 3

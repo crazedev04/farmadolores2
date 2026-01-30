@@ -1,0 +1,102 @@
+[
+  {
+    "title": "RCP Basico",
+    "description": "Aprende como realizar maniobras de RCP en caso de emergencia.",
+    "url": "https://www.youtube.com/watch?v=dFSiqFTuQxU"
+  },
+  {
+    "title": "Manejo de Heridas",
+    "description": "Guia paso a paso sobre como tratar heridas y cortes.",
+    "url": "https://www.redcross.org/get-help/how-to-prepare-for-emergencies/types-of-emergencies/wounds-and-bleeding.html"
+  },
+  {
+    "title": "Como Tratar Quemaduras",
+    "description": "Instrucciones para tratar quemaduras de diferentes grados.",
+    "url": "https://www.mayoclinic.org/first-aid/first-aid-burns/basics/art-20056649"
+  },
+  {
+    "title": "Primeros Auxilios en Fracturas",
+    "description": "Pasos para estabilizar fracturas y heridas oseas.",
+    "url": "https://www.redcross.org/get-help/how-to-prepare-for-emergencies/types-of-emergencies/fractures.html"
+  },
+  {
+    "title": "Manejo de Shock",
+    "description": "Como reconocer y tratar el shock en una emergencia.",
+    "url": "https://www.mayoclinic.org/first-aid/first-aid-shock/basics/art-20056620"
+  },
+  {
+    "title": "Mordeduras y Picaduras",
+    "description": "Como tratar mordeduras y picaduras de insectos o animales.",
+    "url": "https://www.cdc.gov/disasters/snakebite.html"
+  },
+  {
+    "title": "Asfixia",
+    "description": "Pasos a seguir para ayudar a una persona que se esta asfixiando.",
+    "url": "https://www.nhs.uk/conditions/choking/"
+  },
+  {
+    "title": "Primeros Auxilios para Desmayos",
+    "description": "Que hacer cuando alguien se desmaya.",
+    "url": "https://www.healthline.com/health/first-aid/fainting"
+  },
+  {
+    "title": "Tratamiento de Hemorragias",
+    "description": "Como detener y tratar hemorragias.",
+    "url": "https://www.mayoclinic.org/first-aid/first-aid-bleeding/basics/art-20056661"
+  },
+  {
+    "title": "Primeros Auxilios para Intoxicaciones",
+    "description": "Acciones a seguir en caso de intoxicacion por sustancias toxicas.",
+    "url": "https://www.webmd.com/first-aid/poisoning-treatment"
+  },
+  {
+    "title": "Golpes y Contusiones",
+    "description": "Como tratar golpes y contusiones para reducir el dolor.",
+    "url": "https://www.webmd.com/first-aid/bruises-treatment"
+  },
+  {
+    "title": "Convulsiones",
+    "description": "Que hacer si alguien esta teniendo una convulsion.",
+    "url": "https://www.epilepsy.com/learn/seizure-first-aid-and-safety"
+  },
+  {
+    "title": "Quemaduras Quimicas",
+    "description": "Instrucciones para tratar quemaduras causadas por productos quimicos.",
+    "url": "https://www.healthline.com/health/chemical-burn"
+  },
+  {
+    "title": "Lesiones Oculares",
+    "description": "Como tratar lesiones en los ojos.",
+    "url": "https://www.aao.org/eye-health/tips-prevention/injuries"
+  },
+  {
+    "title": "Cortes y Raspones",
+    "description": "Guia para el tratamiento de cortes y raspones superficiales.",
+    "url": "https://www.healthline.com/health/first-aid/cuts-or-lacerations"
+  },
+  {
+    "title": "Problemas Respiratorios",
+    "description": "Que hacer en caso de dificultades respiratorias o ataques de asma.",
+    "url": "https://www.webmd.com/asthma/guide/asthma-first-aid"
+  },
+  {
+    "title": "Alergias Severas",
+    "description": "Como reconocer y tratar reacciones alergicas graves.",
+    "url": "https://www.healthline.com/health/allergies/anaphylaxis"
+  },
+  {
+    "title": "Lesiones por Caidas",
+    "description": "Que hacer si alguien se lesiona tras una caida.",
+    "url": "https://www.nsc.org/community-safety/safety-topics/elderly-falls"
+  },
+  {
+    "title": "Ingestion de Objetos",
+    "description": "Como actuar si alguien ingiere objetos no comestibles.",
+    "url": "https://www.mayoclinic.org/first-aid/first-aid-foreign-object/basics/art-20056656"
+  },
+  {
+    "title": "Emergencias con Ninos",
+    "description": "Guia especifica para manejar emergencias con ninos.",
+    "url": "https://www.healthychildren.org/English/safety-prevention/at-home/Pages/Emergency-Situations.aspx"
+  }
+]

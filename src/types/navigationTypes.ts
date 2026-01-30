@@ -16,6 +16,7 @@ export type Farmacia = {
   tel: string;
   image: string;
   detail: string;
+  gallery?: string[];
   horarios?: HorariosPorDia;
   horarioAperturaMañana?: FirebaseFirestoreTypes.Timestamp;
   horarioCierreMañana?: FirebaseFirestoreTypes.Timestamp;
@@ -36,6 +37,7 @@ export type FarmaciaConTiempos = {
   horarioCierreTarde?: FirebaseFirestoreTypes.Timestamp;
   image: string;
   detail: string;
+  gallery?: string[];
   turn?: FirebaseFirestoreTypes.Timestamp[];
   horarios?: HorariosPorDia;
 };
@@ -48,6 +50,7 @@ export type Local = {
   direccion: string;
   tel: string;
   url: string;
+  gallery?: string[];
 };
 
 export type Emergencia = {
@@ -58,6 +61,13 @@ export type Emergencia = {
   image: string;
   detail: string;
   gps?: FirebaseFirestoreTypes.GeoPoint;
+  guardiaEnabled?: boolean;
+  badge?: {
+    enabled?: boolean;
+    text?: string;
+    type?: 'urgencias' | 'alerta' | 'info';
+    icon?: string;
+  };
 };
 
 export type RootStackParamList = {
@@ -67,6 +77,12 @@ export type RootStackParamList = {
   Admin: undefined;
   AdminHomeConfig: undefined;
   AdminSuggestions: undefined;
+  AdminEmergencias: undefined;
+  AdminFarmacias: undefined;
+  AdminEmergenciasCrud: undefined;
+  AdminLocales: undefined;
+  AdminPrimerosAuxilios: undefined;
+  AdminAnalytics: undefined;
   ActualizarHorarios: undefined;
   ActualizarTurnos: undefined;
   BottomTabs: undefined;
@@ -90,4 +106,5 @@ export type RootStackParamList = {
   ReportProblem: undefined;
   Suggestions: undefined;
   EditProfile: undefined;
+  WebView: { url: string; title?: string };
 };

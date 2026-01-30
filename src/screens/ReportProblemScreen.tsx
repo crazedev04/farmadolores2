@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, TextInput, TouchableOpacity, ActivityIndicator,
 import { useTheme } from '../context/ThemeContext';
 import firestore from '@react-native-firebase/firestore';
 import { useAuth } from '../context/AuthContext';
+import { logEvent } from '../services/analytics';
 
 const ReportProblemScreen: React.FC = () => {
   const { theme } = useTheme();
@@ -33,6 +34,7 @@ const ReportProblemScreen: React.FC = () => {
         userEmail: user.email,
       });
       setProblem('');
+      logEvent('report_submit');
       Alert.alert('Reporte enviado', 'Tu reporte se ha enviado correctamente.');
     } catch (error) {
       console.error('Error reporting problem: ', error);

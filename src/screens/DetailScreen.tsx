@@ -1,11 +1,23 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, Dimensions, ScrollView, TouchableOpacity, Linking } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  Dimensions,
+  ScrollView,
+  TouchableOpacity,
+  Linking,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+} from 'react-native';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../context/ThemeContext';
 import MapView, { Marker } from 'react-native-maps';
 import AdBanner from '../components/ads/AdBanner';
 import { BannerAdSize } from 'react-native-google-mobile-ads';
+import { logEvent } from '../services/analytics';
 
 const DIAS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
 
@@ -63,12 +75,40 @@ const DetailScreen = () => {
   const { colors } = theme;
   const route = useRoute<DetailScreenRouteProp>();
   const { farmacia } = route.params;
+  const [activeIndex, setActiveIndex] = useState(0);
+  
+  useEffect(() => {
+    logEvent('pharmacy_view', { pharmacy_id: farmacia.id, name: farmacia.name });
+  }, [farmacia.id, farmacia.name]);
 
   const latitude = farmacia.gps?.latitude ?? 0;
   const longitude = farmacia.gps?.longitude ?? 0;
+  const carouselWidth = Math.max(0, Dimensions.get('window').width - 20);
 
-  const makeCall = (phoneNumber: string) => {
-    Linking.openURL(`tel:${phoneNumber}`);
+  const { images, detailText } = useMemo(() => {
+    const rawGallery = Array.isArray(farmacia.gallery)
+      ? farmacia.gallery.filter((uri) => typeof uri === 'string' && uri.trim().length > 0)
+      : [];
+    const detailValue = typeof farmacia.detail === 'string' ? farmacia.detail.trim() : '';
+    const detailLooksLikeUrl = detailValue.startsWith('http');
+    const fallbackImage = farmacia.image || (detailLooksLikeUrl ? detailValue : '');
+    const imageList = rawGallery.length > 0
+      ? rawGallery
+      : (fallbackImage ? [fallbackImage] : []);
+    return {
+      images: imageList,
+      detailText: detailLooksLikeUrl ? '' : detailValue,
+    };
+  }, [farmacia.detail, farmacia.gallery, farmacia.image]);
+
+  const telLabel = Array.isArray(farmacia.tel) ? farmacia.tel.join(' / ') : farmacia.tel;
+  const makeCall = (phoneNumber?: string | string[] | number) => {
+    const raw = Array.isArray(phoneNumber) ? phoneNumber[0] : phoneNumber;
+    if (!raw) return;
+    const clean = String(raw).replace(/[^\d+]/g, '');
+    if (!clean) return;
+    logEvent('pharmacy_call', { source: 'detail', pharmacy_id: farmacia.id, name: farmacia.name });
+    Linking.openURL(`tel:${clean}`);
   };
 
   const tieneHorariosNuevos = farmacia.horarios && typeof farmacia.horarios === 'object';
@@ -76,13 +116,67 @@ const DetailScreen = () => {
   return (
     <>
       <ScrollView contentContainerStyle={[{ backgroundColor: colors.background }, styles.container]}>
-        <Image source={{ uri: farmacia.image || farmacia.detail }} style={[styles.image, { borderColor: colors.border }]} />
-        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, shadowColor: '#000' }]}>
+        {images.length > 0 && (
+          <View>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={carouselWidth}
+              decelerationRate="fast"
+              onMomentumScrollEnd={(event: NativeSyntheticEvent<NativeScrollEvent>) => {
+                const offsetX = event.nativeEvent.contentOffset.x;
+                const nextIndex = Math.round(offsetX / carouselWidth);
+                setActiveIndex(nextIndex);
+              }}
+            >
+              {images.map((uri, index) => (
+                <Image
+                  key={`${uri}-${index}`}
+                  source={{ uri }}
+                  style={[
+                    styles.carouselImage,
+                    {
+                      width: carouselWidth,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                />
+              ))}
+            </ScrollView>
+            {images.length > 1 && (
+              <View style={styles.dotsRow}>
+                {images.map((_, index) => {
+                  const isActive = index === activeIndex;
+                  return (
+                    <View
+                      key={`dot-${index}`}
+                      style={[
+                        styles.dot,
+                        {
+                          backgroundColor: isActive ? colors.buttonBackground : colors.border,
+                        },
+                      ]}
+                    />
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        )}
+        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, shadowColor: '#000' }]}
+        >
           <Text style={[styles.title, { color: colors.text }]}>{farmacia.name}</Text>
           <Text style={[styles.info, { color: colors.text }]}>Dirección: {farmacia.dir}</Text>
           <TouchableOpacity onPress={() => makeCall(farmacia.tel)}>
-            <Text style={[styles.info, { color: colors.success || '#388e3c', textDecorationLine: 'underline', fontWeight: 'bold' }]}>Teléfono: {farmacia.tel}</Text>
+            <Text style={[styles.info, { color: colors.success || '#388e3c', textDecorationLine: 'underline', fontWeight: 'bold' }]}>Teléfono: {telLabel}</Text>
           </TouchableOpacity>
+          {!!detailText && (
+            <>
+              <Text style={[styles.subTitle, { color: colors.primary, marginTop: 12, marginBottom: 4 }]}>Detalle</Text>
+              <Text style={[styles.info, { color: colors.text }]}>{detailText}</Text>
+            </>
+          )}
           <Text style={[styles.subTitle, { color: colors.primary, marginTop: 15, marginBottom: 5 }]}>Horarios de atención:</Text>
           {tieneHorariosNuevos ? (
             <HorarioTable horarios={farmacia.horarios} />
@@ -129,15 +223,25 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 10,
   },
-  image: {
-    width: '100%',
+  carouselImage: {
     height: 260,
     borderRadius: 16,
-    marginBottom: 16,
+    marginBottom: 12,
     borderWidth: 1,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.12,
     shadowRadius: 6,
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: 12,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
   },
   card: {
     borderRadius: 16,

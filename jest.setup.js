@@ -47,7 +47,17 @@ jest.mock('@react-native-firebase/firestore', () => {
         return () => {};
       },
       get: jest.fn().mockResolvedValue({ docs: [] }),
-      doc: () => ({ update: jest.fn(), get: jest.fn().mockResolvedValue({ exists: false }) }),
+      add: jest.fn().mockResolvedValue({ id: 'mock-id' }),
+      doc: () => ({
+        update: jest.fn(),
+        set: jest.fn(),
+        delete: jest.fn(),
+        get: jest.fn().mockResolvedValue({ exists: false }),
+        onSnapshot: (cb) => {
+          cb({ data: () => ({}) });
+          return () => {};
+        },
+      }),
       orderBy: () => ({
         onSnapshot: (cb) => {
           cb({ docs: [] });
@@ -66,7 +76,7 @@ jest.mock('@react-native-firebase/firestore', () => {
         get: jest.fn().mockResolvedValue({ docs: [] }),
       }),
     }),
-    batch: () => ({ update: jest.fn(), commit: jest.fn() }),
+    batch: () => ({ update: jest.fn(), set: jest.fn(), delete: jest.fn(), commit: jest.fn() }),
   });
 
   firestore.GeoPoint = class {
@@ -82,8 +92,22 @@ jest.mock('@react-native-firebase/firestore', () => {
   };
   firestore.FieldValue = {
     serverTimestamp: jest.fn(() => 'serverTimestamp'),
+    delete: jest.fn(() => 'deleteField'),
+    increment: jest.fn((value) => value),
   };
   return firestore;
+});
+
+jest.mock('@react-native-firebase/analytics', () => {
+  const analytics = () => ({
+    logEvent: jest.fn(),
+    logScreenView: jest.fn(),
+    logLogin: jest.fn(),
+    logSignUp: jest.fn(),
+    setUserId: jest.fn(),
+    setUserProperties: jest.fn(),
+  });
+  return analytics;
 });
 
 jest.mock('@react-native-firebase/messaging', () => {
@@ -141,6 +165,13 @@ jest.mock('@react-native-vector-icons/material-design-icons', () => {
   return (props) => React.createElement('Icon', props, null);
 });
 
+jest.mock('@react-native-community/geolocation', () => ({
+  getCurrentPosition: jest.fn(),
+  watchPosition: jest.fn(),
+  clearWatch: jest.fn(),
+  stopObserving: jest.fn(),
+}));
+
 jest.mock('react-native-permissions', () => ({
   check: jest.fn().mockResolvedValue('granted'),
   request: jest.fn().mockResolvedValue('granted'),
@@ -155,3 +186,12 @@ jest.mock('react-native-modal-datetime-picker', () => {
   const React = require('react');
   return ({ children }) => React.createElement('DateTimePickerModal', null, children);
 });
+
+jest.mock('react-native-webview', () => {
+  const React = require('react');
+  return (props) => React.createElement('WebView', props, null);
+});
+
+jest.mock('react-native-fs', () => ({
+  readFile: jest.fn(),
+}));

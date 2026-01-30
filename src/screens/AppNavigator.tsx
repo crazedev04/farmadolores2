@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { NavigationContainer, useNavigation } from '@react-navigation/native';
+import React, { useEffect, useRef, useState } from 'react';
+import { NavigationContainer, useNavigation, useNavigationContainerRef } from '@react-navigation/native';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -29,7 +29,15 @@ import AdminTurnosScreen from './AdminTurnScreen';
 import AdminPanelScreen from './adminPanelScreen';
 import AdminHomeConfigScreen from './AdminHomeConfigScreen';
 import AdminSuggestionsScreen from './AdminSuggestionsScreen';
+import AdminEmergenciasScreen from './AdminEmergenciasScreen';
+import AdminFarmaciasScreen from './AdminFarmaciasScreen';
+import AdminEmergenciasCrudScreen from './AdminEmergenciasCrudScreen';
+import AdminLocalesScreen from './AdminLocalesScreen';
+import AdminPrimerosAuxiliosScreen from './AdminPrimerosAuxiliosScreen';
+import AdminAnalyticsScreen from './AdminAnalyticsScreen';
 import SuggestionsScreen from './SuggestionsScreen';
+import WebViewScreen from './WebViewScreen';
+import { logScreenView } from '../services/analytics';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -106,6 +114,36 @@ const AppStack = () => {
         options={{title: 'Sugerencias'}}
       />
       <Stack.Screen
+        name="AdminEmergencias"
+        component={!roleLoading && isAdmin ? AdminEmergenciasScreen : NotAuthorizedScreen}
+        options={{title: 'Badges emergencias'}}
+      />
+      <Stack.Screen
+        name="AdminFarmacias"
+        component={!roleLoading && isAdmin ? AdminFarmaciasScreen : NotAuthorizedScreen}
+        options={{title: 'Farmacias'}}
+      />
+      <Stack.Screen
+        name="AdminEmergenciasCrud"
+        component={!roleLoading && isAdmin ? AdminEmergenciasCrudScreen : NotAuthorizedScreen}
+        options={{title: 'Emergencias'}}
+      />
+      <Stack.Screen
+        name="AdminAnalytics"
+        component={!roleLoading && isAdmin ? AdminAnalyticsScreen : NotAuthorizedScreen}
+        options={{title: 'Analytics'}}
+      />
+      <Stack.Screen
+        name="AdminLocales"
+        component={!roleLoading && isAdmin ? AdminLocalesScreen : NotAuthorizedScreen}
+        options={{title: 'Negocios'}}
+      />
+      <Stack.Screen
+        name="AdminPrimerosAuxilios"
+        component={!roleLoading && isAdmin ? AdminPrimerosAuxiliosScreen : NotAuthorizedScreen}
+        options={{title: 'Primeros auxilios'}}
+      />
+      <Stack.Screen
         name="ActualizarTurnos"
         component={!roleLoading && isAdmin ? AdminTurnosScreen : NotAuthorizedScreen}
         options={{title: 'Turnos'}}
@@ -114,6 +152,7 @@ const AppStack = () => {
       <Stack.Screen name="Detail" component={DetailScreen} options={{headerShown: false}} />
       <Stack.Screen name="DetailE" component={DetailE} options={{headerShown: false}} />
       <Stack.Screen name="Suggestions" component={SuggestionsScreen} options={{title: 'Sugerencias'}} />
+      <Stack.Screen name="WebView" component={WebViewScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
     <AdScreen />
 
@@ -124,6 +163,8 @@ const AppStack = () => {
 const AppNavigator: React.FC = () => {
   const { navigationTheme } = useTheme();
   const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
+  const navigationRef = useNavigationContainerRef<RootStackParamList>();
+  const routeNameRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     const checkFirstLaunch = async () => {
@@ -145,7 +186,25 @@ const AppNavigator: React.FC = () => {
   } 
 
   return (
-    <NavigationContainer theme={navigationTheme}>
+    <NavigationContainer
+      theme={navigationTheme}
+      ref={navigationRef}
+      onReady={() => {
+        const currentRoute = navigationRef.getCurrentRoute()?.name;
+        if (currentRoute) {
+          routeNameRef.current = currentRoute;
+          logScreenView(currentRoute);
+        }
+      }}
+      onStateChange={() => {
+        const currentRoute = navigationRef.getCurrentRoute()?.name;
+        const previousRoute = routeNameRef.current;
+        if (currentRoute && currentRoute !== previousRoute) {
+          routeNameRef.current = currentRoute;
+          logScreenView(currentRoute);
+        }
+      }}
+    >
       <Stack.Navigator >
         {isFirstLaunch ? (
           <Stack.Screen name="Onboarding" options={{ headerShown: false }}>

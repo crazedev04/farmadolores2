@@ -1,5 +1,6 @@
-import React, { useRef } from 'react';
-import { StyleSheet, Text, View, Image, TouchableOpacity, DrawerLayoutAndroid, StatusBar, Linking, Platform, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, Text, View, Image, TouchableOpacity, StatusBar, Platform, ScrollView, Modal, Pressable } from 'react-native';
+import firestore from '@react-native-firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import Icon from '@react-native-vector-icons/material-design-icons';
@@ -8,18 +9,44 @@ import { RootStackParamList } from '../types/navigationTypes';
 import AdBanner from '../components/ads/AdBanner';
 import { BannerAdSize } from 'react-native-google-mobile-ads';
 import SettingsScreen from './SettingsScreen';
+import { openWebLink } from '../utils/openWebLink';
+
+const DEFAULT_CAFECITO_URL = 'https://cafecito.app/crazedev';
 
 const Profile: React.FC = () => {
   const { user, isGuest, isAdmin, roleLoading } = useAuth();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { theme } = useTheme();
   const { colors } = theme;
-  const drawerRef = useRef<DrawerLayoutAndroid>(null);
-  const cafecitoLink = 'https://cafecito.app/crazedev';
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [cafecitoUrl, setCafecitoUrl] = useState(DEFAULT_CAFECITO_URL);
+  const hasCafecito = Boolean(cafecitoUrl && cafecitoUrl.trim().length > 0);
 
   const handleCafecitoPress = () => {
-    Linking.openURL(cafecitoLink);
+    if (!hasCafecito) return;
+    openWebLink(navigation, cafecitoUrl.trim(), 'Cafecito');
   };
+
+  useEffect(() => {
+    const unsubscribe = firestore()
+      .collection('config')
+      .doc('app')
+      .onSnapshot(
+        (snapshot) => {
+          const data = snapshot.data();
+          if (data && typeof data.cafecitoUrl === 'string') {
+            setCafecitoUrl(data.cafecitoUrl);
+          } else {
+            setCafecitoUrl(DEFAULT_CAFECITO_URL);
+          }
+        },
+        () => {
+          setCafecitoUrl(DEFAULT_CAFECITO_URL);
+        }
+      );
+
+    return () => unsubscribe();
+  }, []);
 
   const content = (
     <>
@@ -30,7 +57,7 @@ const Profile: React.FC = () => {
       <View style={[styles.header, { backgroundColor: colors.background }]}>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Perfil</Text>
         {Platform.OS === 'android' && (
-          <TouchableOpacity onPress={() => drawerRef.current?.openDrawer()}>
+          <TouchableOpacity onPress={() => setMenuOpen(true)}>
             <Icon name="menu" size={30} color={colors.text} />
           </TouchableOpacity>
         )}
@@ -50,22 +77,28 @@ const Profile: React.FC = () => {
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Apoyanos</Text>
-          <TouchableOpacity style={[styles.cafecitoButton, { backgroundColor: colors.buttonBackground }]} onPress={handleCafecitoPress}>
-            <Icon name="coffee" size={22} color={colors.buttonText} />
-            <Text style={[styles.cafecitoButtonText, { color: colors.buttonText }]}>Donar en Cafecito</Text>
+          {hasCafecito ? (
+            <TouchableOpacity style={[styles.cafecitoButton, { backgroundColor: colors.buttonBackground }]} onPress={handleCafecitoPress}>
+              <Icon name="coffee" size={22} color={colors.buttonText} />
+              <Text style={[styles.cafecitoButtonText, { color: colors.buttonText }]}>Donar en Cafecito</Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={[styles.helperText, { color: colors.mutedText || colors.placeholderText }]}>
+              Configura la URL de Cafecito en el panel de admin.
+            </Text>
+          )}
+        {isAdmin && !roleLoading && (
+          <TouchableOpacity
+            style={[styles.adminEditButton, { backgroundColor: colors.buttonBackground }]}
+            onPress={() => navigation.navigate('Admin')}
+          >
+            <Icon name="shield-account" size={20} color={colors.buttonText} />
+            <Text style={[styles.adminEditButtonText, { color: colors.buttonText }]}>Panel Admin</Text>
           </TouchableOpacity>
+        )}
         </View>
 
 
-        {isAdmin && !roleLoading && (
-          <TouchableOpacity
-            style={[styles.adminEditButton, { backgroundColor: colors.primary }]}
-            onPress={() => navigation.navigate('Admin')}
-          >
-            <Icon name="tag-edit" size={20} color="#fff" />
-            <Text style={styles.adminEditButtonText}>Editar horarios de farmacias</Text>
-          </TouchableOpacity>
-        )}
 
         {isGuest && (
           <View style={[styles.section, styles.authActions, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -101,18 +134,28 @@ const Profile: React.FC = () => {
   }
 
   return (
-    <DrawerLayoutAndroid
-      ref={drawerRef}
-      drawerWidth={300}
-      drawerPosition={'right'}
-      renderNavigationView={() => (
-        <View style={[styles.drawerContent, { backgroundColor: colors.background }]}>
-          <SettingsScreen />
-        </View>
-      )}
-    >
+    <View style={{ flex: 1 }}>
       {content}
-    </DrawerLayoutAndroid>
+      <Modal
+        visible={menuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuOpen(false)}
+      >
+        <View style={styles.menuOverlay}>
+          <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)} />
+          <View style={[styles.menuPanel, { backgroundColor: colors.background, borderColor: colors.border }]}>
+            <View style={[styles.menuHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.menuTitle, { color: colors.text }]}>Menu</Text>
+              <TouchableOpacity onPress={() => setMenuOpen(false)}>
+                <Icon name="close" size={26} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <SettingsScreen />
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 };
 
@@ -187,15 +230,17 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
   },
+  helperText: {
+    fontSize: 13,
+    marginTop: 6,
+  },
   adminEditButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 18,
     borderRadius: 10,
     marginTop: 14,
-    width: '92%',
   },
   adminEditButtonText: {
     color: '#fff',
@@ -206,6 +251,34 @@ const styles = StyleSheet.create({
   drawerContent: {
     flex: 1,
     width: '100%',
+  },
+  menuOverlay: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  menuBackdrop: {
+    flex: 1,
+  },
+  menuPanel: {
+    width: 320,
+    maxWidth: '85%',
+    height: '100%',
+    flexShrink: 0,
+    borderLeftWidth: 1,
+    paddingBottom: 12,
+  },
+  menuHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  menuTitle: {
+    fontSize: 18,
+    fontWeight: '700',
   },
   authActions: {
     gap: 10,

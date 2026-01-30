@@ -10,6 +10,7 @@ import DeviceInfo from 'react-native-device-info';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestNotificationPermission } from '../components/Permissions';
 import { cancelTurnoNotifications } from '../services/TurnoService';
+import { logEvent } from '../services/analytics';
 
 const SettingsScreen: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -37,6 +38,7 @@ const SettingsScreen: React.FC = () => {
       setNotificationsEnabled(false);
       await AsyncStorage.setItem('notificationsEnabled', 'false');
       await cancelTurnoNotifications();
+      logEvent('notifications_toggle', { enabled: false });
       return;
     }
 
@@ -44,6 +46,7 @@ const SettingsScreen: React.FC = () => {
     if (granted) {
       setNotificationsEnabled(true);
       await AsyncStorage.setItem('notificationsEnabled', 'true');
+      logEvent('notifications_toggle', { enabled: true });
     }
   };
 
@@ -124,7 +127,9 @@ const SettingsScreen: React.FC = () => {
       </View>
 
       <View style={[styles.versionContainer, { borderTopColor: colors.border }]}>
-        <Text style={[styles.versionText, { color: colors.text }]}>Version {DeviceInfo.getVersion()}</Text>
+        <Text style={[styles.versionText, { color: colors.text }]}>
+          Version {DeviceInfo.getVersion()} (code {DeviceInfo.getBuildNumber()})
+        </Text>
       </View>
     </View>
   );

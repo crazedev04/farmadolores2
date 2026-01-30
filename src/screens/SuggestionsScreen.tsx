@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, Touc
 import firestore from '@react-native-firebase/firestore';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { logEvent } from '../services/analytics';
 
 const TYPE_OPTIONS = [
   { key: 'sugerencia', label: 'Sugerencia' },
@@ -48,6 +49,7 @@ const SuggestionsScreen: React.FC = () => {
       setTitle('');
       setMessage('');
       setType('sugerencia');
+      logEvent('suggestion_submit', { type });
       Alert.alert('Gracias', 'Tu sugerencia fue enviada.');
     } catch (error) {
       console.error('Error sending suggestion:', error);

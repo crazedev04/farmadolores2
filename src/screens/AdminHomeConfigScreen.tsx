@@ -9,6 +9,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Image,
 } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import Icon from '@react-native-vector-icons/material-design-icons';
@@ -16,6 +17,10 @@ import { useTheme } from '../context/ThemeContext';
 
 const TYPE_OPTIONS = ['info', 'warning', 'error'] as const;
 const NEWS_TYPE_OPTIONS = ['info', 'warning', 'success'] as const;
+const ORDER_OPTIONS = [
+  { value: 'newest', label: 'Mas nuevo primero' },
+  { value: 'oldest', label: 'Mas viejo primero' },
+] as const;
 
 type MaintenanceData = {
   enabled: boolean;
@@ -106,6 +111,9 @@ const AdminHomeConfigScreen: React.FC = () => {
   const [newsEnabled, setNewsEnabled] = useState(true);
   const [tipsEnabled, setTipsEnabled] = useState(true);
   const [promosEnabled, setPromosEnabled] = useState(true);
+  const [newsOrder, setNewsOrder] = useState<'newest' | 'oldest'>('oldest');
+  const [tipsOrder, setTipsOrder] = useState<'newest' | 'oldest'>('oldest');
+  const [promosOrder, setPromosOrder] = useState<'newest' | 'oldest'>('oldest');
 
   const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
   const [tips, setTips] = useState<TipItem[]>([]);
@@ -113,15 +121,19 @@ const AdminHomeConfigScreen: React.FC = () => {
 
   const [featured, setFeatured] = useState<FeaturedState>(defaultFeatured);
   const [mapConfig, setMapConfig] = useState<MapState>(defaultMap);
+  const [speedThresholdMps, setSpeedThresholdMps] = useState('3');
+  const [distanceDisplayMode, setDistanceDisplayMode] = useState<'auto' | 'km' | 'min'>('auto');
+  const [cafecitoUrl, setCafecitoUrl] = useState('');
 
   useEffect(() => {
     let mounted = true;
     const load = async () => {
       setLoading(true);
       try {
-        const [statusSnap, homeSnap] = await Promise.all([
+        const [statusSnap, homeSnap, appSnap] = await Promise.all([
           firestore().collection('config').doc('appStatus').get(),
           firestore().collection('config').doc('home').get(),
+          firestore().collection('config').doc('app').get(),
         ]);
 
         if (!mounted) return;
@@ -139,6 +151,15 @@ const AdminHomeConfigScreen: React.FC = () => {
         setNewsEnabled(homeData.newsEnabled !== false);
         setTipsEnabled(homeData.tipsEnabled !== false);
         setPromosEnabled(homeData.promosEnabled !== false);
+        setNewsOrder(homeData.newsOrder === 'newest' ? 'newest' : 'oldest');
+        setTipsOrder(homeData.tipsOrder === 'newest' ? 'newest' : 'oldest');
+        setPromosOrder(homeData.promosOrder === 'newest' ? 'newest' : 'oldest');
+        setSpeedThresholdMps(
+          homeData.speedThresholdMps != null ? String(homeData.speedThresholdMps) : '3'
+        );
+        if (homeData.distanceDisplayMode === 'km' || homeData.distanceDisplayMode === 'min' || homeData.distanceDisplayMode === 'auto') {
+          setDistanceDisplayMode(homeData.distanceDisplayMode);
+        }
 
         const normalizeNews = (item: any): NewsItem => ({
           enabled: item?.enabled !== false,
@@ -185,6 +206,9 @@ const AdminHomeConfigScreen: React.FC = () => {
           lat: mapData.lat != null ? String(mapData.lat) : '',
           lng: mapData.lng != null ? String(mapData.lng) : '',
         });
+
+        const appData = appSnap.data() || {};
+        setCafecitoUrl(appData.cafecitoUrl || '');
       } catch (error) {
         Alert.alert('Error', 'No se pudo cargar la configuracion.');
       } finally {
@@ -272,6 +296,25 @@ const AdminHomeConfigScreen: React.FC = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
+      const speedValue = parseNumber(speedThresholdMps);
+      const homePayload: any = {
+        newsEnabled,
+        tipsEnabled,
+        promosEnabled,
+        newsOrder,
+        tipsOrder,
+        promosOrder,
+        news: cleanedNews,
+        tips: cleanedTips,
+        promos: cleanedPromos,
+        featured: buildFeaturedPayload(),
+        map: buildMapPayload(),
+      };
+      if (speedValue != null && speedValue > 0) {
+        homePayload.speedThresholdMps = speedValue;
+      }
+      homePayload.distanceDisplayMode = distanceDisplayMode;
+
       await Promise.all([
         firestore().collection('config').doc('appStatus').set(
           {
@@ -283,16 +326,10 @@ const AdminHomeConfigScreen: React.FC = () => {
           },
           { merge: true }
         ),
-        firestore().collection('config').doc('home').set(
+        firestore().collection('config').doc('home').set(homePayload, { merge: true }),
+        firestore().collection('config').doc('app').set(
           {
-            newsEnabled,
-            tipsEnabled,
-            promosEnabled,
-            news: cleanedNews,
-            tips: cleanedTips,
-            promos: cleanedPromos,
-            featured: buildFeaturedPayload(),
-            map: buildMapPayload(),
+            cafecitoUrl: cafecitoUrl.trim(),
           },
           { merge: true }
         ),
@@ -405,6 +442,26 @@ const AdminHomeConfigScreen: React.FC = () => {
             thumbColor={newsEnabled ? colors.buttonText || '#fff' : colors.card}
           />
         </View>
+        <Text style={[styles.label, { color: colors.text }]}>Orden</Text>
+        <View style={styles.chipRow}>
+          {ORDER_OPTIONS.map(option => {
+            const active = newsOrder === option.value;
+            return (
+              <TouchableOpacity
+                key={`news-${option.value}`}
+                style={[
+                  styles.chip,
+                  { borderColor: colors.border, backgroundColor: active ? colors.buttonBackground : colors.card },
+                ]}
+                onPress={() => setNewsOrder(option.value)}
+              >
+                <Text style={{ color: active ? colors.buttonText || '#fff' : colors.text, fontWeight: '600' }}>
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
         {newsItems.map((item, index) => (
           <View key={`news-${index}`} style={[styles.itemCard, { borderColor: colors.border }]}
           >
@@ -481,6 +538,26 @@ const AdminHomeConfigScreen: React.FC = () => {
             thumbColor={tipsEnabled ? colors.buttonText || '#fff' : colors.card}
           />
         </View>
+        <Text style={[styles.label, { color: colors.text }]}>Orden</Text>
+        <View style={styles.chipRow}>
+          {ORDER_OPTIONS.map(option => {
+            const active = tipsOrder === option.value;
+            return (
+              <TouchableOpacity
+                key={`tips-${option.value}`}
+                style={[
+                  styles.chip,
+                  { borderColor: colors.border, backgroundColor: active ? colors.buttonBackground : colors.card },
+                ]}
+                onPress={() => setTipsOrder(option.value)}
+              >
+                <Text style={{ color: active ? colors.buttonText || '#fff' : colors.text, fontWeight: '600' }}>
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
         {tips.map((item, index) => (
           <View key={`tip-${index}`} style={[styles.itemCard, { borderColor: colors.border }]}
           >
@@ -536,6 +613,26 @@ const AdminHomeConfigScreen: React.FC = () => {
             trackColor={{ false: colors.border, true: colors.buttonBackground }}
             thumbColor={promosEnabled ? colors.buttonText || '#fff' : colors.card}
           />
+        </View>
+        <Text style={[styles.label, { color: colors.text }]}>Orden</Text>
+        <View style={styles.chipRow}>
+          {ORDER_OPTIONS.map(option => {
+            const active = promosOrder === option.value;
+            return (
+              <TouchableOpacity
+                key={`promos-${option.value}`}
+                style={[
+                  styles.chip,
+                  { borderColor: colors.border, backgroundColor: active ? colors.buttonBackground : colors.card },
+                ]}
+                onPress={() => setPromosOrder(option.value)}
+              >
+                <Text style={{ color: active ? colors.buttonText || '#fff' : colors.text, fontWeight: '600' }}>
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
         {promos.map((item, index) => (
           <View key={`promo-${index}`} style={[styles.itemCard, { borderColor: colors.border }]}
@@ -594,6 +691,12 @@ const AdminHomeConfigScreen: React.FC = () => {
               onChangeText={(value) => updatePromo(index, { imageUrl: value })}
               autoCapitalize="none"
             />
+            {!!item.imageUrl?.trim() && (
+              <Image
+                source={{ uri: item.imageUrl.trim() }}
+                style={[styles.promoPreview, { borderColor: colors.border }]}
+              />
+            )}
           </View>
         ))}
         <TouchableOpacity
@@ -731,6 +834,55 @@ const AdminHomeConfigScreen: React.FC = () => {
         </View>
       </View>
 
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+      >
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Enlaces</Text>
+        <Text style={[styles.label, { color: colors.text }]}>URL Cafecito</Text>
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
+          placeholder="https://cafecito.app/tuusuario"
+          placeholderTextColor={colors.placeholderText}
+          value={cafecitoUrl}
+          onChangeText={setCafecitoUrl}
+          autoCapitalize="none"
+        />
+      </View>
+
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+      >
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Distancia</Text>
+        <Text style={[styles.helperText, { color: colors.mutedText || colors.placeholderText }]}>
+          Umbral de velocidad para mostrar “A X min” en lugar de km (m/s). Ej: 3 = ~11 km/h.
+        </Text>
+        <View style={styles.chipRow}>
+          {(['auto', 'km', 'min'] as const).map(option => {
+            const active = distanceDisplayMode === option;
+            return (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.chip,
+                  { borderColor: colors.border, backgroundColor: active ? colors.buttonBackground : colors.card },
+                ]}
+                onPress={() => setDistanceDisplayMode(option)}
+              >
+                <Text style={{ color: active ? colors.buttonText || '#fff' : colors.text, fontWeight: '600' }}>
+                  {option === 'auto' ? 'Auto' : option === 'km' ? 'Km' : 'Min'}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
+          placeholder="3"
+          placeholderTextColor={colors.placeholderText}
+          value={speedThresholdMps}
+          onChangeText={setSpeedThresholdMps}
+          keyboardType="numeric"
+        />
+      </View>
+
       <TouchableOpacity
         style={[styles.saveButton, { backgroundColor: colors.buttonBackground }]}
         onPress={handleSave}
@@ -823,6 +975,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 10,
+  },
+  promoPreview: {
+    width: '100%',
+    height: 140,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+    backgroundColor: '#0F172A',
   },
   itemTitle: {
     fontSize: 14,

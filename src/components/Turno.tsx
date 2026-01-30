@@ -1,16 +1,41 @@
-import React, { useMemo } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, Platform } from 'react-native';
 import { usePharmacies } from '../context/PharmacyContext';
 import SkeletonCard from '../skeleton/SkeletonCard';
 import { DateTime } from 'luxon';
 import { useTheme } from '../context/ThemeContext';
 import TurnoCard from './TurnoCard';
 import Icon from '@react-native-vector-icons/material-design-icons';
+import Geolocation from '@react-native-community/geolocation';
+import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
+import firestore from '@react-native-firebase/firestore';
+import { logEvent } from '../services/analytics';
+
+type Coords = { lat: number; lng: number };
+
+const haversineKm = (a: Coords, b: Coords) => {
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const sinLat = Math.sin(dLat / 2);
+  const sinLng = Math.sin(dLng / 2);
+  const h = sinLat * sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLng * sinLng;
+  const c = 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+  return R * c;
+};
 
 const Turno: React.FC = () => {
   const { theme } = useTheme();
   const { colors } = theme;
   const { farmacias, loading, fetchPharmacies } = usePharmacies();
+  const [userLocation, setUserLocation] = useState<Coords | null>(null);
+  const [speedMps, setSpeedMps] = useState<number | null>(null);
+  const [speedThresholdMps, setSpeedThresholdMps] = useState<number | null>(3);
+  const [distanceDisplayMode, setDistanceDisplayMode] = useState<'auto' | 'km' | 'min'>('auto');
+  const [locationDenied, setLocationDenied] = useState(false);
   const { matchingPharmacy, errorMessage } = useMemo(() => {
     try {
       const now = DateTime.local().setZone('America/Argentina/Buenos_Aires');
@@ -39,6 +64,81 @@ const Turno: React.FC = () => {
     }
   }, [farmacias]);
 
+  useEffect(() => {
+    let active = true;
+    const requestLocation = async () => {
+      const permission = Platform.select({
+        android: PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
+        ios: PERMISSIONS.IOS.LOCATION_WHEN_IN_USE,
+      });
+      if (!permission) return;
+
+      try {
+        let status = await check(permission);
+        if (status !== RESULTS.GRANTED) {
+          status = await request(permission);
+        }
+        if (status !== RESULTS.GRANTED) {
+          setLocationDenied(true);
+          logEvent('location_permission', { status: 'denied', source: 'turno' });
+          return;
+        }
+        setLocationDenied(false);
+        logEvent('location_permission', { status: 'granted', source: 'turno' });
+
+        Geolocation.getCurrentPosition(
+          (position) => {
+            if (!active) return;
+            setUserLocation({
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+            });
+            const speed = position.coords.speed;
+            if (typeof speed === 'number' && speed >= 0) {
+              setSpeedMps(speed);
+            }
+            logEvent('location_available', { source: 'turno' });
+          },
+          () => {},
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+        );
+      } catch {
+        setLocationDenied(true);
+        logEvent('location_permission', { status: 'error', source: 'turno' });
+      }
+    };
+
+    requestLocation();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const unsub = firestore()
+      .collection('config')
+      .doc('home')
+      .onSnapshot(snapshot => {
+        const data = snapshot.data() || {};
+        if (typeof data.speedThresholdMps === 'number') {
+          setSpeedThresholdMps(data.speedThresholdMps);
+        }
+        if (data.distanceDisplayMode === 'km' || data.distanceDisplayMode === 'min' || data.distanceDisplayMode === 'auto') {
+          setDistanceDisplayMode(data.distanceDisplayMode);
+        }
+      });
+
+    return () => unsub();
+  }, []);
+
+  const distanceKm = useMemo(() => {
+    if (!userLocation || !matchingPharmacy?.gps) return null;
+    const lat = matchingPharmacy.gps?.latitude;
+    const lng = matchingPharmacy.gps?.longitude;
+    if (lat == null || lng == null) return null;
+    return haversineKm(userLocation, { lat, lng });
+  }, [userLocation, matchingPharmacy]);
+
   if (loading) {
     return <SkeletonCard />;
   }
@@ -66,7 +166,14 @@ const Turno: React.FC = () => {
   return (
     <View style={styles.container}>
       {matchingPharmacy ? (
-        <TurnoCard item={matchingPharmacy} />
+        <TurnoCard
+          item={matchingPharmacy}
+          distanceKm={distanceKm}
+          speedMps={speedMps}
+          speedThresholdMps={speedThresholdMps}
+          distanceDisplayMode={distanceDisplayMode}
+          locationDenied={locationDenied}
+        />
       ) : (
         <View style={styles.noTurnos}>
           <Text style={[styles.noTurnosText, { color: colors.text }]}>

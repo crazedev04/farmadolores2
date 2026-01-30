@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Image,
-  Linking,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  Alert,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -25,6 +25,9 @@ import { RootStackParamList, Farmacia } from '../types/navigationTypes';
 import Turno from '../components/Turno';
 import AdBanner from '../components/ads/AdBanner';
 import SkeletonCard from '../skeleton/SkeletonCard';
+import { openWebLink } from '../utils/openWebLink';
+import { openMapsLink } from '../utils/openMapsLink';
+import { logEvent } from '../services/analytics';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -58,6 +61,8 @@ type PromoItem = {
   imageUrl?: string;
 };
 
+type OrderMode = 'newest' | 'oldest';
+
 type FeaturedConfig = {
   enabled?: boolean;
   pharmacyId?: string;
@@ -89,10 +94,13 @@ const Home = () => {
   const [maintenance, setMaintenance] = useState<MaintenanceData | null>(null);
   const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
   const [newsEnabled, setNewsEnabled] = useState(true);
+  const [newsOrder, setNewsOrder] = useState<OrderMode>('oldest');
   const [tips, setTips] = useState<TipItem[]>([]);
   const [tipsEnabled, setTipsEnabled] = useState(true);
+  const [tipsOrder, setTipsOrder] = useState<OrderMode>('oldest');
   const [promos, setPromos] = useState<PromoItem[]>([]);
   const [promosEnabled, setPromosEnabled] = useState(true);
+  const [promosOrder, setPromosOrder] = useState<OrderMode>('oldest');
   const [featuredConfig, setFeaturedConfig] = useState<FeaturedConfig | null>(null);
   const [mapConfig, setMapConfig] = useState<MapConfig | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -113,10 +121,13 @@ const Home = () => {
       if (!snapshot?.exists) {
         setNewsItems([]);
         setNewsEnabled(true);
+        setNewsOrder('oldest');
         setTips([]);
         setTipsEnabled(true);
+        setTipsOrder('oldest');
         setPromos([]);
         setPromosEnabled(true);
+        setPromosOrder('oldest');
         setFeaturedConfig(null);
         setMapConfig(null);
         return;
@@ -124,10 +135,13 @@ const Home = () => {
       const data = snapshot.data() || {};
       setNewsItems(Array.isArray(data.news) ? data.news : []);
       setNewsEnabled(data.newsEnabled !== false);
+      setNewsOrder(data.newsOrder === 'newest' ? 'newest' : 'oldest');
       setTips(Array.isArray(data.tips) ? data.tips : []);
       setTipsEnabled(data.tipsEnabled !== false);
+      setTipsOrder(data.tipsOrder === 'newest' ? 'newest' : 'oldest');
       setPromos(Array.isArray(data.promos) ? data.promos : []);
       setPromosEnabled(data.promosEnabled !== false);
+      setPromosOrder(data.promosOrder === 'newest' ? 'newest' : 'oldest');
       setFeaturedConfig(data.featured || null);
       setMapConfig(data.map || null);
     });
@@ -162,7 +176,7 @@ const Home = () => {
     if (!farmacias || farmacias.length === 0) return null;
     const now = DateTime.local().setZone('America/Argentina/Buenos_Aires');
     let best: { pharmacy: Farmacia; start: DateTime } | null = null;
-    farmacias.forEach(pharmacy => {
+    (farmacias as Farmacia[]).forEach(pharmacy => {
       if (!Array.isArray(pharmacy.turn)) return;
       pharmacy.turn.forEach(t => {
         if (!t || typeof t.toDate !== 'function') return;
@@ -180,6 +194,10 @@ const Home = () => {
 
   const featured = useMemo(() => {
     if (!featuredConfig || featuredConfig.enabled === false) return null;
+    const pickImage = (image?: string, detail?: string) => {
+      const detailValue = typeof detail === 'string' ? detail.trim() : '';
+      return image || (detailValue.startsWith('http') ? detailValue : '');
+    };
     if (featuredConfig.pharmacyId) {
       const found = farmacias.find(item => item.id === featuredConfig.pharmacyId);
       if (found) {
@@ -189,7 +207,7 @@ const Home = () => {
           name: found.name,
           address: found.dir,
           phone: found.tel,
-          imageUrl: found.detail || found.image,
+          imageUrl: pickImage(found.image, found.detail),
           mapUrl: featuredConfig.mapUrl,
           lat,
           lng,
@@ -227,46 +245,43 @@ const Home = () => {
     return null;
   }, [mapConfig, featured]);
 
-  const visibleNews = useMemo(
-    () => newsItems.filter(item => item.enabled !== false),
-    [newsItems]
-  );
-  const visibleTips = useMemo(
-    () => tips.filter(item => item.enabled !== false),
-    [tips]
-  );
-  const visiblePromos = useMemo(
-    () => promos.filter(item => item.enabled !== false),
-    [promos]
-  );
+  const applyOrder = <T,>(items: T[], order: OrderMode) => {
+    if (order === 'newest') return [...items].reverse();
+    return items;
+  };
 
-  const openUrl = async (url?: string) => {
-    if (!url) return;
-    try {
-      const supported = await Linking.canOpenURL(url);
-      if (supported) {
-        await Linking.openURL(url);
-      }
-    } catch {
-      // ignore
+  const visibleNews = useMemo(() => {
+    const filtered = newsItems.filter(item => item.enabled !== false);
+    return applyOrder(filtered, newsOrder);
+  }, [newsItems, newsOrder]);
+
+  const visibleTips = useMemo(() => {
+    const filtered = tips.filter(item => item.enabled !== false);
+    return applyOrder(filtered, tipsOrder);
+  }, [tips, tipsOrder]);
+
+  const visiblePromos = useMemo(() => {
+    const filtered = promos.filter(item => item.enabled !== false);
+    return applyOrder(filtered, promosOrder);
+  }, [promos, promosOrder]);
+
+  const openUrl = async (url?: string, title?: string, meta?: Record<string, unknown>) => {
+    const ok = await openWebLink(navigation, url, title, meta);
+    if (!ok) {
+      Alert.alert('No se pudo abrir el enlace', 'Verifica que el enlace sea correcto.');
     }
   };
 
-  const openPhone = (phone?: string) => {
-    if (!phone) return;
-    const clean = phone.replace(/[^\d+]/g, '');
+  const openPhone = (phone?: string | string[] | number) => {
+    const raw = Array.isArray(phone) ? phone[0] : phone;
+    if (!raw) return;
+    const clean = String(raw).replace(/[^\d+]/g, '');
+    if (!clean) return;
     openUrl(`tel:${clean}`);
   };
 
   const openMaps = (address?: string, lat?: number, lng?: number, mapUrl?: string) => {
-    if (mapUrl) {
-      openUrl(mapUrl);
-      return;
-    }
-    const query = lat && lng ? `${lat},${lng}` : address;
-    if (!query) return;
-    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
-    openUrl(url);
+    openMapsLink(navigation, { address, lat, lng, mapUrl, title: 'Mapa' });
   };
 
   const dayIndex = DateTime.local().weekday % 7;
@@ -285,14 +300,14 @@ const Home = () => {
   };
 
   const nextTurnLabel = nextTurn
-    ? `Proxima farmacia: ${nextTurn?.pharmacy.name} - ${nextTurn.start.toFormat('dd/LL HH:mm')}`
+    ? `Proxima farmacia: ${nextTurn.pharmacy.name} - ${nextTurn.start.toFormat('dd/LL HH:mm')}`
     : 'No hay proximos turnos cargados.';
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <StatusBar backgroundColor={colors.background} barStyle={theme.dark ? 'light-content' : 'dark-content'} />
-      <ScrollView contentContainerStyle={[styles.scrollContainer, { backgroundColor: colors.background }]}>
+      <StatusBar backgroundColor={colors.background} barStyle={colors.dark ? 'light-content' : 'dark-content'} />
         <AdBanner size={BannerAdSize.FULL_BANNER} />
+      <ScrollView contentContainerStyle={[styles.scrollContainer, { backgroundColor: colors.background }]}>
 
         {maintenance?.enabled && (
           <View style={[styles.bannerCard, { backgroundColor: colors.card, borderColor: bannerColor(maintenance.type) }]}> 
@@ -305,7 +320,16 @@ const Home = () => {
                 {maintenance.message || 'Estamos realizando tareas de mantenimiento.'}
               </Text>
               {maintenance.ctaUrl && (
-                <TouchableOpacity style={styles.bannerLink} onPress={() => openUrl(maintenance.ctaUrl)}>
+                <TouchableOpacity
+                  style={styles.bannerLink}
+                  onPress={() => {
+                    logEvent('service_status_click', {
+                      type: maintenance.type || 'info',
+                      message: maintenance.message || '',
+                    });
+                    openUrl(maintenance.ctaUrl, maintenance.ctaText || 'Estado', { source: 'service_status' });
+                  }}
+                >
                   <Text style={{ color: bannerColor(maintenance.type), fontWeight: '700' }}>
                     {maintenance.ctaText || 'Mas info'}
                   </Text>
@@ -325,7 +349,10 @@ const Home = () => {
             </View>
             <TouchableOpacity
               style={[styles.noticeButton, { backgroundColor: colors.buttonBackground }]}
-              onPress={() => navigation.navigate('Settings')}
+              onPress={() => {
+                logEvent('notifications_settings_open', { source: 'home' });
+                navigation.navigate('Settings');
+              }}
             >
               <Text style={{ color: colors.buttonText || '#fff', fontWeight: '700' }}>Ir a ajustes</Text>
             </TouchableOpacity>
@@ -347,6 +374,38 @@ const Home = () => {
           </View>
         </View>
 
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Accesos</Text>
+          <View style={styles.quickGrid}>
+            <TouchableOpacity
+              style={[styles.quickCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={() => {
+                logEvent('home_quick_access', { target: 'first_aid' });
+                navigation.navigate('PrimeroAuxilios');
+              }}
+            >
+              <Icon name="medical-bag" size={22} color={colors.buttonBackground} />
+              <Text style={[styles.quickTitle, { color: colors.text }]}>Primeros auxilios</Text>
+              <Text style={[styles.quickSubtitle, { color: colors.mutedText || colors.placeholderText }]}>
+                Guias y consejos
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.quickCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={() => {
+                logEvent('home_quick_access', { target: 'locales' });
+                navigation.navigate('Local');
+              }}
+            >
+              <Icon name="storefront-outline" size={22} color={colors.buttonBackground} />
+              <Text style={[styles.quickTitle, { color: colors.text }]}>Locales</Text>
+              <Text style={[styles.quickSubtitle, { color: colors.mutedText || colors.placeholderText }]}>
+                Ver comercios
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         
 
         {newsEnabled && visibleNews.length > 0 && (
@@ -364,7 +423,12 @@ const Home = () => {
                   ? 'check-circle-outline'
                   : 'information-outline';
               return (
-                <View key={`${item.title || 'news'}-${idx}`} style={[styles.newsCard, { backgroundColor: colors.card, borderColor: colors.border }]}> 
+                <TouchableOpacity
+                  key={`${item.title || 'news'}-${idx}`}
+                  style={[styles.newsCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  activeOpacity={0.85}
+                  onPress={() => logEvent('news_click', { title: item.title || '', type: item.type || 'info', index: idx })}
+                >
                   <View style={[styles.newsIcon, { backgroundColor: color }]}> 
                     <Icon name={iconName} size={16} color={colors.buttonText || '#fff'} />
                   </View>
@@ -376,7 +440,7 @@ const Home = () => {
                       </Text>
                     )}
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -387,14 +451,19 @@ const Home = () => {
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Tips de salud</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
               {visibleTips.map((tip, idx) => (
-                <View key={`${tip.title || 'tip'}-${idx}`} style={[styles.tipCard, { backgroundColor: colors.card, borderColor: colors.border }]}> 
+                <TouchableOpacity
+                  key={`${tip.title || 'tip'}-${idx}`}
+                  style={[styles.tipCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  activeOpacity={0.85}
+                  onPress={() => logEvent('tip_click', { title: tip.title || '', index: idx })}
+                >
                   <Text style={[styles.tipTitle, { color: colors.text }]}>{tip.title || 'Tip'}</Text>
                   {!!tip.body && (
                     <Text style={[styles.tipBody, { color: colors.mutedText || colors.placeholderText }]}> 
                       {tip.body}
                     </Text>
                   )}
-                </View>
+                </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
@@ -418,7 +487,10 @@ const Home = () => {
                   {!!promo.ctaUrl && (
                     <TouchableOpacity
                       style={[styles.promoButton, { backgroundColor: colors.buttonBackground }]}
-                      onPress={() => openUrl(promo.ctaUrl)}
+                      onPress={() => {
+                        logEvent('promo_click', { title: promo.title || '', index: idx });
+                        openUrl(promo.ctaUrl, promo.title || 'Promo', { source: 'promo' });
+                      }}
                     >
                       <Text style={{ color: colors.buttonText || '#fff', fontWeight: '700' }}>
                         {promo.ctaText || 'Ver mas'}
@@ -452,7 +524,10 @@ const Home = () => {
               </MapView>
               <TouchableOpacity
                 style={[styles.mapButton, { backgroundColor: colors.buttonBackground }]}
-                onPress={() => openMaps(mapData.title, mapData.lat, mapData.lng)}
+                onPress={() => {
+                  logEvent('map_open', { source: 'home_map', title: mapData.title || '' });
+                  openMaps(mapData.title, mapData.lat, mapData.lng);
+                }}
               >
                 <Text style={{ color: colors.buttonText || '#fff', fontWeight: '700' }}>Ver en mapa</Text>
               </TouchableOpacity>
@@ -506,6 +581,26 @@ const styles = StyleSheet.create({
   nextTurnText: {
     fontSize: 13,
     flex: 1,
+  },
+  quickGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginHorizontal: 16,
+  },
+  quickCard: {
+    width: '48%',
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+    gap: 6,
+  },
+  quickTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  quickSubtitle: {
+    fontSize: 12,
   },
   bannerCard: {
     marginHorizontal: 16,

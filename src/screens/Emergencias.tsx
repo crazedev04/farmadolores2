@@ -1,24 +1,12 @@
 import { StyleSheet, View, FlatList, ActivityIndicator, Text } from 'react-native';
 import React, { useState, useEffect } from 'react';
-import firestore, { GeoPoint } from '@react-native-firebase/firestore';
+import firestore from '@react-native-firebase/firestore';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
-import { RootStackParamList } from '../types/navigationTypes';
+import { Emergencia, RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../context/ThemeContext';
 import AdBanner from '../components/ads/AdBanner';
 import { BannerAdSize } from 'react-native-google-mobile-ads';
 import EmergenciaCard from '../components/EmergenciaCard';
-type Emergencia = {
-  id: string;
-  name: string;
-  dir: string;
-  tel: string;
-  image: string;
-  detail: string;
-  gps?: GeoPoint;
-};
-
-
-
 type EmergenciasNavigationProp = NavigationProp<RootStackParamList, 'Emergencias'>;
 
 type Props = {
@@ -36,6 +24,22 @@ const Emergencias: React.FC<Props> = () => {
     const unsubscribe = firestore().collection('emergencias').onSnapshot(snapshot => {
       const emergenciaList: Emergencia[] = snapshot.docs.map(doc => {
         const data = doc.data();
+        const rawBadge = data.badge;
+        const rawType = rawBadge?.type;
+        const normalizedType = rawType === 'alerta' || rawType === 'info' || rawType === 'urgencias'
+          ? rawType
+          : 'urgencias';
+        const badgeFromDoc = rawBadge
+          ? {
+            enabled: rawBadge.enabled !== false,
+            text: rawBadge.text || 'Guardia 24hs',
+            type: normalizedType,
+            icon: rawBadge.icon || '',
+          }
+          : undefined;
+        const fallbackBadge = data.guardiaEnabled
+          ? { enabled: true, text: 'Guardia 24hs', type: 'urgencias', icon: 'alert-decagram' }
+          : undefined;
         return {
           id: doc.id,
           name: data.name || '',
@@ -44,6 +48,8 @@ const Emergencias: React.FC<Props> = () => {
           image: data.image || '',
           detail: data.detail || '',
           gps: data.gps,
+          guardiaEnabled: data.guardiaEnabled ?? false,
+          badge: badgeFromDoc || fallbackBadge,
         };
       });
 
@@ -98,6 +104,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     paddingVertical: 6,
+    paddingBottom: 20,
   },
   card: {
     backgroundColor: '#fff',

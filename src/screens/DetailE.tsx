@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Image, Dimensions, ScrollView, TouchableOpacity, Linking } from 'react-native';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigationTypes'; // Ajusta la ruta según tu estructura de archivos
@@ -6,6 +6,7 @@ import { useTheme } from '../context/ThemeContext';
 import MapView, { Marker } from 'react-native-maps';
 import AdBanner from '../components/ads/AdBanner';
 import { BannerAdSize } from 'react-native-google-mobile-ads';
+import { logEvent } from '../services/analytics';
 
 type DetailScreenRouteProp = RouteProp<RootStackParamList, 'DetailE'>;
 
@@ -15,14 +16,23 @@ const DetailE = () => {
   const route = useRoute<DetailScreenRouteProp>();
   const { emergencia } = route.params;
 
+  useEffect(() => {
+    logEvent('emergency_view', { emergency_id: emergencia.id, name: emergencia.name });
+  }, [emergencia.id, emergencia.name]);
+
   // Extrae latitud y longitud del geopoint de Firebase
   const latitude = emergencia.gps?.latitude ?? 0;
   const longitude = emergencia.gps?.longitude ?? 0;
 
-  const makeCall = (phoneNumber: string) => {
-    Linking.openURL(`tel:${phoneNumber}`);
+  const telLabel = Array.isArray(emergencia.tel) ? emergencia.tel.join(' / ') : emergencia.tel;
+  const makeCall = (phoneNumber?: string | string[] | number) => {
+    const raw = Array.isArray(phoneNumber) ? phoneNumber[0] : phoneNumber;
+    if (!raw) return;
+    const clean = String(raw).replace(/[^\d+]/g, '');
+    if (!clean) return;
+    logEvent('emergency_call', { emergency_id: emergencia.id, name: emergencia.name, source: 'detail' });
+    Linking.openURL(`tel:${clean}`);
   };
-  
 
   return (
     <>
@@ -32,7 +42,7 @@ const DetailE = () => {
         <Text style={[styles.title, { color: colors.text }]}>{emergencia.name}</Text>
         <Text style={[styles.info, { color: colors.text }]}>Dirección: {emergencia.dir}</Text>
         <TouchableOpacity onPress={() => makeCall(emergencia.tel)}>
-          <Text style={[styles.info, { color: colors.text, textDecorationLine: 'underline' }]}>Teléfono: {emergencia.tel}</Text>
+          <Text style={[styles.info, { color: colors.text, textDecorationLine: 'underline' }]}>Teléfono: {telLabel}</Text>
         </TouchableOpacity>
        
       </View>

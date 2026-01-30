@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { useTheme } from './ThemeContext';
 import { Alert, Platform, ToastAndroid } from 'react-native';
+import { logEvent, logLogin, logSignUp, setUserId, setUserProperties } from '../services/analytics';
 
 // Configura Google Sign-In
 GoogleSignin.configure({
@@ -54,10 +55,14 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setUser(user);
         setIsAuth(true);
         await AsyncStorage.setItem('user', JSON.stringify(user));
+        setUserId(user.uid);
+        logEvent('auth_state', { state: 'signed_in' });
       } else {
         setUser(null);
         setIsAuth(false);
         await AsyncStorage.removeItem('user');
+        setUserId(null);
+        logEvent('auth_state', { state: 'signed_out' });
       }
     });
 
@@ -71,6 +76,7 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (!user) {
         setRole('guest');
         setRoleLoading(false);
+        setUserProperties({ role: 'guest' });
         return;
       }
       setRoleLoading(true);
@@ -78,8 +84,10 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
         const adminDoc = await firestore().collection('admins').doc(user.uid).get();
         const isAdminDoc = adminDoc.exists && adminDoc.data()?.role === 'admin';
         setRole(isAdminDoc ? 'admin' : 'user');
+        setUserProperties({ role: isAdminDoc ? 'admin' : 'user' });
       } catch (error) {
         setRole('user');
+        setUserProperties({ role: 'user' });
       } finally {
         setRoleLoading(false);
       }
@@ -105,9 +113,11 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setLoading(true);
     try {
       await auth().signInWithEmailAndPassword(email, password);
+      logLogin('password');
     } catch (error: any) {
       notify(error.message || 'Error iniciando sesión', true);
       console.error('Login error:', error);
+      logEvent('login_error', { method: 'password' });
     } finally {
       setLoading(false);
     }
@@ -122,9 +132,11 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setLoading(true);
     try {
       await auth().createUserWithEmailAndPassword(email, password);
+      logSignUp('password');
     } catch (error: any) {
       notify(error.message || 'Error registrando usuario', true);
       console.error('Register error:', error);
+      logEvent('register_error', { method: 'password' });
     } finally {
       setLoading(false);
     }
@@ -137,9 +149,11 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const userInfo = await GoogleSignin.signIn();
       const googleCredential = auth.GoogleAuthProvider.credential(userInfo?.data?.idToken);
       await auth().signInWithCredential(googleCredential);
+      logLogin('google');
     } catch (error: any) {
       notify(error.message || 'Error con Google Sign-In', true);
       console.error('Google login error:', error);
+      logEvent('login_error', { method: 'google' });
     } finally {
       setLoading(false);
     }
@@ -150,9 +164,11 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
     try {
       await auth().signOut();
       await GoogleSignin.signOut();
+      logEvent('logout');
     } catch (error: any) {
       notify('Error cerrando sesión', true);
       console.error('Logout error:', error);
+      logEvent('logout_error');
     } finally {
       setUser(null);
       setIsAuth(false);

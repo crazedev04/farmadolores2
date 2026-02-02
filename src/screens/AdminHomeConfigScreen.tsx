@@ -14,6 +14,7 @@ import {
 import firestore from '@react-native-firebase/firestore';
 import Icon from '@react-native-vector-icons/material-design-icons';
 import { useTheme } from '../context/ThemeContext';
+import { deleteImageByUrl, pickAndUploadImage } from '../utils/uploadImage';
 
 const TYPE_OPTIONS = ['info', 'warning', 'error'] as const;
 const NEWS_TYPE_OPTIONS = ['info', 'warning', 'success'] as const;
@@ -24,6 +25,7 @@ const ORDER_OPTIONS = [
 
 type MaintenanceData = {
   enabled: boolean;
+  title: string;
   message: string;
   type: 'info' | 'warning' | 'error';
   ctaText: string;
@@ -74,6 +76,7 @@ type MapState = {
 
 const defaultMaintenance: MaintenanceData = {
   enabled: false,
+  title: '',
   message: '',
   type: 'info',
   ctaText: '',
@@ -118,12 +121,16 @@ const AdminHomeConfigScreen: React.FC = () => {
   const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
   const [tips, setTips] = useState<TipItem[]>([]);
   const [promos, setPromos] = useState<PromoItem[]>([]);
+  const [uploadingPromoIndex, setUploadingPromoIndex] = useState<number | null>(null);
+  const [uploadingFeatured, setUploadingFeatured] = useState(false);
 
   const [featured, setFeatured] = useState<FeaturedState>(defaultFeatured);
   const [mapConfig, setMapConfig] = useState<MapState>(defaultMap);
   const [speedThresholdMps, setSpeedThresholdMps] = useState('3');
   const [distanceDisplayMode, setDistanceDisplayMode] = useState<'auto' | 'km' | 'min'>('auto');
   const [cafecitoUrl, setCafecitoUrl] = useState('');
+  const [imageMaxWidth, setImageMaxWidth] = useState('1280');
+  const [imageQuality, setImageQuality] = useState('80');
 
   useEffect(() => {
     let mounted = true;
@@ -141,6 +148,7 @@ const AdminHomeConfigScreen: React.FC = () => {
         const statusData = statusSnap.data() || {};
         setMaintenance({
           enabled: Boolean(statusData.enabled),
+          title: statusData.title || '',
           message: statusData.message || '',
           type: TYPE_OPTIONS.includes(statusData.type) ? statusData.type : 'info',
           ctaText: statusData.ctaText || '',
@@ -209,6 +217,12 @@ const AdminHomeConfigScreen: React.FC = () => {
 
         const appData = appSnap.data() || {};
         setCafecitoUrl(appData.cafecitoUrl || '');
+        setImageMaxWidth(
+          appData.imageMaxWidth != null ? String(appData.imageMaxWidth) : '1280'
+        );
+        setImageQuality(
+          appData.imageQuality != null ? String(appData.imageQuality) : '80'
+        );
       } catch (error) {
         Alert.alert('Error', 'No se pudo cargar la configuracion.');
       } finally {
@@ -315,10 +329,23 @@ const AdminHomeConfigScreen: React.FC = () => {
       }
       homePayload.distanceDisplayMode = distanceDisplayMode;
 
+      const maxWidthValue = parseNumber(imageMaxWidth);
+      const qualityValue = parseNumber(imageQuality);
+      const appPayload: any = {
+        cafecitoUrl: cafecitoUrl.trim(),
+      };
+      if (maxWidthValue != null) {
+        appPayload.imageMaxWidth = maxWidthValue;
+      }
+      if (qualityValue != null) {
+        appPayload.imageQuality = qualityValue;
+      }
+
       await Promise.all([
         firestore().collection('config').doc('appStatus').set(
           {
             enabled: maintenance.enabled,
+            title: maintenance.title.trim(),
             message: maintenance.message.trim(),
             type: maintenance.type,
             ctaText: maintenance.ctaText.trim(),
@@ -327,12 +354,7 @@ const AdminHomeConfigScreen: React.FC = () => {
           { merge: true }
         ),
         firestore().collection('config').doc('home').set(homePayload, { merge: true }),
-        firestore().collection('config').doc('app').set(
-          {
-            cafecitoUrl: cafecitoUrl.trim(),
-          },
-          { merge: true }
-        ),
+        firestore().collection('config').doc('app').set(appPayload, { merge: true }),
       ]);
       Alert.alert('Listo', 'La configuracion se guardo correctamente.');
     } catch (error) {
@@ -352,6 +374,55 @@ const AdminHomeConfigScreen: React.FC = () => {
 
   const updatePromo = (index: number, patch: Partial<PromoItem>) => {
     setPromos(prev => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
+  };
+
+  const handleUploadPromoImage = async (index: number) => {
+    setUploadingPromoIndex(index);
+    try {
+      const result = await pickAndUploadImage('promos', {
+        maxWidth: 1600,
+        maxHeight: 1600,
+        quality: 85,
+      });
+      if (result?.url) {
+        updatePromo(index, { imageUrl: result.url });
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'No se pudo subir la imagen.');
+    } finally {
+      setUploadingPromoIndex(null);
+    }
+  };
+
+  const handleRemovePromoImage = async (index: number) => {
+    const current = promos[index]?.imageUrl;
+    if (!current) return;
+    await deleteImageByUrl(current);
+    updatePromo(index, { imageUrl: '' });
+  };
+
+  const handleUploadFeaturedImage = async () => {
+    setUploadingFeatured(true);
+    try {
+      const result = await pickAndUploadImage('featured', {
+        maxWidth: 1400,
+        maxHeight: 1400,
+        quality: 80,
+      });
+      if (result?.url) {
+        setFeatured(prev => ({ ...prev, imageUrl: result.url }));
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'No se pudo subir la imagen.');
+    } finally {
+      setUploadingFeatured(false);
+    }
+  };
+
+  const handleRemoveFeaturedImage = async () => {
+    if (!featured.imageUrl) return;
+    await deleteImageByUrl(featured.imageUrl);
+    setFeatured(prev => ({ ...prev, imageUrl: '' }));
   };
 
   if (loading) {
@@ -383,6 +454,14 @@ const AdminHomeConfigScreen: React.FC = () => {
             thumbColor={maintenance.enabled ? colors.buttonText || '#fff' : colors.card}
           />
         </View>
+        <Text style={[styles.label, { color: colors.text }]}>Titulo</Text>
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
+          placeholder="Titulo del aviso"
+          placeholderTextColor={colors.placeholderText}
+          value={maintenance.title}
+          onChangeText={(value) => setMaintenance(prev => ({ ...prev, title: value }))}
+        />
         <Text style={[styles.label, { color: colors.text }]}>Mensaje</Text>
         <TextInput
           style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
@@ -691,6 +770,25 @@ const AdminHomeConfigScreen: React.FC = () => {
               onChangeText={(value) => updatePromo(index, { imageUrl: value })}
               autoCapitalize="none"
             />
+            <TouchableOpacity
+              style={[styles.uploadButton, { borderColor: colors.border }]}
+              onPress={() => handleUploadPromoImage(index)}
+              disabled={uploadingPromoIndex === index}
+            >
+              <Icon name="image-plus" size={18} color={colors.text} />
+              <Text style={[styles.uploadText, { color: colors.text }]}>
+                {uploadingPromoIndex === index ? 'Subiendo...' : 'Subir imagen'}
+              </Text>
+            </TouchableOpacity>
+            {!!item.imageUrl?.trim() && (
+              <TouchableOpacity
+                style={[styles.deleteButton, { borderColor: colors.border }]}
+                onPress={() => handleRemovePromoImage(index)}
+              >
+                <Icon name="trash-can-outline" size={18} color={colors.error} />
+                <Text style={[styles.deleteText, { color: colors.error }]}>Eliminar imagen</Text>
+              </TouchableOpacity>
+            )}
             {!!item.imageUrl?.trim() && (
               <Image
                 source={{ uri: item.imageUrl.trim() }}
@@ -760,6 +858,31 @@ const AdminHomeConfigScreen: React.FC = () => {
           onChangeText={(value) => setFeatured(prev => ({ ...prev, imageUrl: value }))}
           autoCapitalize="none"
         />
+        {!!featured.imageUrl?.trim() && (
+          <Image
+            source={{ uri: featured.imageUrl.trim() }}
+            style={[styles.promoPreview, { borderColor: colors.border }]}
+          />
+        )}
+        <TouchableOpacity
+          style={[styles.uploadButton, { borderColor: colors.border }]}
+          onPress={handleUploadFeaturedImage}
+          disabled={uploadingFeatured}
+        >
+          <Icon name="image-plus" size={18} color={colors.text} />
+          <Text style={[styles.uploadText, { color: colors.text }]}>
+            {uploadingFeatured ? 'Subiendo...' : 'Subir imagen'}
+          </Text>
+        </TouchableOpacity>
+        {!!featured.imageUrl?.trim() && (
+          <TouchableOpacity
+            style={[styles.deleteButton, { borderColor: colors.border }]}
+            onPress={handleRemoveFeaturedImage}
+          >
+            <Icon name="trash-can-outline" size={18} color={colors.error} />
+            <Text style={[styles.deleteText, { color: colors.error }]}>Eliminar imagen</Text>
+          </TouchableOpacity>
+        )}
         <TextInput
           style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
           placeholder="Badge"
@@ -845,6 +968,32 @@ const AdminHomeConfigScreen: React.FC = () => {
           value={cafecitoUrl}
           onChangeText={setCafecitoUrl}
           autoCapitalize="none"
+        />
+      </View>
+
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+      >
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Imagenes</Text>
+        <Text style={[styles.helperText, { color: colors.mutedText || colors.placeholderText }]}>
+          Configura el tamaño máximo y la calidad de compresión (WEBP).
+        </Text>
+        <Text style={[styles.label, { color: colors.text }]}>Ancho maximo (px)</Text>
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
+          placeholder="1280"
+          placeholderTextColor={colors.placeholderText}
+          value={imageMaxWidth}
+          onChangeText={setImageMaxWidth}
+          keyboardType="numeric"
+        />
+        <Text style={[styles.label, { color: colors.text }]}>Calidad (10-100)</Text>
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
+          placeholder="80"
+          placeholderTextColor={colors.placeholderText}
+          value={imageQuality}
+          onChangeText={setImageQuality}
+          keyboardType="numeric"
         />
       </View>
 
@@ -941,6 +1090,34 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginBottom: 12,
     fontSize: 14,
+  },
+  uploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  uploadText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  deleteText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   multiline: {
     minHeight: 80,

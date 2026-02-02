@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput } from 'react-native';
+import { ActivityIndicator, View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, Alert } from 'react-native';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import Icon from '@react-native-vector-icons/material-design-icons';
 import firestore from '@react-native-firebase/firestore';
@@ -9,6 +9,9 @@ import { BannerAdSize } from 'react-native-google-mobile-ads';
 import { RootStackParamList } from '../types/navigationTypes';
 import { openWebLink } from '../utils/openWebLink';
 import { logEvent } from '../services/analytics';
+import { useDebouncedValue } from '../utils/useDebouncedValue';
+import { useScreenLoadAnalytics } from '../utils/useScreenLoadAnalytics';
+import NetInfo from '@react-native-community/netinfo';
 
 type GuideItem = {
   id: string;
@@ -48,8 +51,12 @@ const PrimerosAuxilios = () => {
   const { colors } = theme;
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [query, setQuery] = useState('');
+  const debouncedQuery = useDebouncedValue(query, 250);
   const [guides, setGuides] = useState<GuideItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [reconnecting, setReconnecting] = useState(false);
 
   useEffect(() => {
     const unsubscribe = firestore()
@@ -70,12 +77,52 @@ const PrimerosAuxilios = () => {
           });
           setGuides(next);
           setLoading(false);
+          setIsOffline(snapshot.metadata.fromCache === true);
+          setLastUpdated(new Date());
         },
-        () => setLoading(false)
+        () => {
+          setLoading(false);
+          setIsOffline(true);
+        }
       );
 
     return () => unsubscribe();
   }, []);
+
+  const retryGuides = async () => {
+    try {
+      setLoading(true);
+      setReconnecting(true);
+      const state = await NetInfo.fetch();
+      if (!state.isConnected) {
+        Alert.alert('Sin conexion', 'Activa WiFi o datos para actualizar.');
+        return;
+      }
+      const snapshot = await firestore().collection('primerosAuxilios').get();
+      const next = snapshot.docs.map((doc) => {
+        const data = doc.data() as any;
+        return {
+          id: doc.id,
+          title: data.title || '',
+          description: data.description || '',
+          url: data.url || '',
+          enabled: data.enabled !== false,
+          order: typeof data.order === 'number' ? data.order : undefined,
+          icon: typeof data.icon === 'string' ? data.icon : '',
+        } as GuideItem;
+      });
+      setGuides(next);
+      setIsOffline(false);
+      setLastUpdated(new Date());
+    } catch {
+      setIsOffline(true);
+    } finally {
+      setReconnecting(false);
+      setLoading(false);
+    }
+  };
+
+  useScreenLoadAnalytics('PrimerosAuxilios', loading);
 
   const filteredGuides = useMemo(() => {
     const visible = guides.filter((item) => item.enabled !== false);
@@ -88,15 +135,15 @@ const PrimerosAuxilios = () => {
       return a.title.localeCompare(b.title);
     });
 
-    if (!query.trim()) return sorted;
-    const term = query.trim().toLowerCase();
+    if (!debouncedQuery.trim()) return sorted;
+    const term = debouncedQuery.trim().toLowerCase();
     return sorted.filter((item) => {
       return (
         item.title.toLowerCase().includes(term) ||
         item.description.toLowerCase().includes(term)
       );
     });
-  }, [guides, query]);
+  }, [guides, debouncedQuery]);
 
   const suggestIcon = (text: string) => {
     const value = text.toLowerCase();
@@ -167,6 +214,25 @@ const PrimerosAuxilios = () => {
           No hay resultados para tu busqueda.
         </Text>
       )}
+      {isOffline && (
+        <View style={[styles.offlineCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.offlineText, { color: colors.text }]}>
+            Sin conexion. Mostrando datos guardados
+            {lastUpdated ? ` (ultima actualizacion ${lastUpdated.toLocaleTimeString()})` : ''}.
+          </Text>
+          <TouchableOpacity
+            style={[styles.offlineButton, { borderColor: colors.border }]}
+            onPress={retryGuides}
+            disabled={reconnecting}
+          >
+            {reconnecting ? (
+              <ActivityIndicator color={colors.text} />
+            ) : (
+              <Text style={[styles.offlineButtonText, { color: colors.text }]}>Reintentar</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 
@@ -219,7 +285,7 @@ const PrimerosAuxilios = () => {
           removeClippedSubviews
         />
       </View>
-      <AdBanner size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER} />
+      {/* <AdBanner size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER} /> */}
     </>
   );
 };
@@ -268,6 +334,27 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
+  },
+  offlineCard: {
+    marginBottom: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 10,
+  },
+  offlineText: {
+    fontSize: 12,
+  },
+  offlineButton: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignSelf: 'flex-start',
+    marginTop: 6,
+  },
+  offlineButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   card: {
     borderRadius: 14,

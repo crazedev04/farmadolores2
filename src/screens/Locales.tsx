@@ -8,6 +8,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Alert,
 } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
@@ -17,6 +18,9 @@ import { useTheme } from '../context/ThemeContext';
 import AdBanner from '../components/ads/AdBanner';
 import { BannerAdSize } from 'react-native-google-mobile-ads';
 import { logEvent } from '../services/analytics';
+import { useDebouncedValue } from '../utils/useDebouncedValue';
+import { useScreenLoadAnalytics } from '../utils/useScreenLoadAnalytics';
+import NetInfo from '@react-native-community/netinfo';
 
 type LocalesListScreenNavigationProp = NavigationProp<RootStackParamList, 'LocalDetail'>;
 
@@ -24,13 +28,55 @@ const LocalesListScreen: React.FC = () => {
   const [locales, setLocales] = useState<Local[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [query, setQuery] = useState('');
+  const debouncedQuery = useDebouncedValue(query, 250);
+  const [isOffline, setIsOffline] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [reconnecting, setReconnecting] = useState(false);
   const navigation = useNavigation<LocalesListScreenNavigationProp>();
   const { theme } = useTheme();
   const { colors } = theme;
 
   useEffect(() => {
-    const snapshot = firestore().collection('publi').onSnapshot((querySnapshot) => {
-      const localesData: Local[] = querySnapshot.docs.map((doc) => {
+    const snapshot = firestore().collection('publi').onSnapshot(
+      (querySnapshot) => {
+        const localesData: Local[] = querySnapshot.docs.map((doc) => {
+          const data = doc.data() as Local;
+          return {
+            id: doc.id,
+            name: data.name || '',
+            descrip: data.descrip || '',
+            image: data.image,
+            direccion: data.direccion || '',
+            tel: data.tel || '',
+            url: data.url || '',
+            gallery: Array.isArray((data as any).gallery) ? (data as any).gallery : undefined,
+          };
+        });
+        setLocales(localesData);
+        setLoading(false);
+        setIsOffline(querySnapshot.metadata.fromCache === true);
+        setLastUpdated(new Date());
+      },
+      () => {
+        setIsOffline(true);
+        setLoading(false);
+      }
+    );
+
+    return () => snapshot();
+  }, []);
+
+  const retryLocales = async () => {
+    try {
+      setLoading(true);
+      setReconnecting(true);
+      const state = await NetInfo.fetch();
+      if (!state.isConnected) {
+        Alert.alert('Sin conexion', 'Activa WiFi o datos para actualizar.');
+        return;
+      }
+      const snap = await firestore().collection('publi').get();
+      const localesData: Local[] = snap.docs.map((doc) => {
         const data = doc.data() as Local;
         return {
           id: doc.id,
@@ -44,15 +90,21 @@ const LocalesListScreen: React.FC = () => {
         };
       });
       setLocales(localesData);
+      setIsOffline(false);
+      setLastUpdated(new Date());
+    } catch {
+      setIsOffline(true);
+    } finally {
+      setReconnecting(false);
       setLoading(false);
-    });
+    }
+  };
 
-    return () => snapshot();
-  }, []);
+  useScreenLoadAnalytics('Locales', loading);
 
   const filteredLocales = useMemo(() => {
-    if (!query.trim()) return locales;
-    const term = query.trim().toLowerCase();
+    if (!debouncedQuery.trim()) return locales;
+    const term = debouncedQuery.trim().toLowerCase();
     return locales.filter((item) => {
       return (
         item.name.toLowerCase().includes(term) ||
@@ -60,7 +112,7 @@ const LocalesListScreen: React.FC = () => {
         (item.direccion || '').toLowerCase().includes(term)
       );
     });
-  }, [locales, query]);
+  }, [locales, debouncedQuery]);
 
   const renderHeader = () => (
     <View>
@@ -94,6 +146,26 @@ const LocalesListScreen: React.FC = () => {
           </TouchableOpacity>
         )}
       </View>
+
+      {isOffline && (
+        <View style={[styles.offlineCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.offlineText, { color: colors.text }]}>
+            Sin conexion. Mostrando datos guardados
+            {lastUpdated ? ` (ultima actualizacion ${lastUpdated.toLocaleTimeString()})` : ''}.
+          </Text>
+          <TouchableOpacity
+            style={[styles.offlineButton, { borderColor: colors.border }]}
+            onPress={retryLocales}
+            disabled={reconnecting}
+          >
+            {reconnecting ? (
+              <ActivityIndicator color={colors.text} />
+            ) : (
+              <Text style={[styles.offlineButtonText, { color: colors.text }]}>Reintentar</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
 
       {filteredLocales.length === 0 && !loading && (
         <Text style={[styles.emptyText, { color: colors.mutedText || colors.placeholderText }]}
@@ -231,6 +303,28 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
+  },
+  offlineCard: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 10,
+  },
+  offlineText: {
+    fontSize: 12,
+  },
+  offlineButton: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignSelf: 'flex-start',
+    marginTop: 6,
+  },
+  offlineButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   card: {
     marginHorizontal: 16,

@@ -106,6 +106,8 @@ const counterFromEvent = (name: string, params?: Record<string, unknown>) => {
       return { group: 'reports', key: 'submitted' };
     case 'login_error':
       return { group: 'login_error', key: (p.method as string) };
+    case 'screen_load':
+      return { group: 'screen_load', key: (p.screen as string) };
     default:
       return null;
   }

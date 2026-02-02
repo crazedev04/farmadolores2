@@ -18,6 +18,7 @@ import { useAuth } from './src/context/AuthContext';
 import { ThemeContextProvider, useTheme } from './src/context/ThemeContext';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { PharmacyProvider } from './src/context/PharmacyContext';
+import firestore from '@react-native-firebase/firestore';
 
 const AppContent = () => {
   const { theme } = useTheme();
@@ -29,6 +30,14 @@ const AppContent = () => {
       backgroundColor: colors.background,
     },
   });
+
+  useEffect(() => {
+    try {
+      firestore().settings({ persistence: true });
+    } catch {
+      // ignore persistence setup errors
+    }
+  }, []);
 
   useEffect(() => {
     // Inicializa y configura BackgroundFetch al montar el componente raíz

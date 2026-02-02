@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Alert, TextInput, Pressable } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import Icon from '@react-native-vector-icons/material-design-icons';
@@ -15,7 +15,26 @@ import { logEvent } from '../services/analytics';
 const SettingsScreen: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const { colors } = theme;
-  const { logout, loading } = useAuth();
+  const { logout, loading, disableAccount, requestFullDeletion, isGuest } = useAuth();
+  const [reasonModalVisible, setReasonModalVisible] = useState(false);
+  const [reasonText, setReasonText] = useState('');
+  const [reasonType, setReasonType] = useState<'disable' | 'delete'>('disable');
+
+  const openReasonModal = (type: 'disable' | 'delete') => {
+    setReasonType(type);
+    setReasonText('');
+    setReasonModalVisible(true);
+  };
+
+  const handleReasonConfirm = () => {
+    const reason = reasonText.trim();
+    setReasonModalVisible(false);
+    if (reasonType === 'disable') {
+      disableAccount(reason);
+    } else {
+      requestFullDeletion(reason);
+    }
+  };
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [isDarkTheme, setIsDarkTheme] = useState(theme.dark);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -110,6 +129,58 @@ const SettingsScreen: React.FC = () => {
           </View>
           <Icon name="chevron-right" size={24} color={colors.text} />
         </TouchableOpacity>
+        {!isGuest && (
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => {
+              Alert.alert(
+                'Desactivar cuenta',
+                'Tu cuenta quedara desactivada. Se conservara durante 30 dias y luego se eliminaran los datos por completo.',
+                [
+                  { text: 'Cancelar', style: 'cancel' },
+                  { text: 'Desactivar', style: 'destructive', onPress: () => openReasonModal('disable') },
+                ]
+              );
+            }}
+          >
+            <View style={styles.rowLeft}>
+              <Icon name="account-cancel-outline" size={22} color={colors.error} />
+              <Text style={[styles.rowText, { color: colors.error }]}>Desactivar cuenta</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+        {!isGuest && (
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => {
+              Alert.alert(
+                'Eliminacion completa',
+                'Solicitaras la eliminacion definitiva. Esta accion es irreversible.',
+                [
+                  { text: 'Cancelar', style: 'cancel' },
+                  {
+                    text: 'Eliminacion completa',
+                    style: 'destructive',
+                    onPress: () =>
+                      Alert.alert(
+                        'Confirmar eliminacion',
+                        'Se solicitara eliminacion definitiva.',
+                        [
+                          { text: 'Cancelar', style: 'cancel' },
+                          { text: 'Confirmar', style: 'destructive', onPress: () => openReasonModal('delete') },
+                        ]
+                      ),
+                  },
+                ]
+              );
+            }}
+          >
+            <View style={styles.rowLeft}>
+              <Icon name="delete-forever-outline" size={22} color={colors.error} />
+              <Text style={[styles.rowText, { color: colors.error }]}>Eliminacion completa</Text>
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -131,6 +202,36 @@ const SettingsScreen: React.FC = () => {
           Version {DeviceInfo.getVersion()} (code {DeviceInfo.getBuildNumber()})
         </Text>
       </View>
+      {reasonModalVisible && (
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setReasonModalVisible(false)} />
+          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Motivo</Text>
+            <Text style={[styles.modalSubtitle, { color: colors.mutedText || colors.placeholderText }]}>
+              Contanos brevemente el motivo.
+            </Text>
+            <TextInput
+              style={[styles.modalInput, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
+              placeholder="Escribe el motivo (opcional)"
+              placeholderTextColor={colors.placeholderText}
+              value={reasonText}
+              onChangeText={setReasonText}
+              multiline
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={[styles.modalButton, { borderColor: colors.border }]} onPress={() => setReasonModalVisible(false)}>
+                <Text style={[styles.modalButtonText, { color: colors.text }]}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: colors.buttonBackground }]}
+                onPress={handleReasonConfirm}
+              >
+                <Text style={[styles.modalButtonText, { color: colors.buttonText || '#fff' }]}>Enviar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -189,5 +290,62 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
     opacity: 0.85,
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    zIndex: 20,
+  },
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  modalCard: {
+    width: '100%',
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    gap: 10,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  modalSubtitle: {
+    fontSize: 12,
+  },
+  modalInput: {
+    minHeight: 80,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    textAlignVertical: 'top',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 6,
+  },
+  modalButton: {
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  modalButtonText: {
+    fontWeight: '700',
+    fontSize: 13,
   },
 });

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Platform } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Platform, Image } from 'react-native';
 import { usePharmacies } from '../context/PharmacyContext';
 import SkeletonCard from '../skeleton/SkeletonCard';
 import { DateTime } from 'luxon';
@@ -138,6 +138,14 @@ const Turno: React.FC = () => {
     if (lat == null || lng == null) return null;
     return haversineKm(userLocation, { lat, lng });
   }, [userLocation, matchingPharmacy]);
+
+  useEffect(() => {
+    const detailIsUrl = typeof matchingPharmacy?.detail === 'string' && matchingPharmacy.detail.trim().startsWith('http');
+    const imageUri = matchingPharmacy?.image || (detailIsUrl ? matchingPharmacy.detail : '');
+    if (imageUri) {
+      Image.prefetch(imageUri).catch(() => {});
+    }
+  }, [matchingPharmacy?.image, matchingPharmacy?.detail]);
 
   if (loading) {
     return <SkeletonCard />;

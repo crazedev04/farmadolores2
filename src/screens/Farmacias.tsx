@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, View, FlatList, Text, Platform } from 'react-native';
-import FarmaciaCard from '../components/FarmaciaCard'; // Asegúrate de ajustar la ruta de importación según sea necesario
+import { StyleSheet, View, FlatList, Text, Platform, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import FarmaciaCard from '../components/FarmaciaCard';
 import AdBanner from '../components/ads/AdBanner';
 import { BannerAdSize } from 'react-native-google-mobile-ads';
-import SkeletonCard from '../skeleton/SkeletonCard'; // Asegúrate de ajustar la ruta de importación según sea necesario
+import SkeletonCard from '../skeleton/SkeletonCard';
 import { usePharmacies } from '../context/PharmacyContext';
 import { useTheme } from '../context/ThemeContext';
 import Geolocation from '@react-native-community/geolocation';
@@ -11,6 +11,9 @@ import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 import { DateTime } from 'luxon';
 import firestore from '@react-native-firebase/firestore';
 import { logEvent } from '../services/analytics';
+import { readCache, writeCache } from '../utils/cache';
+import { useScreenLoadAnalytics } from '../utils/useScreenLoadAnalytics';
+import NetInfo from '@react-native-community/netinfo';
 
 type Coords = { lat: number; lng: number };
 
@@ -50,7 +53,7 @@ const isOnDuty = (item: any) => {
 };
 
 const Farmacias: React.FC = () => {
-  const { farmacias, loading } = usePharmacies();
+  const { farmacias, loading, isOffline, lastUpdated, fetchPharmacies } = usePharmacies();
   const { theme } = useTheme();
   const { colors } = theme;
   const [userLocation, setUserLocation] = useState<Coords | null>(null);
@@ -58,6 +61,9 @@ const Farmacias: React.FC = () => {
   const [speedThresholdMps, setSpeedThresholdMps] = useState<number | null>(3);
   const [distanceDisplayMode, setDistanceDisplayMode] = useState<'auto' | 'km' | 'min'>('auto');
   const [locationDenied, setLocationDenied] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
+
+  useScreenLoadAnalytics('Farmacias', loading);
 
   useEffect(() => {
     let active = true;
@@ -110,6 +116,21 @@ const Farmacias: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    let mounted = true;
+    const HOME_CACHE_KEY = 'cache:home-config';
+    const HOME_CACHE_TTL_MS = 1000 * 60 * 5;
+    const loadCache = async () => {
+      const cachedHome = await readCache<any>(HOME_CACHE_KEY, HOME_CACHE_TTL_MS);
+      if (!cachedHome || !mounted) return;
+      if (typeof cachedHome.speedThresholdMps === 'number') {
+        setSpeedThresholdMps(cachedHome.speedThresholdMps);
+      }
+      if (cachedHome.distanceDisplayMode === 'km' || cachedHome.distanceDisplayMode === 'min' || cachedHome.distanceDisplayMode === 'auto') {
+        setDistanceDisplayMode(cachedHome.distanceDisplayMode);
+      }
+    };
+    loadCache();
+
     const unsub = firestore()
       .collection('config')
       .doc('home')
@@ -121,9 +142,13 @@ const Farmacias: React.FC = () => {
         if (data.distanceDisplayMode === 'km' || data.distanceDisplayMode === 'min' || data.distanceDisplayMode === 'auto') {
           setDistanceDisplayMode(data.distanceDisplayMode);
         }
+        writeCache(HOME_CACHE_KEY, data);
       });
 
-    return () => unsub();
+    return () => {
+      mounted = false;
+      unsub();
+    };
   }, []);
 
   const distanceMap = useMemo(() => {
@@ -168,7 +193,7 @@ const Farmacias: React.FC = () => {
     return (
       <View style={[styles.loaderContainer, { backgroundColor: colors.background }]}>
         <FlatList
-          data={Array(5).fill({})} // Array de 5 elementos vacíos para mostrar los SkeletonCard
+          data={Array(3).fill({})}
           renderItem={() => <SkeletonCard />}
           keyExtractor={(_, index) => index.toString()}
         />
@@ -188,6 +213,35 @@ const Farmacias: React.FC = () => {
     <>
       <AdBanner size={BannerAdSize.FULL_BANNER} />
       <View style={[styles.container, { backgroundColor: colors.background }]}>
+        {isOffline && (
+          <View style={[styles.offlineCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.offlineText, { color: colors.text }]}>
+              Sin conexion. Mostrando datos guardados
+              {lastUpdated ? ` (ultima actualizacion ${lastUpdated.toLocaleTimeString()})` : ''}.
+            </Text>
+            <TouchableOpacity
+              style={[styles.offlineButton, { borderColor: colors.border }]}
+              onPress={async () => {
+                setReconnecting(true);
+                const state = await NetInfo.fetch();
+                if (!state.isConnected) {
+                  Alert.alert('Sin conexion', 'Activa WiFi o datos para actualizar.');
+                  setReconnecting(false);
+                  return;
+                }
+                await fetchPharmacies();
+                setReconnecting(false);
+              }}
+              disabled={reconnecting}
+            >
+              {reconnecting ? (
+                <ActivityIndicator color={colors.text} />
+              ) : (
+                <Text style={[styles.offlineButtonText, { color: colors.text }]}>Reintentar</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
         <FlatList
           data={sortedFarmacias}
           renderItem={({ item }) => (
@@ -217,6 +271,28 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingVertical: 6,
+  },
+  offlineCard: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 10,
+  },
+  offlineText: {
+    fontSize: 12,
+  },
+  offlineButton: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignSelf: 'flex-start',
+    marginTop: 6,
+  },
+  offlineButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   loaderContainer: {
     flex: 1,

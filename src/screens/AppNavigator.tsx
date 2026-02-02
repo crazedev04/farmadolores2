@@ -35,6 +35,7 @@ import AdminEmergenciasCrudScreen from './AdminEmergenciasCrudScreen';
 import AdminLocalesScreen from './AdminLocalesScreen';
 import AdminPrimerosAuxiliosScreen from './AdminPrimerosAuxiliosScreen';
 import AdminAnalyticsScreen from './AdminAnalyticsScreen';
+import AdminAccountRequestsScreen from './AdminAccountRequestsScreen';
 import SuggestionsScreen from './SuggestionsScreen';
 import WebViewScreen from './WebViewScreen';
 import { logScreenView } from '../services/analytics';
@@ -80,12 +81,33 @@ const OnboardingStack: React.FC<OnboardingStackProps> = ({ setIsFirstLaunch }) =
 };
 
 // Navigator for Main App Screens
+const AccountDisabledScreen = () => {
+  const { theme } = useTheme();
+  const { colors } = theme;
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: colors.background }}>
+      <Text style={{ color: colors.text, fontSize: 18, marginBottom: 12, textAlign: 'center' }}>
+        Tu cuenta fue desactivada. Se conservara durante 30 dias y luego se eliminaran los datos.
+      </Text>
+      <Text style={{ color: colors.mutedText || colors.placeholderText, fontSize: 13, textAlign: 'center' }}>
+        Email: crazedevs@gmail.com
+      </Text>
+    </View>
+  );
+};
+
 const AppStack = () => {
-  const { isAdmin, roleLoading } = useAuth();
+  const { isAdmin, roleLoading, disabledAccount } = useAuth();
   return (
     <>
-    
     <Stack.Navigator>
+      {disabledAccount && (
+        <Stack.Screen
+          name="AccountDisabled"
+          component={AccountDisabledScreen}
+          options={{ headerShown: false }}
+        />
+      )}
       <Stack.Screen name="BottomTabs" component={BottomTabs} options={{ headerShown: false }} />
       <Stack.Screen name="Home" component={Home} options={{ headerShown: false }} />
       <Stack.Screen name="Farmacias" component={Farmacias} options={{ headerShown: false }} />
@@ -132,6 +154,11 @@ const AppStack = () => {
         name="AdminAnalytics"
         component={!roleLoading && isAdmin ? AdminAnalyticsScreen : NotAuthorizedScreen}
         options={{title: 'Analytics'}}
+      />
+      <Stack.Screen
+        name="AdminAccountRequests"
+        component={!roleLoading && isAdmin ? AdminAccountRequestsScreen : NotAuthorizedScreen}
+        options={{title: 'Solicitudes de cuenta'}}
       />
       <Stack.Screen
         name="AdminLocales"

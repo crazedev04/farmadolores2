@@ -1,4 +1,4 @@
-import { StyleSheet, View, FlatList, ActivityIndicator, Text } from 'react-native';
+import { StyleSheet, View, FlatList, ActivityIndicator, Text, TouchableOpacity, Alert } from 'react-native';
 import React, { useState, useEffect } from 'react';
 import firestore from '@react-native-firebase/firestore';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
@@ -7,6 +7,8 @@ import { useTheme } from '../context/ThemeContext';
 import AdBanner from '../components/ads/AdBanner';
 import { BannerAdSize } from 'react-native-google-mobile-ads';
 import EmergenciaCard from '../components/EmergenciaCard';
+import { useScreenLoadAnalytics } from '../utils/useScreenLoadAnalytics';
+import NetInfo from '@react-native-community/netinfo';
 type EmergenciasNavigationProp = NavigationProp<RootStackParamList, 'Emergencias'>;
 
 type Props = {
@@ -17,8 +19,13 @@ const Emergencias: React.FC<Props> = () => {
   const navigation = useNavigation<EmergenciasNavigationProp>();
   const [emergencias, setEmergencias] = useState<Emergencia[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isOffline, setIsOffline] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [reconnecting, setReconnecting] = useState(false);
   const { theme } = useTheme();
   const { colors } = theme;
+
+  useScreenLoadAnalytics('Emergencias', loading);
 
   useEffect(() => {
     const unsubscribe = firestore().collection('emergencias').onSnapshot(snapshot => {
@@ -55,12 +62,66 @@ const Emergencias: React.FC<Props> = () => {
 
       setEmergencias(emergenciaList);
       setLoading(false);
+      setIsOffline(snapshot.metadata.fromCache === true);
+      setLastUpdated(new Date());
     }, error => {
       console.error("Error fetching emergencias: ", error);
+      setIsOffline(true);
     });
 
     return () => unsubscribe();
   }, []);
+
+  const retryEmergencias = async () => {
+    try {
+      setLoading(true);
+      setReconnecting(true);
+      const state = await NetInfo.fetch();
+      if (!state.isConnected) {
+        Alert.alert('Sin conexion', 'Activa WiFi o datos para actualizar.');
+        return;
+      }
+      const snapshot = await firestore().collection('emergencias').get();
+      const emergenciaList: Emergencia[] = snapshot.docs.map(doc => {
+        const data = doc.data();
+        const rawBadge = data.badge;
+        const rawType = rawBadge?.type;
+        const normalizedType = rawType === 'alerta' || rawType === 'info' || rawType === 'urgencias'
+          ? rawType
+          : 'urgencias';
+        const badgeFromDoc = rawBadge
+          ? {
+            enabled: rawBadge.enabled !== false,
+            text: rawBadge.text || 'Guardia 24hs',
+            type: normalizedType,
+            icon: rawBadge.icon || '',
+          }
+          : undefined;
+        const fallbackBadge = data.guardiaEnabled
+          ? { enabled: true, text: 'Guardia 24hs', type: 'urgencias', icon: 'alert-decagram' }
+          : undefined;
+        return {
+          id: doc.id,
+          name: data.name || '',
+          dir: data.dir || '',
+          tel: data.tel || '',
+          image: data.image || '',
+          detail: data.detail || '',
+          gps: data.gps,
+          guardiaEnabled: data.guardiaEnabled ?? false,
+          badge: badgeFromDoc || fallbackBadge,
+        };
+      });
+      setEmergencias(emergenciaList);
+      setIsOffline(false);
+      setLastUpdated(new Date());
+    } catch {
+      setIsOffline(true);
+    } finally {
+      setReconnecting(false);
+      setLoading(false);
+    }
+  };
 
   const handlePress = (item: Emergencia) => {
     navigation.navigate('DetailE', { emergencia: item });
@@ -74,6 +135,25 @@ const Emergencias: React.FC<Props> = () => {
     <>
     <AdBanner size={BannerAdSize.FULL_BANNER} />
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {isOffline && (
+        <View style={[styles.offlineCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.offlineText, { color: colors.text }]}>
+            Sin conexion. Mostrando datos guardados
+            {lastUpdated ? ` (ultima actualizacion ${lastUpdated.toLocaleTimeString()})` : ''}.
+          </Text>
+          <TouchableOpacity
+            style={[styles.offlineButton, { borderColor: colors.border }]}
+            onPress={retryEmergencias}
+            disabled={reconnecting}
+          >
+            {reconnecting ? (
+              <ActivityIndicator color={colors.text} />
+            ) : (
+              <Text style={[styles.offlineButtonText, { color: colors.text }]}>Reintentar</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
       <FlatList
         data={emergencias}
         renderItem={({ item }) => <EmergenciaCard item={item} onPress={handlePress} />}
@@ -137,5 +217,27 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 40,
     fontSize: 16,
+  },
+  offlineCard: {
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 10,
+  },
+  offlineText: {
+    fontSize: 12,
+  },
+  offlineButton: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignSelf: 'flex-start',
+    marginTop: 6,
+  },
+  offlineButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

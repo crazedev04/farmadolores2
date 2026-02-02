@@ -83,6 +83,7 @@ export type RootStackParamList = {
   AdminLocales: undefined;
   AdminPrimerosAuxilios: undefined;
   AdminAnalytics: undefined;
+  AdminAccountRequests: undefined;
   ActualizarHorarios: undefined;
   ActualizarTurnos: undefined;
   BottomTabs: undefined;

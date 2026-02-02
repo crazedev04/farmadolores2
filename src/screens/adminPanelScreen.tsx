@@ -148,6 +148,15 @@ const AdminPanelScreen: React.FC = () => {
           <Text style={[styles.gridTitle, { color: colors.text }]}>Analytics</Text>
           <Text style={[styles.gridSubtitle, { color: colors.mutedText || colors.placeholderText }]}>Ver metricas clave.</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.gridCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={() => navigation.navigate('AdminAccountRequests')}
+        >
+          <Icon name="account-cog-outline" size={26} color={colors.text} />
+          <Text style={[styles.gridTitle, { color: colors.text }]}>Cuentas</Text>
+          <Text style={[styles.gridSubtitle, { color: colors.mutedText || colors.placeholderText }]}>Solicitudes y reactivacion.</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );

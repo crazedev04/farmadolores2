@@ -7,9 +7,12 @@ import { TriggerType, TimestampTrigger } from '@notifee/react-native';
 import { Farmacia } from '../types/navigationTypes';
 import notifee from '@notifee/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { readCache, writeCache, serializeForCache, rehydrateFromCache } from '../utils/cache';
 
 const LAST_TURNO_PHARMACY_KEY = 'lastTurnoPharmacyId';
 const NOTIFICATIONS_ENABLED_KEY = 'notificationsEnabled';
+const TURNOS_CACHE_KEY = 'cache:farmacias:turnos';
+const TURNOS_CACHE_TTL_MS = 1000 * 60 * 10; // 10 min
 
 interface NotificationSchedule {
   readonly hour: number;
@@ -56,15 +59,21 @@ export async function checkAndNotifyTurnos(): Promise<void> {
     }
 
     await createNotificationChannels();
-    // 1. Consulta farmacias
-    const snapshot = await firestore().collection('farmacias').get();
-    const farmacias: Farmacia[] = snapshot.docs.map(doc => {
-      const data = doc.data() as Partial<Farmacia>;
-      return {
-        ...data,
-        id: doc.id,
-      } as Farmacia;
-    });
+    // 1. Consulta farmacias con cache
+    let farmacias: Farmacia[] | null = await readCache<Farmacia[]>(TURNOS_CACHE_KEY, TURNOS_CACHE_TTL_MS);
+    if (farmacias) {
+      farmacias = rehydrateFromCache(farmacias) as Farmacia[];
+    } else {
+      const snapshot = await firestore().collection('farmacias').get();
+      farmacias = snapshot.docs.map(doc => {
+        const data = doc.data() as Partial<Farmacia>;
+        return {
+          ...data,
+          id: doc.id,
+        } as Farmacia;
+      });
+      writeCache(TURNOS_CACHE_KEY, serializeForCache(farmacias));
+    }
     // 2. Determinar farmacia de turno
     const now = DateTime.local().setZone('America/Argentina/Buenos_Aires');
     const matchingPharmacy = farmacias.find((pharmacy) => {

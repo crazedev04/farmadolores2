@@ -2193,6 +2193,11 @@
   resolved "https://registry.yarnpkg.com/@react-native-community/geolocation/-/geolocation-3.4.0.tgz#8b6ee024a71cf94526ab796af1e9ae140684802c"
   integrity sha512-bzZH89/cwmpkPMKKveoC72C4JH0yF4St5Ceg/ZM9pA1SqX9MlRIrIrrOGZ/+yi++xAvFDiYfihtn9TvXWU9/rA==
 
+"@react-native-community/netinfo@^11.4.1":
+  version "11.5.1"
+  resolved "https://registry.yarnpkg.com/@react-native-community/netinfo/-/netinfo-11.5.1.tgz#540691480a6718bb1d8d9ce3a3f4db144ddd471b"
+  integrity sha512-ZiLvVoNW6fIOZqU99Jdm+dfwv2T76AHifKtEDydPQOkzKg/xLIkSrOEMUigkmlNQu4MeCgFJlrapscbRzU+bKg==
+
 "@react-native-firebase/analytics@^22.4.0":
   version "22.4.0"
   resolved "https://registry.yarnpkg.com/@react-native-firebase/analytics/-/analytics-22.4.0.tgz#9131a63e65f7cb9c7179de3a29baf4a46958c4ba"
@@ -2225,6 +2230,11 @@
   version "22.4.0"
   resolved "https://registry.yarnpkg.com/@react-native-firebase/messaging/-/messaging-22.4.0.tgz#91e88deb8cba799c06e847577c0c61fdcfe381cf"
   integrity sha512-iuTA8IJ102pQijFejhWZXxVIt4+JJ5n3JTN8Mb+OXZmIVswUZ4ryErk8Y0RhcFiIwEF5a99ziJfPybA1EheVLg==
+
+"@react-native-firebase/storage@^22.4.0":
+  version "22.4.0"
+  resolved "https://registry.yarnpkg.com/@react-native-firebase/storage/-/storage-22.4.0.tgz#56ea484ac06aa24f788134080887f180fb3d3e46"
+  integrity sha512-dUPnVRJb4NNsZeLHJqbQvYveq+mWKC4UL0L+OJIUstxGoYlIBu1uvltZoLBw8n7A6CYE/V93jUrTXfKEBEcw1A==
 
 "@react-native-google-signin/google-signin@^14.0.1":
   version "14.0.1"
@@ -6814,6 +6824,16 @@ react-native-gradle-plugin@^0.71.19:
   version "0.71.19"
   resolved "https://registry.yarnpkg.com/react-native-gradle-plugin/-/react-native-gradle-plugin-0.71.19.tgz#3379e28341fcd189bc1f4691cefc84c1a4d7d232"
   integrity sha512-1dVk9NwhoyKHCSxcrM6vY6cxmojeATsBobDicX0ZKr7DgUF2cBQRTKsimQFvzH8XhOVXyH8p4HyDSZNIFI8OlQ==
+
+react-native-image-picker@^7.1.2:
+  version "7.2.3"
+  resolved "https://registry.yarnpkg.com/react-native-image-picker/-/react-native-image-picker-7.2.3.tgz#9c402591462af256cdd9aed796c28083a48f90cd"
+  integrity sha512-zKIZUlQNU3EtqizsXSH92zPeve4vpUrsqHu2kkpCxWE9TZhJFZBb+irDsBOY8J21k0+Edgt06TMQGJ+iPUIXyA==
+
+react-native-image-resizer@^1.4.5:
+  version "1.4.5"
+  resolved "https://registry.yarnpkg.com/react-native-image-resizer/-/react-native-image-resizer-1.4.5.tgz#5a520aa8baa07638b1894a1d87d4d9a0945c8d58"
+  integrity sha512-33EgL3C9pyvjKpullAB6fWyD5QhoYEpNNB9rxNvUsrpAnL2mHBW7PTrUCCZudJeB6Weg7nbweKrSw1nnto5aqg==
 
 react-native-is-edge-to-edge@1.1.7, react-native-is-edge-to-edge@^1.1.7:
   version "1.1.7"

@@ -118,6 +118,8 @@ const Profile: React.FC = () => {
           </View>
         )}
 
+        
+
         {Platform.OS !== 'android' && (
           <View style={styles.drawerContent}>
             <SettingsScreen />

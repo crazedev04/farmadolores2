@@ -3,6 +3,8 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -12,8 +14,9 @@ import {
 import firestore from '@react-native-firebase/firestore';
 import Icon from '@react-native-vector-icons/material-design-icons';
 import { useTheme } from '../context/ThemeContext';
+import { deleteImageByUrl, pickAndUploadImage } from '../utils/uploadImage';
 
- type LocalItem = {
+type LocalItem = {
   id: string;
   name: string;
   descrip: string;
@@ -32,6 +35,8 @@ const AdminLocalesScreen: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingGallery, setUploadingGallery] = useState(false);
 
   const [name, setName] = useState('');
   const [descrip, setDescrip] = useState('');
@@ -40,6 +45,11 @@ const AdminLocalesScreen: React.FC = () => {
   const [tel, setTel] = useState('');
   const [url, setUrl] = useState('');
   const [galleryText, setGalleryText] = useState('');
+
+  const galleryUrls = useMemo(
+    () => galleryText.split('\n').map((line) => line.trim()).filter(Boolean),
+    [galleryText]
+  );
 
   useEffect(() => {
     const unsubscribe = firestore()
@@ -160,15 +170,68 @@ const AdminLocalesScreen: React.FC = () => {
     ]);
   };
 
+  const handleUploadImage = async () => {
+    setUploadingImage(true);
+    try {
+      const result = await pickAndUploadImage('locales/main', {
+        maxWidth: 1280,
+        maxHeight: 1280,
+        quality: 80,
+      });
+      if (result?.url) {
+        setImage(result.url);
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'No se pudo subir la imagen.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleUploadGallery = async () => {
+    setUploadingGallery(true);
+    try {
+      const result = await pickAndUploadImage('locales/gallery', {
+        maxWidth: 1280,
+        maxHeight: 1280,
+        quality: 75,
+      });
+      if (result?.url) {
+        setGalleryText((prev) => (prev ? `${prev}\n${result.url}` : result.url));
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'No se pudo subir la imagen.');
+    } finally {
+      setUploadingGallery(false);
+    }
+  };
+
+  const handleRemoveImage = async () => {
+    if (!image) return;
+    await deleteImageByUrl(image);
+    setImage('');
+  };
+
+  const handleClearGallery = async () => {
+    if (!galleryText.trim()) return;
+    const urls = galleryUrls;
+    await Promise.all(urls.map((urlItem) => deleteImageByUrl(urlItem)));
+    setGalleryText('');
+  };
+
+  const handleRemoveGalleryItem = async (urlItem: string) => {
+    await deleteImageByUrl(urlItem);
+    const next = galleryUrls.filter((item) => item !== urlItem);
+    setGalleryText(next.join('\n'));
+  };
+
   const renderHeader = () => (
     <View>
       <Text style={[styles.title, { color: colors.text }]}>Negocios y locales</Text>
 
-      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
-      >
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.formHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}
-          >
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
             {editingId ? 'Editar negocio' : 'Agregar negocio'}
           </Text>
           {editingId && (
@@ -176,10 +239,7 @@ const AdminLocalesScreen: React.FC = () => {
               style={[styles.cancelButton, { borderColor: colors.border }]}
               onPress={resetForm}
             >
-              <Text style={[styles.cancelText, { color: colors.text }]}
-              >
-                Cancelar
-              </Text>
+              <Text style={[styles.cancelText, { color: colors.text }]}>Cancelar</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -206,6 +266,28 @@ const AdminLocalesScreen: React.FC = () => {
           onChangeText={setImage}
           autoCapitalize="none"
         />
+        {!!image && (
+          <Image source={{ uri: image }} style={[styles.mainPreview, { borderColor: colors.border }]} />
+        )}
+        <TouchableOpacity
+          style={[styles.uploadButton, { borderColor: colors.border }]}
+          onPress={handleUploadImage}
+          disabled={uploadingImage}
+        >
+          <Icon name="image-plus" size={18} color={colors.text} />
+          <Text style={[styles.uploadText, { color: colors.text }]}>
+            {uploadingImage ? 'Subiendo...' : 'Subir imagen'}
+          </Text>
+        </TouchableOpacity>
+        {!!image && (
+          <TouchableOpacity
+            style={[styles.deleteButton, { borderColor: colors.border }]}
+            onPress={handleRemoveImage}
+          >
+            <Icon name="trash-can-outline" size={18} color={colors.error} />
+            <Text style={[styles.deleteText, { color: colors.error }]}>Eliminar imagen</Text>
+          </TouchableOpacity>
+        )}
         <TextInput
           style={[styles.input, styles.multiline, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
           placeholder="Galeria (una URL por linea)"
@@ -214,6 +296,40 @@ const AdminLocalesScreen: React.FC = () => {
           onChangeText={setGalleryText}
           multiline
         />
+        {galleryUrls.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.galleryRow}>
+            {galleryUrls.map((urlItem) => (
+              <View key={urlItem} style={styles.galleryItem}>
+                <Image source={{ uri: urlItem }} style={styles.galleryImage} />
+                <TouchableOpacity
+                  style={[styles.galleryRemove, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  onPress={() => handleRemoveGalleryItem(urlItem)}
+                >
+                  <Icon name="close" size={16} color={colors.error} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
+        )}
+        <TouchableOpacity
+          style={[styles.uploadButton, { borderColor: colors.border }]}
+          onPress={handleUploadGallery}
+          disabled={uploadingGallery}
+        >
+          <Icon name="image-multiple" size={18} color={colors.text} />
+          <Text style={[styles.uploadText, { color: colors.text }]}>
+            {uploadingGallery ? 'Subiendo...' : 'Agregar a galeria'}
+          </Text>
+        </TouchableOpacity>
+        {!!galleryText.trim() && (
+          <TouchableOpacity
+            style={[styles.deleteButton, { borderColor: colors.border }]}
+            onPress={handleClearGallery}
+          >
+            <Icon name="trash-can-outline" size={18} color={colors.error} />
+            <Text style={[styles.deleteText, { color: colors.error }]}>Eliminar galeria</Text>
+          </TouchableOpacity>
+        )}
         <TextInput
           style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
           placeholder="Direccion"
@@ -246,16 +362,14 @@ const AdminLocalesScreen: React.FC = () => {
           {saving ? (
             <ActivityIndicator color={colors.buttonText || '#fff'} />
           ) : (
-            <Text style={[styles.saveButtonText, { color: colors.buttonText || '#fff' }]}
-            >
+            <Text style={[styles.saveButtonText, { color: colors.buttonText || '#fff' }]}>
               {editingId ? 'Guardar cambios' : 'Agregar negocio'}
             </Text>
           )}
         </TouchableOpacity>
       </View>
 
-      <View style={[styles.searchCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-      >
+      <View style={[styles.searchCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.label, { color: colors.text }]}>Buscar negocio</Text>
         <TextInput
           style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
@@ -264,15 +378,13 @@ const AdminLocalesScreen: React.FC = () => {
           value={search}
           onChangeText={setSearch}
         />
-        <Text style={[styles.helperText, { color: colors.mutedText || colors.placeholderText }]}
-        >
+        <Text style={[styles.helperText, { color: colors.mutedText || colors.placeholderText }]}>
           Toca un negocio para editarlo.
         </Text>
       </View>
 
       {filtered.length === 0 && !loading && (
-        <Text style={[styles.emptyText, { color: colors.mutedText || colors.placeholderText }]}
-        >
+        <Text style={[styles.emptyText, { color: colors.mutedText || colors.placeholderText }]}>
           No hay negocios.
         </Text>
       )}
@@ -281,8 +393,7 @@ const AdminLocalesScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}
-      >
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.buttonBackground} />
       </View>
     );
@@ -314,8 +425,7 @@ const AdminLocalesScreen: React.FC = () => {
                 </Text>
               )}
               {!!item.url && (
-                <Text style={[styles.itemMeta, { color: colors.mutedText || colors.placeholderText }]}
-                >
+                <Text style={[styles.itemMeta, { color: colors.mutedText || colors.placeholderText }]}>
                   {item.url}
                 </Text>
               )}
@@ -391,6 +501,62 @@ const styles = StyleSheet.create({
   multiline: {
     minHeight: 80,
     textAlignVertical: 'top',
+  },
+  galleryRow: {
+    marginBottom: 12,
+  },
+  galleryItem: {
+    marginRight: 10,
+  },
+  galleryImage: {
+    width: 86,
+    height: 86,
+    borderRadius: 10,
+    backgroundColor: '#0F172A',
+  },
+  galleryRemove: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    padding: 2,
+  },
+  uploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  uploadText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  mainPreview: {
+    width: '100%',
+    height: 160,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+    backgroundColor: '#0F172A',
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  deleteText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   saveButton: {
     borderRadius: 10,

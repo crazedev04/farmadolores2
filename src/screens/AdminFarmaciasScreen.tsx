@@ -3,6 +3,8 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -12,6 +14,7 @@ import {
 import firestore, { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 import Icon from '@react-native-vector-icons/material-design-icons';
 import { useTheme } from '../context/ThemeContext';
+import { deleteImageByUrl, pickAndUploadImage } from '../utils/uploadImage';
 
 type FarmaciaItem = {
   id: string;
@@ -30,6 +33,8 @@ const AdminFarmaciasScreen: React.FC = () => {
   const [items, setItems] = useState<FarmaciaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingGallery, setUploadingGallery] = useState(false);
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -41,6 +46,11 @@ const AdminFarmaciasScreen: React.FC = () => {
   const [galleryText, setGalleryText] = useState('');
   const [lat, setLat] = useState('');
   const [lng, setLng] = useState('');
+
+  const galleryUrls = useMemo(
+    () => galleryText.split('\n').map((line) => line.trim()).filter(Boolean),
+    [galleryText]
+  );
 
   useEffect(() => {
     const unsubscribe = firestore()
@@ -144,6 +154,61 @@ const AdminFarmaciasScreen: React.FC = () => {
     }
   };
 
+  const handleUploadImage = async () => {
+    setUploadingImage(true);
+    try {
+      const result = await pickAndUploadImage('farmacias/main', {
+        maxWidth: 1280,
+        maxHeight: 1280,
+        quality: 80,
+      });
+      if (result?.url) {
+        setImage(result.url);
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'No se pudo subir la imagen.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleRemoveImage = async () => {
+    if (!image) return;
+    await deleteImageByUrl(image);
+    setImage('');
+  };
+
+  const handleClearGallery = async () => {
+    if (!galleryText.trim()) return;
+    const urls = galleryUrls;
+    await Promise.all(urls.map((url) => deleteImageByUrl(url)));
+    setGalleryText('');
+  };
+
+  const handleRemoveGalleryItem = async (url: string) => {
+    await deleteImageByUrl(url);
+    const next = galleryUrls.filter((item) => item !== url);
+    setGalleryText(next.join('\n'));
+  };
+
+  const handleUploadGallery = async () => {
+    setUploadingGallery(true);
+    try {
+      const result = await pickAndUploadImage('farmacias/gallery', {
+        maxWidth: 1280,
+        maxHeight: 1280,
+        quality: 75,
+      });
+      if (result?.url) {
+        setGalleryText((prev) => (prev ? `${prev}\n${result.url}` : result.url));
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'No se pudo subir la imagen.');
+    } finally {
+      setUploadingGallery(false);
+    }
+  };
+
   const handleDelete = (item: FarmaciaItem) => {
     Alert.alert('Eliminar farmacia', `Eliminar "${item.name}"?`, [
       { text: 'Cancelar', style: 'cancel' },
@@ -210,6 +275,28 @@ const AdminFarmaciasScreen: React.FC = () => {
           onChangeText={setImage}
           autoCapitalize="none"
         />
+        {!!image && (
+          <Image source={{ uri: image }} style={[styles.mainPreview, { borderColor: colors.border }]} />
+        )}
+        <TouchableOpacity
+          style={[styles.uploadButton, { borderColor: colors.border }]}
+          onPress={handleUploadImage}
+          disabled={uploadingImage}
+        >
+          <Icon name="image-plus" size={18} color={colors.text} />
+          <Text style={[styles.uploadText, { color: colors.text }]}>
+            {uploadingImage ? 'Subiendo...' : 'Subir imagen'}
+          </Text>
+        </TouchableOpacity>
+        {!!image && (
+          <TouchableOpacity
+            style={[styles.deleteButton, { borderColor: colors.border }]}
+            onPress={handleRemoveImage}
+          >
+            <Icon name="trash-can-outline" size={18} color={colors.error} />
+            <Text style={[styles.deleteText, { color: colors.error }]}>Eliminar imagen</Text>
+          </TouchableOpacity>
+        )}
         <TextInput
           style={[styles.input, styles.multiline, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
           placeholder="Galeria (una URL por linea)"
@@ -218,6 +305,40 @@ const AdminFarmaciasScreen: React.FC = () => {
           onChangeText={setGalleryText}
           multiline
         />
+        {galleryUrls.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.galleryRow}>
+            {galleryUrls.map((url) => (
+              <View key={url} style={styles.galleryItem}>
+                <Image source={{ uri: url }} style={styles.galleryImage} />
+                <TouchableOpacity
+                  style={[styles.galleryRemove, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  onPress={() => handleRemoveGalleryItem(url)}
+                >
+                  <Icon name="close" size={16} color={colors.error} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
+        )}
+        <TouchableOpacity
+          style={[styles.uploadButton, { borderColor: colors.border }]}
+          onPress={handleUploadGallery}
+          disabled={uploadingGallery}
+        >
+          <Icon name="image-multiple" size={18} color={colors.text} />
+          <Text style={[styles.uploadText, { color: colors.text }]}>
+            {uploadingGallery ? 'Subiendo...' : 'Agregar a galeria'}
+          </Text>
+        </TouchableOpacity>
+        {!!galleryText.trim() && (
+          <TouchableOpacity
+            style={[styles.deleteButton, { borderColor: colors.border }]}
+            onPress={handleClearGallery}
+          >
+            <Icon name="trash-can-outline" size={18} color={colors.error} />
+            <Text style={[styles.deleteText, { color: colors.error }]}>Eliminar galeria</Text>
+          </TouchableOpacity>
+        )}
         <TextInput
           style={[styles.input, styles.multiline, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
           placeholder="Detalle (opcional)"
@@ -381,9 +502,65 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontSize: 14,
   },
+  uploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  uploadText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  mainPreview: {
+    width: '100%',
+    height: 160,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+    backgroundColor: '#0F172A',
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  deleteText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
   multiline: {
     minHeight: 80,
     textAlignVertical: 'top',
+  },
+  galleryRow: {
+    marginBottom: 12,
+  },
+  galleryItem: {
+    marginRight: 10,
+  },
+  galleryImage: {
+    width: 86,
+    height: 86,
+    borderRadius: 10,
+    backgroundColor: '#0F172A',
+  },
+  galleryRemove: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    padding: 2,
   },
   inlineRow: {
     flexDirection: 'row',

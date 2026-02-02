@@ -172,6 +172,10 @@ jest.mock('@react-native-community/geolocation', () => ({
   stopObserving: jest.fn(),
 }));
 
+jest.mock('@react-native-community/netinfo', () => ({
+  fetch: jest.fn().mockResolvedValue({ isConnected: true }),
+}));
+
 jest.mock('react-native-permissions', () => ({
   check: jest.fn().mockResolvedValue('granted'),
   request: jest.fn().mockResolvedValue('granted'),
@@ -190,6 +194,27 @@ jest.mock('react-native-modal-datetime-picker', () => {
 jest.mock('react-native-webview', () => {
   const React = require('react');
   return (props) => React.createElement('WebView', props, null);
+});
+
+jest.mock('react-native-image-picker', () => ({
+  launchImageLibrary: jest.fn().mockResolvedValue({ didCancel: true }),
+}));
+
+jest.mock('react-native-image-resizer', () => ({
+  createResizedImage: jest.fn().mockResolvedValue({ uri: 'file:///tmp/mock.webp' }),
+}));
+
+jest.mock('@react-native-firebase/storage', () => {
+  const storage = () => ({
+    ref: () => ({
+      putFile: jest.fn().mockResolvedValue(undefined),
+      getDownloadURL: jest.fn().mockResolvedValue('https://example.com/image.jpg'),
+    }),
+    refFromURL: () => ({
+      delete: jest.fn().mockResolvedValue(undefined),
+    }),
+  });
+  return storage;
 });
 
 jest.mock('react-native-fs', () => ({

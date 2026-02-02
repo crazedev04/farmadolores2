@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -28,11 +29,15 @@ import SkeletonCard from '../skeleton/SkeletonCard';
 import { openWebLink } from '../utils/openWebLink';
 import { openMapsLink } from '../utils/openMapsLink';
 import { logEvent } from '../services/analytics';
+import { readCache, writeCache } from '../utils/cache';
+import { useScreenLoadAnalytics } from '../utils/useScreenLoadAnalytics';
+import NetInfo from '@react-native-community/netinfo';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
 type MaintenanceData = {
   enabled?: boolean;
+  title?: string;
   message?: string;
   type?: 'info' | 'warning' | 'error';
   ctaText?: string;
@@ -84,6 +89,10 @@ type MapConfig = {
 };
 
 const DAYS_ES = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
+const HOME_CACHE_KEY = 'cache:home-config';
+const MAINT_CACHE_KEY = 'cache:maintenance';
+const HOME_CACHE_TTL_MS = 1000 * 60 * 5; // 5 min
+const MAINT_CACHE_TTL_MS = 1000 * 60 * 2; // 2 min
 
 const Home = () => {
   const { loading, farmacias } = usePharmacies();
@@ -104,8 +113,35 @@ const Home = () => {
   const [featuredConfig, setFeaturedConfig] = useState<FeaturedConfig | null>(null);
   const [mapConfig, setMapConfig] = useState<MapConfig | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [isOffline, setIsOffline] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
 
   useEffect(() => {
+    let mounted = true;
+    const loadCache = async () => {
+      const cachedMaint = await readCache<MaintenanceData | null>(MAINT_CACHE_KEY, MAINT_CACHE_TTL_MS);
+      if (cachedMaint && mounted) {
+        setMaintenance(cachedMaint);
+        setIsOffline(true);
+      }
+      const cachedHome = await readCache<any>(HOME_CACHE_KEY, HOME_CACHE_TTL_MS);
+      if (cachedHome && mounted) {
+        setNewsItems(Array.isArray(cachedHome.news) ? cachedHome.news : []);
+        setNewsEnabled(cachedHome.newsEnabled !== false);
+        setNewsOrder(cachedHome.newsOrder === 'newest' ? 'newest' : 'oldest');
+        setTips(Array.isArray(cachedHome.tips) ? cachedHome.tips : []);
+        setTipsEnabled(cachedHome.tipsEnabled !== false);
+        setTipsOrder(cachedHome.tipsOrder === 'newest' ? 'newest' : 'oldest');
+        setPromos(Array.isArray(cachedHome.promos) ? cachedHome.promos : []);
+        setPromosEnabled(cachedHome.promosEnabled !== false);
+        setPromosOrder(cachedHome.promosOrder === 'newest' ? 'newest' : 'oldest');
+        setFeaturedConfig(cachedHome.featured || null);
+        setMapConfig(cachedHome.map || null);
+        setIsOffline(true);
+      }
+    };
+    loadCache();
+
     const maintenanceRef = firestore()
       .collection('config')
       .doc('appStatus');
@@ -114,7 +150,12 @@ const Home = () => {
         setMaintenance(null);
         return;
       }
-      setMaintenance(snapshot.data() as MaintenanceData);
+      const data = snapshot.data() as MaintenanceData;
+      setMaintenance(data);
+      setIsOffline(snapshot.metadata.fromCache === true);
+      writeCache(MAINT_CACHE_KEY, data);
+    }, () => {
+      setIsOffline(true);
     });
     const homeRef = firestore().collection('config').doc('home');
     const unsubHome = homeRef.onSnapshot(snapshot => {
@@ -144,13 +185,20 @@ const Home = () => {
       setPromosOrder(data.promosOrder === 'newest' ? 'newest' : 'oldest');
       setFeaturedConfig(data.featured || null);
       setMapConfig(data.map || null);
+      setIsOffline(snapshot.metadata.fromCache === true);
+      writeCache(HOME_CACHE_KEY, data);
+    }, () => {
+      setIsOffline(true);
     });
 
     return () => {
+      mounted = false;
       unsubMaintenance();
       unsubHome();
     };
   }, []);
+
+  useScreenLoadAnalytics('Home', loading);
 
   useFocusEffect(
     useCallback(() => {
@@ -265,6 +313,17 @@ const Home = () => {
     return applyOrder(filtered, promosOrder);
   }, [promos, promosOrder]);
 
+  useEffect(() => {
+    if (featured?.imageUrl) {
+      Image.prefetch(featured.imageUrl).catch(() => {});
+    }
+    visiblePromos.slice(0, 3).forEach((promo) => {
+      if (promo.imageUrl) {
+        Image.prefetch(promo.imageUrl).catch(() => {});
+      }
+    });
+  }, [featured?.imageUrl, visiblePromos]);
+
   const openUrl = async (url?: string, title?: string, meta?: Record<string, unknown>) => {
     const ok = await openWebLink(navigation, url, title, meta);
     if (!ok) {
@@ -282,6 +341,47 @@ const Home = () => {
 
   const openMaps = (address?: string, lat?: number, lng?: number, mapUrl?: string) => {
     openMapsLink(navigation, { address, lat, lng, mapUrl, title: 'Mapa' });
+  };
+
+  const retryHome = async () => {
+    try {
+      setReconnecting(true);
+      const state = await NetInfo.fetch();
+      if (!state.isConnected) {
+        Alert.alert('Sin conexion', 'Activa WiFi o datos para actualizar.');
+        return;
+      }
+      const [statusSnap, homeSnap] = await Promise.all([
+        firestore().collection('config').doc('appStatus').get(),
+        firestore().collection('config').doc('home').get(),
+      ]);
+      if (statusSnap.exists) {
+        const data = statusSnap.data() as MaintenanceData;
+        setMaintenance(data);
+        setIsOffline(false);
+        writeCache(MAINT_CACHE_KEY, data);
+      }
+      if (homeSnap.exists) {
+        const data = homeSnap.data() || {};
+        setNewsItems(Array.isArray(data.news) ? data.news : []);
+        setNewsEnabled(data.newsEnabled !== false);
+        setNewsOrder(data.newsOrder === 'newest' ? 'newest' : 'oldest');
+        setTips(Array.isArray(data.tips) ? data.tips : []);
+        setTipsEnabled(data.tipsEnabled !== false);
+        setTipsOrder(data.tipsOrder === 'newest' ? 'newest' : 'oldest');
+        setPromos(Array.isArray(data.promos) ? data.promos : []);
+        setPromosEnabled(data.promosEnabled !== false);
+        setPromosOrder(data.promosOrder === 'newest' ? 'newest' : 'oldest');
+        setFeaturedConfig(data.featured || null);
+        setMapConfig(data.map || null);
+        setIsOffline(false);
+        writeCache(HOME_CACHE_KEY, data);
+      }
+    } catch {
+      setIsOffline(true);
+    } finally {
+      setReconnecting(false);
+    }
   };
 
   const dayIndex = DateTime.local().weekday % 7;
@@ -305,9 +405,29 @@ const Home = () => {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <StatusBar backgroundColor={colors.background} barStyle={colors.dark ? 'light-content' : 'dark-content'} />
+      <StatusBar backgroundColor={colors.background} barStyle={theme.dark ? 'light-content' : 'dark-content'} />
         <AdBanner size={BannerAdSize.FULL_BANNER} />
       <ScrollView contentContainerStyle={[styles.scrollContainer, { backgroundColor: colors.background }]}>
+
+        {isOffline && (
+          <View style={[styles.offlineCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Icon name="cloud-off-outline" size={18} color={colors.warning} />
+            <Text style={[styles.offlineText, { color: colors.text }]}>
+              Sin conexion. Mostrando datos guardados.
+            </Text>
+            <TouchableOpacity
+              style={[styles.offlineButton, { borderColor: colors.border }]}
+              onPress={retryHome}
+              disabled={reconnecting}
+            >
+              {reconnecting ? (
+                <ActivityIndicator color={colors.text} />
+              ) : (
+                <Text style={[styles.offlineButtonText, { color: colors.text }]}>Reintentar</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
 
         {maintenance?.enabled && (
           <View style={[styles.bannerCard, { backgroundColor: colors.card, borderColor: bannerColor(maintenance.type) }]}> 
@@ -315,7 +435,9 @@ const Home = () => {
               <Icon name={bannerIcon(maintenance.type)} size={20} color={colors.buttonText || '#fff'} />
             </View>
             <View style={styles.bannerContent}>
-              <Text style={[styles.bannerTitle, { color: colors.text }]}>Estado del servicio</Text>
+              <Text style={[styles.bannerTitle, { color: colors.text }]}>
+                {maintenance.title || 'Estado del servicio'}
+              </Text>
               <Text style={[styles.bannerMessage, { color: colors.mutedText || colors.placeholderText }]}> 
                 {maintenance.message || 'Estamos realizando tareas de mantenimiento.'}
               </Text>
@@ -654,6 +776,30 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: 'center',
+  },
+  offlineCard: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  offlineText: {
+    fontSize: 13,
+    flex: 1,
+  },
+  offlineButton: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  offlineButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   featuredCard: {
     marginHorizontal: 16,

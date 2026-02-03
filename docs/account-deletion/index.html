@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="es">
   <head>
     <meta charset="utf-8" />
@@ -8,89 +8,93 @@
       name="description"
       content="Solicitud de eliminacion de cuenta y datos para la aplicacion Farma Dolores."
     />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="icon" href="../assets/logo.png" />
+    <link rel="stylesheet" href="../styles.css" />
   </head>
   <body>
     <main class="page">
-      <header class="hero">
-        <p class="eyebrow">Farma Dolores</p>
-        <h1>Solicitud de eliminacion de cuenta</h1>
-        <p class="lead">
-          Si queres eliminar tu cuenta y los datos personales asociados, segui los pasos
-          de esta pagina.
-        </p>
-      </header>
+      <div class="container">
+        <a class="micro" href="../index.html">Volver al inicio</a>
+        <header class="hero">
+          <p class="eyebrow">Farma Dolores</p>
+          <h1>Solicitud de eliminacion de cuenta</h1>
+          <p class="lead">
+            Si queres eliminar tu cuenta y los datos personales asociados, segui los pasos
+            de esta pagina.
+          </p>
+        </header>
 
-      <section class="card">
-        <h2>Como solicitar la eliminacion</h2>
-        <ol class="steps">
-          <li>
-            Envia un correo a
-            <a class="link" href="mailto:crazedevs@gmail.com">crazedevs@gmail.com</a>
-            con el asunto <strong>Eliminar cuenta</strong>.
-          </li>
-          <li>
-            Inclui estos datos para poder identificar tu cuenta:
-            <ul>
-              <li>Nombre y apellido (opcional).</li>
-              <li>Correo registrado en la app.</li>
-              <li>UID (si lo conoces).</li>
-            </ul>
-          </li>
-        </ol>
-        <p class="note">
-          Tambien podes enviar la solicitud desde el formulario de abajo.
-        </p>
-      </section>
+        <section class="card">
+          <h2>Como solicitar la eliminacion</h2>
+          <ol class="steps">
+            <li>
+              Envia un correo a
+              <a class="link" href="mailto:crazedevs@gmail.com">crazedevs@gmail.com</a>
+              con el asunto <strong>Eliminar cuenta</strong>.
+            </li>
+            <li>
+              Inclui estos datos para poder identificar tu cuenta:
+              <ul>
+                <li>Nombre y apellido (opcional).</li>
+                <li>Correo registrado en la app.</li>
+                <li>UID (si lo conoces).</li>
+              </ul>
+            </li>
+          </ol>
+          <p class="note">
+            Tambien podes enviar la solicitud desde el formulario de abajo.
+          </p>
+        </section>
 
-      <section class="card">
-        <h2>Formulario rapido</h2>
-        <form
-          class="form"
-          action="mailto:crazedevs@gmail.com"
-          method="post"
-          enctype="text/plain"
-        >
-          <label class="field">
-            <span>Nombre (opcional)</span>
-            <input type="text" name="nombre" placeholder="Tu nombre" />
-          </label>
-          <label class="field">
-            <span>Correo registrado</span>
-            <input type="email" name="correo" placeholder="tu@email.com" required />
-          </label>
-          <label class="field">
-            <span>UID (opcional)</span>
-            <input type="text" name="uid" placeholder="UID de tu cuenta" />
-          </label>
-          <label class="field">
-            <span>Mensaje</span>
-            <textarea name="mensaje" rows="4" placeholder="Solicito eliminar mi cuenta."></textarea>
-          </label>
-          <button class="button" type="submit">Enviar solicitud</button>
-          <p class="note">El formulario abrira tu app de correo para enviar la solicitud.</p>
-        </form>
-      </section>
+        <section class="card">
+          <h2>Formulario rapido</h2>
+          <form
+            class="form"
+            action="mailto:crazedevs@gmail.com"
+            method="post"
+            enctype="text/plain"
+          >
+            <label class="field">
+              <span>Nombre (opcional)</span>
+              <input type="text" name="nombre" placeholder="Tu nombre" />
+            </label>
+            <label class="field">
+              <span>Correo registrado</span>
+              <input type="email" name="correo" placeholder="tu@email.com" required />
+            </label>
+            <label class="field">
+              <span>UID (opcional)</span>
+              <input type="text" name="uid" placeholder="UID de tu cuenta" />
+            </label>
+            <label class="field">
+              <span>Mensaje</span>
+              <textarea name="mensaje" rows="4" placeholder="Solicito eliminar mi cuenta."></textarea>
+            </label>
+            <button class="button primary" type="submit">Enviar solicitud</button>
+            <p class="note">El formulario abrira tu app de correo para enviar la solicitud.</p>
+          </form>
+        </section>
 
-      <section class="card">
-        <h2>Que datos se eliminan</h2>
-        <p>
-          Se elimina la cuenta de autenticacion y los datos personales asociados (por
-          ejemplo, nombre, correo y UID). El contenido publico puede mantenerse de forma
-          anonima cuando sea necesario para el funcionamiento del servicio.
-        </p>
-      </section>
+        <section class="card">
+          <h2>Que datos se eliminan</h2>
+          <p>
+            Se elimina la cuenta de autenticacion y los datos personales asociados (por
+            ejemplo, nombre, correo y UID). El contenido publico puede mantenerse de forma
+            anonima cuando sea necesario para el funcionamiento del servicio.
+          </p>
+        </section>
 
-      <section class="card">
-        <h2>Plazos</h2>
-        <p>
-          Procesamos las solicitudes dentro de un plazo estimado de hasta 30 dias.
-        </p>
-      </section>
+        <section class="card">
+          <h2>Plazos</h2>
+          <p>
+            Procesamos las solicitudes dentro de un plazo estimado de hasta 30 dias.
+          </p>
+        </section>
 
-      <footer class="footer">
-        <p>Ultima actualizacion: 30/01/2026</p>
-      </footer>
+        <footer class="footer">
+          <p class="micro">Ultima actualizacion: 03/02/2026</p>
+        </footer>
+      </div>
     </main>
   </body>
 </html>

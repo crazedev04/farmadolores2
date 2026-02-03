@@ -59,6 +59,11 @@ const PrimerosAuxilios = () => {
   const [reconnecting, setReconnecting] = useState(false);
 
   useEffect(() => {
+    const unsubscribeNet = NetInfo.addEventListener((state) => {
+      const reachable = state.isInternetReachable;
+      const online = !!state.isConnected && reachable !== false;
+      setIsOffline(!online);
+    });
     const unsubscribe = firestore()
       .collection('primerosAuxilios')
       .onSnapshot(
@@ -77,16 +82,17 @@ const PrimerosAuxilios = () => {
           });
           setGuides(next);
           setLoading(false);
-          setIsOffline(snapshot.metadata.fromCache === true);
           setLastUpdated(new Date());
         },
         () => {
           setLoading(false);
-          setIsOffline(true);
         }
       );
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeNet();
+      unsubscribe();
+    };
   }, []);
 
   const retryGuides = async () => {
@@ -94,7 +100,7 @@ const PrimerosAuxilios = () => {
       setLoading(true);
       setReconnecting(true);
       const state = await NetInfo.fetch();
-      if (!state.isConnected) {
+      if (!state.isConnected || state.isInternetReachable === false) {
         Alert.alert('Sin conexion', 'Activa WiFi o datos para actualizar.');
         return;
       }

@@ -37,6 +37,11 @@ const LocalesListScreen: React.FC = () => {
   const { colors } = theme;
 
   useEffect(() => {
+    const unsubscribeNet = NetInfo.addEventListener((state) => {
+      const reachable = state.isInternetReachable;
+      const online = !!state.isConnected && reachable !== false;
+      setIsOffline(!online);
+    });
     const snapshot = firestore().collection('publi').onSnapshot(
       (querySnapshot) => {
         const localesData: Local[] = querySnapshot.docs.map((doc) => {
@@ -50,20 +55,21 @@ const LocalesListScreen: React.FC = () => {
             tel: data.tel || '',
             url: data.url || '',
             gallery: Array.isArray((data as any).gallery) ? (data as any).gallery : undefined,
-          };
-        });
-        setLocales(localesData);
-        setLoading(false);
-        setIsOffline(querySnapshot.metadata.fromCache === true);
-        setLastUpdated(new Date());
+        };
+      });
+      setLocales(localesData);
+      setLoading(false);
+      setLastUpdated(new Date());
       },
       () => {
-        setIsOffline(true);
         setLoading(false);
       }
     );
 
-    return () => snapshot();
+    return () => {
+      unsubscribeNet();
+      snapshot();
+    };
   }, []);
 
   const retryLocales = async () => {
@@ -71,7 +77,7 @@ const LocalesListScreen: React.FC = () => {
       setLoading(true);
       setReconnecting(true);
       const state = await NetInfo.fetch();
-      if (!state.isConnected) {
+      if (!state.isConnected || state.isInternetReachable === false) {
         Alert.alert('Sin conexion', 'Activa WiFi o datos para actualizar.');
         return;
       }

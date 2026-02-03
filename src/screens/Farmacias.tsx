@@ -224,7 +224,7 @@ const Farmacias: React.FC = () => {
               onPress={async () => {
                 setReconnecting(true);
                 const state = await NetInfo.fetch();
-                if (!state.isConnected) {
+                if (!state.isConnected || state.isInternetReachable === false) {
                   Alert.alert('Sin conexion', 'Activa WiFi o datos para actualizar.');
                   setReconnecting(false);
                   return;

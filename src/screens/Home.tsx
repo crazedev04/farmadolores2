@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
   ScrollView,
@@ -9,10 +9,12 @@ import {
   View,
   Alert,
   ActivityIndicator,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BannerAdSize } from 'react-native-google-mobile-ads';
 import firestore from '@react-native-firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -32,6 +34,11 @@ import { logEvent } from '../services/analytics';
 import { readCache, writeCache } from '../utils/cache';
 import { useScreenLoadAnalytics } from '../utils/useScreenLoadAnalytics';
 import NetInfo from '@react-native-community/netinfo';
+import { BlurView } from '@react-native-community/blur';
+import { checkAndApplyHotfix, installManifest, savePendingManifest, setOtaUiHandler, type OtaManifest } from '../services/otaHotfix';
+import { requestPermissions } from '../components/Permissions';
+import { initPushNotifications } from '../services/pushService';
+import { useAuth } from '../context/AuthContext';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -98,7 +105,9 @@ const Home = () => {
   const { loading, farmacias } = usePharmacies();
   const { theme } = useTheme();
   const { colors } = theme;
+  const { user } = useAuth();
   const navigation = useNavigation<HomeScreenNavigationProp>();
+  const insets = useSafeAreaInsets();
 
   const [maintenance, setMaintenance] = useState<MaintenanceData | null>(null);
   const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
@@ -113,16 +122,27 @@ const Home = () => {
   const [featuredConfig, setFeaturedConfig] = useState<FeaturedConfig | null>(null);
   const [mapConfig, setMapConfig] = useState<MapConfig | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [permissionsDeferred, setPermissionsDeferred] = useState(false);
+  const [permissionsGranted, setPermissionsGranted] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
+  const [otaModalVisible, setOtaModalVisible] = useState(false);
+  const [otaManifest, setOtaManifest] = useState<OtaManifest | null>(null);
+  const [otaInstalling, setOtaInstalling] = useState(false);
+  const [otaMinimized, setOtaMinimized] = useState(false);
+  const installTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    const unsubscribeNet = NetInfo.addEventListener((state) => {
+      const reachable = state.isInternetReachable;
+      const online = !!state.isConnected && reachable !== false;
+      setIsOffline(!online);
+    });
     let mounted = true;
     const loadCache = async () => {
       const cachedMaint = await readCache<MaintenanceData | null>(MAINT_CACHE_KEY, MAINT_CACHE_TTL_MS);
       if (cachedMaint && mounted) {
         setMaintenance(cachedMaint);
-        setIsOffline(true);
       }
       const cachedHome = await readCache<any>(HOME_CACHE_KEY, HOME_CACHE_TTL_MS);
       if (cachedHome && mounted) {
@@ -137,7 +157,6 @@ const Home = () => {
         setPromosOrder(cachedHome.promosOrder === 'newest' ? 'newest' : 'oldest');
         setFeaturedConfig(cachedHome.featured || null);
         setMapConfig(cachedHome.map || null);
-        setIsOffline(true);
       }
     };
     loadCache();
@@ -152,10 +171,8 @@ const Home = () => {
       }
       const data = snapshot.data() as MaintenanceData;
       setMaintenance(data);
-      setIsOffline(snapshot.metadata.fromCache === true);
       writeCache(MAINT_CACHE_KEY, data);
     }, () => {
-      setIsOffline(true);
     });
     const homeRef = firestore().collection('config').doc('home');
     const unsubHome = homeRef.onSnapshot(snapshot => {
@@ -185,20 +202,40 @@ const Home = () => {
       setPromosOrder(data.promosOrder === 'newest' ? 'newest' : 'oldest');
       setFeaturedConfig(data.featured || null);
       setMapConfig(data.map || null);
-      setIsOffline(snapshot.metadata.fromCache === true);
       writeCache(HOME_CACHE_KEY, data);
     }, () => {
-      setIsOffline(true);
     });
 
     return () => {
       mounted = false;
+      unsubscribeNet();
       unsubMaintenance();
       unsubHome();
     };
   }, []);
 
   useScreenLoadAnalytics('Home', loading);
+
+  useEffect(() => {
+    setOtaUiHandler((manifest) => {
+      setOtaManifest(manifest);
+      setOtaModalVisible(true);
+      setOtaMinimized(false);
+    });
+    return () => setOtaUiHandler(null);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (installTimeoutRef.current) {
+        clearTimeout(installTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    checkAndApplyHotfix();
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -208,6 +245,12 @@ const Home = () => {
           const stored = await AsyncStorage.getItem('notificationsEnabled');
           if (active) {
             setNotificationsEnabled(stored !== 'false');
+          }
+          const deferred = await AsyncStorage.getItem('permissionsDeferred');
+          const granted = await AsyncStorage.getItem('permissionsGranted');
+          if (active) {
+            setPermissionsDeferred(deferred === 'true');
+            setPermissionsGranted(granted === 'true');
           }
         } catch {
           if (active) setNotificationsEnabled(true);
@@ -347,7 +390,7 @@ const Home = () => {
     try {
       setReconnecting(true);
       const state = await NetInfo.fetch();
-      if (!state.isConnected) {
+      if (!state.isConnected || state.isInternetReachable === false) {
         Alert.alert('Sin conexion', 'Activa WiFi o datos para actualizar.');
         return;
       }
@@ -403,10 +446,142 @@ const Home = () => {
     ? `Proxima farmacia: ${nextTurn.pharmacy.name} - ${nextTurn.start.toFormat('dd/LL HH:mm')}`
     : 'No hay proximos turnos cargados.';
 
+  const normalizeNotes = (notes?: string | string[]) => {
+    if (!notes) return [];
+    if (Array.isArray(notes)) return notes.filter(Boolean);
+    return notes.split('\n').map((item) => item.trim()).filter(Boolean);
+  };
+
+  const notesList = normalizeNotes(otaManifest?.notes);
+
+  const startInstallTimer = () => {
+    if (installTimeoutRef.current) {
+      clearTimeout(installTimeoutRef.current);
+    }
+    installTimeoutRef.current = setTimeout(() => {
+      setOtaModalVisible(false);
+      setOtaMinimized(true);
+    }, 15000);
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar backgroundColor={colors.background} barStyle={theme.dark ? 'light-content' : 'dark-content'} />
         <AdBanner size={BannerAdSize.FULL_BANNER} />
+      <Modal
+        visible={otaModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!otaInstalling) setOtaModalVisible(false);
+        }}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => {
+            if (!otaInstalling) setOtaModalVisible(false);
+          }}
+        >
+          <BlurView
+            style={StyleSheet.absoluteFillObject}
+            blurType={theme.dark ? 'dark' : 'light'}
+            blurAmount={12}
+            reducedTransparencyFallbackColor="rgba(0,0,0,0.55)"
+          />
+        </Pressable>
+        <View
+          style={[
+            styles.modalCard,
+            { backgroundColor: colors.card, borderColor: colors.border, bottom: Math.max(insets.bottom + 84, 96) },
+          ]}
+        >
+          <View style={styles.modalHeader}>
+            <View style={[styles.modalIcon, { backgroundColor: colors.buttonBackground }]}>
+              <Icon name="update" size={18} color={colors.buttonText || '#fff'} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Actualizacion disponible</Text>
+              <Text style={[styles.modalText, { color: colors.mutedText || colors.placeholderText }]}>
+                Hay mejoras listas para instalar. Se aplicaran al reiniciar la app.
+              </Text>
+            </View>
+          </View>
+          {notesList.length > 0 && (
+            <View style={styles.modalNotes}>
+              <Text style={[styles.modalNotesTitle, { color: colors.text }]}>Novedades</Text>
+              {notesList.map((note, index) => (
+                <View key={`${note}-${index}`} style={styles.modalNoteRow}>
+                  <View style={[styles.modalBullet, { backgroundColor: colors.buttonBackground }]} />
+                  <Text style={[styles.modalNoteText, { color: colors.text }]}>{note}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+          <View style={styles.modalActions}>
+            <TouchableOpacity
+              style={[styles.modalButton, { borderColor: colors.border }]}
+              onPress={async () => {
+                if (!otaManifest) return;
+                try {
+                  await savePendingManifest(otaManifest);
+                } catch {
+                  // ignore
+                }
+                setOtaModalVisible(false);
+                setOtaMinimized(false);
+              }}
+              disabled={otaInstalling}
+            >
+              <Text style={[styles.modalButtonText, { color: colors.text }]}>Despues</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.modalPrimaryButton, { backgroundColor: colors.buttonBackground }]}
+              onPress={async () => {
+                if (!otaManifest) return;
+                setOtaInstalling(true);
+                setOtaMinimized(false);
+                startInstallTimer();
+                try {
+                  await installManifest(otaManifest, 'user');
+                } catch {
+                  Alert.alert('No se pudo instalar', 'Reintenta en unos minutos.');
+                  setOtaInstalling(false);
+                  setOtaMinimized(false);
+                  if (installTimeoutRef.current) {
+                    clearTimeout(installTimeoutRef.current);
+                  }
+                }
+              }}
+            >
+              {otaInstalling ? (
+                <ActivityIndicator color={colors.buttonText || '#fff'} />
+              ) : (
+                <Text style={[styles.modalButtonText, { color: colors.buttonText || '#fff' }]}>Instalar ahora</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      {otaMinimized && otaInstalling && (
+        <View
+          style={[
+            styles.otaMiniCard,
+            { backgroundColor: colors.card, borderColor: colors.border, bottom: Math.max(insets.bottom + 70, 80) },
+          ]}
+        >
+          <ActivityIndicator color={colors.buttonBackground} />
+          <Text style={[styles.otaMiniText, { color: colors.text }]}>Actualizando...</Text>
+          <TouchableOpacity
+            style={styles.otaMiniButton}
+            onPress={() => {
+              setOtaModalVisible(true);
+              setOtaMinimized(false);
+            }}
+          >
+            <Text style={[styles.otaMiniButtonText, { color: colors.buttonBackground }]}>Ver</Text>
+          </TouchableOpacity>
+        </View>
+      )}
       <ScrollView contentContainerStyle={[styles.scrollContainer, { backgroundColor: colors.background }]}>
 
         {isOffline && (
@@ -477,6 +652,30 @@ const Home = () => {
               }}
             >
               <Text style={{ color: colors.buttonText || '#fff', fontWeight: '700' }}>Ir a ajustes</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {permissionsDeferred && !permissionsGranted && (
+          <View style={[styles.noticeCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.noticeRow}>
+              <Icon name="shield-account-outline" size={20} color={colors.warning} />
+              <Text style={[styles.noticeText, { color: colors.text }]}>
+                Te faltan permisos para mostrar turnos y avisos. Podes activarlos ahora.
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.noticeButton, { backgroundColor: colors.buttonBackground }]}
+              onPress={async () => {
+                const granted = await requestPermissions();
+                if (granted) {
+                  setPermissionsGranted(true);
+                  setPermissionsDeferred(false);
+                  initPushNotifications(user?.uid || null, true);
+                }
+              }}
+            >
+              <Text style={{ color: colors.buttonText || '#fff', fontWeight: '700' }}>Dar permisos</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -668,6 +867,104 @@ const Home = () => {
 const styles = StyleSheet.create({
   scrollContainer: {
     paddingBottom: 32,
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+  },
+  modalCard: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  modalIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  modalText: {
+    fontSize: 13,
+  },
+  modalNotes: {
+    marginBottom: 14,
+    gap: 6,
+  },
+  modalNotesTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  modalNoteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modalBullet: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  modalNoteText: {
+    fontSize: 13,
+    flex: 1,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  modalButton: {
+    flex: 1,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  modalPrimaryButton: {
+    borderWidth: 0,
+  },
+  modalButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  otaMiniCard: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  otaMiniText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  otaMiniButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  otaMiniButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   section: {
     marginTop: 18,

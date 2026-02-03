@@ -108,6 +108,7 @@ const AppStack = () => {
           options={{ headerShown: false }}
         />
       )}
+      {/* <Stack.Screen name ="Onboarding" component={OnboardingStack} options={{ headerShown: false }} /> */}
       <Stack.Screen name="BottomTabs" component={BottomTabs} options={{ headerShown: false }} />
       <Stack.Screen name="Home" component={Home} options={{ headerShown: false }} />
       <Stack.Screen name="Farmacias" component={Farmacias} options={{ headerShown: false }} />

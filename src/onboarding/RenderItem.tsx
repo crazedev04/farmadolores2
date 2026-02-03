@@ -1,4 +1,4 @@
-import {StyleSheet, Text, View, useWindowDimensions} from 'react-native';
+import {StyleSheet, Text, View, useWindowDimensions, TouchableOpacity, ActivityIndicator} from 'react-native';
 import React from 'react';
 import Animated, {
   Extrapolation,
@@ -13,10 +13,14 @@ type Props = {
   index: number;
   x: SharedValue<number>;
   item: OnboardingData;
+  isLast: boolean;
+  onRequestPermissions: () => void;
+  loading: boolean;
 };
 
-const RenderItem = ({index, x, item}: Props) => {
+const RenderItem = ({index, x, item, isLast, onRequestPermissions, loading}: Props) => {
   const {width: SCREEN_WIDTH} = useWindowDimensions();
+  const lottieSize = SCREEN_WIDTH * (item.lottieScale ?? 0.88);
 
   const lottieAnimationStyle = useAnimatedStyle(() => {
     const translateYAnimation = interpolate(
@@ -71,16 +75,34 @@ const RenderItem = ({index, x, item}: Props) => {
         <LottieView
           source={item.animation}
           style={{
-            width: SCREEN_WIDTH * 0.9,
-            height: SCREEN_WIDTH * 0.9,
+            width: lottieSize,
+            height: lottieSize,
           }}
           autoPlay
           loop
         />
       </Animated.View>
-      <Text style={[styles.itemText, {color: item.textColor}]}>
-        {item.text}
-      </Text>
+      <View style={styles.textBlock}>
+        <Text style={[styles.title, {color: item.textColor}]}>
+          {item.title}
+        </Text>
+        <Text style={[styles.subtitle, {color: item.textColor}]}>
+          {item.subtitle}
+        </Text>
+        {isLast && (
+          <TouchableOpacity
+            style={[styles.permissionButton, { backgroundColor: item.accentColor }]}
+            onPress={onRequestPermissions}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.permissionText}>Permitir y continuar</Text>
+            )}
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 };
@@ -92,14 +114,34 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'space-around',
     alignItems: 'center',
-    marginBottom: 120,
+    paddingHorizontal: 20,
+    paddingBottom: 120,
   },
-  itemText: {
+  textBlock: {
+    alignItems: 'center',
+    gap: 10,
+  },
+  title: {
     textAlign: 'center',
-    fontSize: 44,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    marginHorizontal: 20,
+    fontSize: 28,
+    fontWeight: '700',
+  },
+  subtitle: {
+    textAlign: 'center',
+    fontSize: 15,
+    lineHeight: 22,
+    opacity: 0.8,
+  },
+  permissionButton: {
+    marginTop: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 999,
+  },
+  permissionText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
   },
   circleContainer: {
     ...StyleSheet.absoluteFillObject,

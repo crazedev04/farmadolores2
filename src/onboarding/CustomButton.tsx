@@ -9,8 +9,6 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { OnboardingData } from './data';
-import { requestPermissions } from '../components/Permissions';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Props = {
   dataLength: number;
@@ -18,19 +16,19 @@ type Props = {
   flatListRef: AnimatedRef<FlatList<OnboardingData>>;
   x: SharedValue<number>;
   setIsFirstLaunch: React.Dispatch<React.SetStateAction<boolean | null>>;
+  data: OnboardingData[];
+  canFinish: boolean;
+  onFinish: () => void;
 };
 
-const CustomButton = ({ flatListRef, flatListIndex, dataLength, x, setIsFirstLaunch }: Props) => {
+const CustomButton = ({ flatListRef, flatListIndex, dataLength, x, setIsFirstLaunch, data, canFinish, onFinish }: Props) => {
   const { width: SCREEN_WIDTH } = useWindowDimensions();
   const handleContinue = async () => {
     if (flatListIndex.value < dataLength - 1) {
       flatListRef.current?.scrollToIndex({ index: flatListIndex.value + 1 });
     } else {
-      const granted = await requestPermissions();
-      if (granted) {
-        setIsFirstLaunch(false);
-        // Persistencia para que no vuelva a aparecer el onboarding
-        await AsyncStorage.setItem('hasOpenedBefore', 'true');
+      if (canFinish) {
+        onFinish();
       }
     }
   };
@@ -58,14 +56,29 @@ const CustomButton = ({ flatListRef, flatListIndex, dataLength, x, setIsFirstLau
     };
   });
 
-  const animatedColor = useAnimatedStyle(() => {
-    const backgroundColor = interpolateColor(x.value, [0, SCREEN_WIDTH, 2 * SCREEN_WIDTH], ['#005b4f', '#1e2169', '#F15937']);
-    return { backgroundColor };
-  });
+  const animatedColor = useAnimatedStyle(
+    () => {
+      const inputRange = data.map((_, idx) => idx * SCREEN_WIDTH);
+      const outputRange = data.map((item) => item.accentColor);
+      const backgroundColor = interpolateColor(x.value, inputRange, outputRange);
+      const isLast = flatListIndex.value === dataLength - 1;
+      return {
+        backgroundColor: isLast && !canFinish ? '#64748B' : backgroundColor,
+      };
+    },
+    [canFinish, dataLength]
+  );
 
   return (
     <TouchableWithoutFeedback onPress={handleContinue}>
-      <Animated.View style={[styles.container, buttonAnimationStyle, animatedColor]}>
+      <Animated.View
+        style={[
+          styles.container,
+          buttonAnimationStyle,
+          animatedColor,
+          flatListIndex.value === dataLength - 1 && !canFinish ? styles.disabled : null,
+        ]}
+      >
         <Animated.Text style={[styles.textButton, textAnimationStyle]}>
           Comencemos
         </Animated.Text>
@@ -90,4 +103,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
   textButton: { color: 'white', fontSize: 16, position: 'absolute' },
+  disabled: {
+    opacity: 0.55,
+  },
 });

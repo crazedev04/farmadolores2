@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import firestore from '@react-native-firebase/firestore';
 import { Farmacia } from '../types/navigationTypes';
 import { readCache, writeCache, serializeForCache, rehydrateFromCache } from '../utils/cache';
+import NetInfo from '@react-native-community/netinfo';
 
 type PharmacyContextType = {
   farmacias: Farmacia[];
@@ -21,6 +22,17 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [loading, setLoading] = useState<boolean>(true);
   const [isOffline, setIsOffline] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [networkOnline, setNetworkOnline] = useState(true);
+
+  useEffect(() => {
+    const unsubscribeNet = NetInfo.addEventListener((state) => {
+      const reachable = state.isInternetReachable;
+      const online = !!state.isConnected && reachable !== false;
+      setNetworkOnline(online);
+      setIsOffline(!online);
+    });
+    return () => unsubscribeNet();
+  }, []);
 
   // Suscripción en tiempo real con cache local
   useEffect(() => {
@@ -33,7 +45,6 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
         const rehydrated = rehydrateFromCache(cached) as Farmacia[];
         setFarmacias(rehydrated);
         setLoading(false);
-        setIsOffline(true);
       }
     };
     loadCache();
@@ -50,7 +61,6 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
 
           setFarmacias(fetchedFarmacias);
           setLoading(false);
-          setIsOffline(snapshot.metadata.fromCache === true);
           setLastUpdated(new Date());
           writeCache(CACHE_KEY, serializeForCache(fetchedFarmacias));
           retryDelay = 2000;
@@ -58,7 +68,6 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
         error => {
           console.error('Error onSnapshot: ', error);
           setLoading(false);
-          setIsOffline(true);
           if (retryTimer) return;
           retryTimer = setTimeout(() => {
             retryTimer = null;

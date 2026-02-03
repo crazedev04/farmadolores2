@@ -28,6 +28,11 @@ const Emergencias: React.FC<Props> = () => {
   useScreenLoadAnalytics('Emergencias', loading);
 
   useEffect(() => {
+    const unsubscribeNet = NetInfo.addEventListener((state) => {
+      const reachable = state.isInternetReachable;
+      const online = !!state.isConnected && reachable !== false;
+      setIsOffline(!online);
+    });
     const unsubscribe = firestore().collection('emergencias').onSnapshot(snapshot => {
       const emergenciaList: Emergencia[] = snapshot.docs.map(doc => {
         const data = doc.data();
@@ -62,14 +67,15 @@ const Emergencias: React.FC<Props> = () => {
 
       setEmergencias(emergenciaList);
       setLoading(false);
-      setIsOffline(snapshot.metadata.fromCache === true);
       setLastUpdated(new Date());
     }, error => {
       console.error("Error fetching emergencias: ", error);
-      setIsOffline(true);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeNet();
+      unsubscribe();
+    };
   }, []);
 
   const retryEmergencias = async () => {
@@ -77,7 +83,7 @@ const Emergencias: React.FC<Props> = () => {
       setLoading(true);
       setReconnecting(true);
       const state = await NetInfo.fetch();
-      if (!state.isConnected) {
+      if (!state.isConnected || state.isInternetReachable === false) {
         Alert.alert('Sin conexion', 'Activa WiFi o datos para actualizar.');
         return;
       }

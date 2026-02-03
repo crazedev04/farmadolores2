@@ -2,6 +2,7 @@
 import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 import { Alert, Platform } from 'react-native';
 import notifee, { AuthorizationStatus } from '@notifee/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const requestPermissions = async (): Promise<boolean> => {
   try {
@@ -28,6 +29,7 @@ export const requestPermissions = async (): Promise<boolean> => {
       }
     }
 
+    await AsyncStorage.setItem('permissionsGranted', 'true');
     return true;
   } catch (error) {
     console.error('Error solicitando permisos:', error);

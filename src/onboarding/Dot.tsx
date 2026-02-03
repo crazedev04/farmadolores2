@@ -11,9 +11,10 @@ import Animated, {
 type Props = {
   index: number;
   x: SharedValue<number>;
+  colors: string[];
 };
 
-const Dot = ({index, x}: Props) => {
+const Dot = ({index, x, colors}: Props) => {
   const {width: SCREEN_WIDTH} = useWindowDimensions();
 
   const animatedDotStyle = useAnimatedStyle(() => {
@@ -45,10 +46,11 @@ const Dot = ({index, x}: Props) => {
   });
 
   const animatedColor = useAnimatedStyle(() => {
+    const inputRange = colors.map((_, idx) => idx * SCREEN_WIDTH);
     const backgroundColor = interpolateColor(
       x.value,
-      [0, SCREEN_WIDTH, 2 * SCREEN_WIDTH],
-      ['#005b4f', '#1e2169', '#F15937'],
+      inputRange,
+      colors,
     );
 
     return {

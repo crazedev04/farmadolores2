@@ -12,7 +12,7 @@ const Pagination = ({data, x}: Props) => {
   return (
     <View style={styles.paginationContainer}>
       {data.map((_, index) => {
-        return <Dot index={index} x={x} key={index} />;
+        return <Dot index={index} x={x} key={index} colors={data.map((item) => item.accentColor)} />;
       })}
     </View>
   );

@@ -2,13 +2,14 @@ import messaging, { FirebaseMessagingTypes } from '@react-native-firebase/messag
 import firestore from '@react-native-firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DeviceInfo from 'react-native-device-info';
-import notifee, { AndroidImportance } from '@notifee/react-native';
+import notifee, { AndroidImportance, AuthorizationStatus } from '@notifee/react-native';
 import { Platform } from 'react-native';
 import { createNotificationChannels } from '../constants/notificationChannels';
 import { requestNotificationPermission } from '../components/Permissions';
 
 const TOKEN_COLLECTION = 'fcmTokens';
 const STORAGE_NOTIFICATIONS = 'notificationsEnabled';
+const STORAGE_PERMISSIONS_GRANTED = 'permissionsGranted';
 
 const getNotificationsEnabled = async () => {
   try {
@@ -16,6 +17,15 @@ const getNotificationsEnabled = async () => {
     return stored !== 'false';
   } catch {
     return true;
+  }
+};
+
+const getPermissionsGranted = async () => {
+  try {
+    const stored = await AsyncStorage.getItem(STORAGE_PERMISSIONS_GRANTED);
+    return stored === 'true';
+  } catch {
+    return false;
   }
 };
 
@@ -74,13 +84,51 @@ const displayRemoteNotification = async (remoteMessage: FirebaseMessagingTypes.R
   });
 };
 
-export const initPushNotifications = (userId: string | null) => {
+let activeUserId: string | null = null;
+let activeUnsubscribeMessage: (() => void) | null = null;
+let activeUnsubscribeToken: (() => void) | null = null;
+let initializing = false;
+
+export const initPushNotifications = (userId: string | null, force = false) => {
   let unsubscribeMessage: (() => void) | null = null;
   let unsubscribeToken: (() => void) | null = null;
 
   const init = async () => {
-    const notificationsAllowed = await requestNotificationPermission();
-    if (!notificationsAllowed) return;
+    if (initializing) return;
+    initializing = true;
+    const storedGranted = await getPermissionsGranted();
+    if (!force && !storedGranted) {
+      initializing = false;
+      return;
+    }
+    if (activeUserId === userId && (activeUnsubscribeMessage || activeUnsubscribeToken)) {
+      initializing = false;
+      return;
+    }
+    if (activeUnsubscribeMessage) activeUnsubscribeMessage();
+    if (activeUnsubscribeToken) activeUnsubscribeToken();
+    activeUnsubscribeMessage = null;
+    activeUnsubscribeToken = null;
+    activeUserId = userId;
+
+    let settings;
+    try {
+      settings = await notifee.getNotificationSettings();
+    } catch {
+      settings = null;
+    }
+    const authorized = !!settings && settings.authorizationStatus >= AuthorizationStatus.AUTHORIZED;
+    if (!authorized && !force) {
+      initializing = false;
+      return;
+    }
+    if (force && !authorized) {
+      const notificationsAllowed = await requestNotificationPermission();
+      if (!notificationsAllowed) {
+        initializing = false;
+        return;
+      }
+    }
 
     try {
       await messaging().requestPermission();
@@ -103,6 +151,9 @@ export const initPushNotifications = (userId: string | null) => {
     unsubscribeMessage = messaging().onMessage(async (message) => {
       await displayRemoteNotification(message);
     });
+    activeUnsubscribeMessage = unsubscribeMessage;
+    activeUnsubscribeToken = unsubscribeToken;
+    initializing = false;
   };
 
   init();
@@ -110,6 +161,9 @@ export const initPushNotifications = (userId: string | null) => {
   return () => {
     if (unsubscribeMessage) unsubscribeMessage();
     if (unsubscribeToken) unsubscribeToken();
+    if (activeUnsubscribeMessage === unsubscribeMessage) activeUnsubscribeMessage = null;
+    if (activeUnsubscribeToken === unsubscribeToken) activeUnsubscribeToken = null;
+    if (activeUserId === userId) activeUserId = null;
   };
 };
 

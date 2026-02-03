@@ -1,0 +1,10 @@
+{
+    "targetMajor":  1,
+    "minAppVersion":  "1.9.0",
+    "hotfix":  true,
+    "url":  "https://firebasestorage.googleapis.com/v0/b/farma-61e96.appspot.com/o/ota%2Fupdate_ota_1.9.0_ota5.zip?alt=media",
+    "notes":  "se realizaron cambios en:",
+    "otaVersion":  5,
+    "targetMinor":  9,
+    "maxAppVersion":  "1.9.9"
+}

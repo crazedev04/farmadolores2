@@ -15,14 +15,6 @@
       },
       "oauth_client": [
         {
-          "client_id": "320257863836-dfe3soc6ku7pq4t0g453ulett9bl9qi0.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.overcode.farmadolores",
-            "certificate_hash": "0c9e1fe77f39968310b713b3b3c3ae6fb7b81fbb"
-          }
-        },
-        {
           "client_id": "320257863836-ufdrcrgar74i7vpv47fo34luafi2jvba.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

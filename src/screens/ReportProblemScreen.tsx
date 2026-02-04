@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
-import firestore from '@react-native-firebase/firestore';
+import { getFirestore, collection, addDoc, serverTimestamp } from '@react-native-firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { logEvent } from '../services/analytics';
+const db = getFirestore();
 
 const ReportProblemScreen: React.FC = () => {
   const { theme } = useTheme();
@@ -25,8 +26,8 @@ const ReportProblemScreen: React.FC = () => {
     setLoading(true);
 
     try {
-      const timestamp = firestore.FieldValue.serverTimestamp();
-      await firestore().collection('reportes').add({
+      const timestamp = serverTimestamp();
+      await addDoc(collection(db, 'reportes'), {
         problem,
         timestamp,
         userId: user.uid,

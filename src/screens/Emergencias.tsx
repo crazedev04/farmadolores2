@@ -1,6 +1,6 @@
 import { StyleSheet, View, FlatList, ActivityIndicator, Text, TouchableOpacity, Alert } from 'react-native';
 import React, { useState, useEffect } from 'react';
-import firestore from '@react-native-firebase/firestore';
+import { getFirestore, collection, onSnapshot, getDocs } from '@react-native-firebase/firestore';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { Emergencia, RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../context/ThemeContext';
@@ -9,6 +9,7 @@ import { BannerAdSize } from 'react-native-google-mobile-ads';
 import EmergenciaCard from '../components/EmergenciaCard';
 import { useScreenLoadAnalytics } from '../utils/useScreenLoadAnalytics';
 import NetInfo from '@react-native-community/netinfo';
+const db = getFirestore();
 type EmergenciasNavigationProp = NavigationProp<RootStackParamList, 'Emergencias'>;
 
 type Props = {
@@ -33,7 +34,7 @@ const Emergencias: React.FC<Props> = () => {
       const online = !!state.isConnected && reachable !== false;
       setIsOffline(!online);
     });
-    const unsubscribe = firestore().collection('emergencias').onSnapshot(snapshot => {
+    const unsubscribe = onSnapshot(collection(db, 'emergencias'), snapshot => {
       const emergenciaList: Emergencia[] = snapshot.docs.map(doc => {
         const data = doc.data();
         const rawBadge = data.badge;
@@ -87,7 +88,7 @@ const Emergencias: React.FC<Props> = () => {
         Alert.alert('Sin conexion', 'Activa WiFi o datos para actualizar.');
         return;
       }
-      const snapshot = await firestore().collection('emergencias').get();
+      const snapshot = await getDocs(collection(db, 'emergencias'));
       const emergenciaList: Emergencia[] = snapshot.docs.map(doc => {
         const data = doc.data();
         const rawBadge = data.badge;

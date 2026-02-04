@@ -15,6 +15,22 @@
       },
       "oauth_client": [
         {
+          "client_id": "320257863836-qsqd0qh6sghoiso15p5oenq2067ckg4q.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.overcode.farmadolores",
+            "certificate_hash": "15969633c8f62572431d00fb3997a6bbc0e86989"
+          }
+        },
+        {
+          "client_id": "320257863836-tgrvf53skkldsgqhsr71qchfkfr49ifp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.overcode.farmadolores",
+            "certificate_hash": "0c9e1fe77f39968310b713b3b3c3ae6fb7b81fbb"
+          }
+        },
+        {
           "client_id": "320257863836-ufdrcrgar74i7vpv47fo34luafi2jvba.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

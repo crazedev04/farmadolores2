@@ -11,9 +11,10 @@ import {
   View,
   Image,
 } from 'react-native';
-import firestore from '@react-native-firebase/firestore';
+import { getFirestore, doc, getDoc, setDoc } from '@react-native-firebase/firestore';
 import Icon from '@react-native-vector-icons/material-design-icons';
 import { useTheme } from '../context/ThemeContext';
+const db = getFirestore();
 import { deleteImageByUrl, pickAndUploadImage } from '../utils/uploadImage';
 
 const TYPE_OPTIONS = ['info', 'warning', 'error'] as const;
@@ -138,9 +139,9 @@ const AdminHomeConfigScreen: React.FC = () => {
       setLoading(true);
       try {
         const [statusSnap, homeSnap, appSnap] = await Promise.all([
-          firestore().collection('config').doc('appStatus').get(),
-          firestore().collection('config').doc('home').get(),
-          firestore().collection('config').doc('app').get(),
+          getDoc(doc(db, 'config', 'appStatus')),
+          getDoc(doc(db, 'config', 'home')),
+          getDoc(doc(db, 'config', 'app')),
         ]);
 
         if (!mounted) return;
@@ -342,7 +343,8 @@ const AdminHomeConfigScreen: React.FC = () => {
       }
 
       await Promise.all([
-        firestore().collection('config').doc('appStatus').set(
+        setDoc(
+          doc(db, 'config', 'appStatus'),
           {
             enabled: maintenance.enabled,
             title: maintenance.title.trim(),
@@ -353,8 +355,8 @@ const AdminHomeConfigScreen: React.FC = () => {
           },
           { merge: true }
         ),
-        firestore().collection('config').doc('home').set(homePayload, { merge: true }),
-        firestore().collection('config').doc('app').set(appPayload, { merge: true }),
+        setDoc(doc(db, 'config', 'home'), homePayload, { merge: true }),
+        setDoc(doc(db, 'config', 'app'), appPayload, { merge: true }),
       ]);
       Alert.alert('Listo', 'La configuracion se guardo correctamente.');
     } catch (error) {

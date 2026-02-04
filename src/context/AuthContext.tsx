@@ -1,6 +1,26 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
-import firestore from '@react-native-firebase/firestore';
+import {
+  FirebaseAuthTypes,
+  getAuth,
+  getIdTokenResult,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  fetchSignInMethodsForEmail,
+  sendPasswordResetEmail,
+  signInWithCredential,
+  GoogleAuthProvider,
+  signOut,
+} from '@react-native-firebase/auth';
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  collection,
+  addDoc,
+  serverTimestamp,
+} from '@react-native-firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { useTheme } from './ThemeContext';
@@ -14,6 +34,9 @@ import { logEvent, logLogin, logSignUp, setUserId, setUserProperties } from '../
 GoogleSignin.configure({
   webClientId: '320257863836-7mq4mav5bst0iuraeahu2lpoinjrtc02.apps.googleusercontent.com', // Reemplaza con tu web client ID de Firebase console
 });
+
+const authInstance = getAuth();
+const db = getFirestore();
 
 type AuthContextType = {
   user: FirebaseAuthTypes.User | null;
@@ -49,23 +72,13 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [disabledAccount, setDisabledAccount] = useState(false);
 
   useEffect(() => {
-    const checkUser = async () => {
-      const storedUser = await AsyncStorage.getItem('user');
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
-        setIsAuth(true);
-      } else {
-        setIsAuth(false);
-      }
-    };
-
-    const unsubscribe = auth().onAuthStateChanged(async (user) => {
+    const unsubscribe = onAuthStateChanged(authInstance, async (user) => {
       if (user) {
-        const userDoc = await firestore().collection('users').doc(user.uid).get();
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
         const disabled = !!userDoc.data()?.disabled;
         if (disabled) {
           setDisabledAccount(true);
-          await auth().signOut();
+          await signOut(authInstance);
           await AsyncStorage.removeItem('user');
           setUser(null);
           setIsAuth(false);
@@ -76,7 +89,6 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setDisabledAccount(false);
         setUser(user);
         setIsAuth(true);
-        await AsyncStorage.setItem('user', JSON.stringify(user));
         setUserId(user.uid);
         logEvent('auth_state', { state: 'signed_in' });
         try {
@@ -93,8 +105,6 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
     });
 
-    checkUser();
-
     return () => unsubscribe();
   }, []);
 
@@ -108,7 +118,7 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
       setRoleLoading(true);
       try {
-        const tokenResult = await user.getIdTokenResult(true);
+        const tokenResult = await getIdTokenResult(user, true);
         const isAdminClaim = !!tokenResult?.claims?.admin;
         setRole(isAdminClaim ? 'admin' : 'user');
         setUserProperties({ role: isAdminClaim ? 'admin' : 'user' });
@@ -198,9 +208,9 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const ensureUserDoc = async (currentUser: FirebaseAuthTypes.User) => {
-    const userRef = firestore().collection('users').doc(currentUser.uid);
-    const existing = await userRef.get();
-    const existingData = existing.exists ? existing.data() : null;
+    const userRef = doc(db, 'users', currentUser.uid);
+    const existing = await getDoc(userRef);
+    const existingData = existing.exists() ? existing.data() : null;
     const device = await getDeviceSnapshot();
     const payload = {
       uid: currentUser.uid,
@@ -224,23 +234,24 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
         lastSignInTime: currentUser.metadata?.lastSignInTime || '',
       },
       device,
-      createdAt: existingData?.createdAt || firestore.FieldValue.serverTimestamp(),
-      lastLoginAt: firestore.FieldValue.serverTimestamp(),
-      updatedAt: firestore.FieldValue.serverTimestamp(),
+      createdAt: existingData?.createdAt || serverTimestamp(),
+      lastLoginAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     };
 
-    await userRef.set(payload, { merge: true });
+    await setDoc(userRef, payload, { merge: true });
 
     getLocationInfo()
       .then((location) => {
         if (!location) return;
-        return userRef.set(
+        return setDoc(
+          userRef,
           {
             location: location.coords,
             city: location.city || '',
             region: location.region || '',
             country: location.country || '',
-            locationUpdatedAt: firestore.FieldValue.serverTimestamp(),
+            locationUpdatedAt: serverTimestamp(),
           },
           { merge: true },
         );
@@ -249,11 +260,11 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const checkDisabledAndSignOut = async (uid: string) => {
-    const doc = await firestore().collection('users').doc(uid).get();
-    const disabled = !!doc.data()?.disabled;
+    const snapshot = await getDoc(doc(db, 'users', uid));
+    const disabled = !!snapshot.data()?.disabled;
     if (disabled) {
       setDisabledAccount(true);
-      await auth().signOut();
+      await signOut(authInstance);
       await AsyncStorage.removeItem('user');
       setUser(null);
       setIsAuth(false);
@@ -287,7 +298,7 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     setLoading(true);
     try {
-      const credential = await auth().signInWithEmailAndPassword(email, password);
+      const credential = await signInWithEmailAndPassword(authInstance, email, password);
       if (credential.user) {
         const blocked = await checkDisabledAndSignOut(credential.user.uid);
         if (blocked) return;
@@ -312,7 +323,7 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     setLoading(true);
     try {
-      const credential = await auth().createUserWithEmailAndPassword(email, password);
+      const credential = await createUserWithEmailAndPassword(authInstance, email, password);
       if (credential.user) {
         const blocked = await checkDisabledAndSignOut(credential.user.uid);
         if (blocked) return;
@@ -347,7 +358,7 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return;
     }
     try {
-      await auth().sendPasswordResetEmail(email);
+      await sendPasswordResetEmail(authInstance, email);
       notify('Solicitud enviada. Revisa tu email y usa una contrasena segura', true);
       logEvent('password_reset_requested');
     } catch (error: any) {
@@ -370,27 +381,28 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return;
     }
     try {
-      await firestore().collection('users').doc(user.uid).set(
+      await setDoc(
+        doc(db, 'users', user.uid),
         {
           disabled: true,
-          disabledAt: firestore.FieldValue.serverTimestamp(),
+          disabledAt: serverTimestamp(),
           disableReason: reason || '',
         },
         { merge: true }
       );
-      await firestore().collection('accountRequests').add({
+      await addDoc(collection(db, 'accountRequests'), {
         uid: user.uid,
         email: user.email || '',
         type: 'disable',
         reason: reason || '',
-        createdAt: firestore.FieldValue.serverTimestamp(),
+        createdAt: serverTimestamp(),
       });
       const subject = encodeURIComponent('Solicitud de baja de cuenta');
       const body = encodeURIComponent(
         `Hola, quiero desactivar mi cuenta.\n\nUID: ${user.uid}\nEmail: ${user.email || ''}\nMotivo: ${reason || 'No especificado'}`
       );
       Linking.openURL(`mailto:crazedevs@gmail.com?subject=${subject}&body=${body}`).catch(() => {});
-      await auth().signOut();
+      await signOut(authInstance);
       await AsyncStorage.removeItem('user');
       setUser(null);
       setIsAuth(false);
@@ -407,7 +419,7 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const getSignInMethods = async (email: string) => {
     if (!email) return [];
     try {
-      return await auth().fetchSignInMethodsForEmail(email);
+      return await fetchSignInMethodsForEmail(authInstance, email);
     } catch (error: any) {
       console.error('Fetch sign-in methods error:', error);
       return [];
@@ -420,8 +432,9 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return;
     }
     try {
-      const now = firestore.FieldValue.serverTimestamp();
-      await firestore().collection('users').doc(user.uid).set(
+      const now = serverTimestamp();
+      await setDoc(
+        doc(db, 'users', user.uid),
         {
           disabled: true,
           disabledAt: now,
@@ -432,7 +445,7 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
         },
         { merge: true }
       );
-      await firestore().collection('accountRequests').add({
+      await addDoc(collection(db, 'accountRequests'), {
         uid: user.uid,
         email: user.email || '',
         type: 'delete',
@@ -444,7 +457,7 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
         `Hola, solicito eliminacion total de mi cuenta.\n\nUID: ${user.uid}\nEmail: ${user.email || ''}\nMotivo: ${reason || 'No especificado'}\n`
       );
       Linking.openURL(`mailto:crazedevs@gmail.com?subject=${subject}&body=${body}`).catch(() => {});
-      await auth().signOut();
+      await signOut(authInstance);
       await AsyncStorage.removeItem('user');
       setUser(null);
       setIsAuth(false);
@@ -468,8 +481,8 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (!idToken) {
         throw new Error('No se pudo obtener el token de Google. Proba nuevamente.');
       }
-      const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-      const credential = await auth().signInWithCredential(googleCredential);
+      const googleCredential = GoogleAuthProvider.credential(idToken);
+      const credential = await signInWithCredential(authInstance, googleCredential);
       if (credential.user) {
         const blocked = await checkDisabledAndSignOut(credential.user.uid);
         if (blocked) return;
@@ -492,7 +505,7 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const logout = async () => {
     setLoading(true);
     try {
-      await auth().signOut();
+      await signOut(authInstance);
       await GoogleSignin.signOut();
       logEvent('logout');
     } catch (error: any) {

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Image,
   ScrollView,
@@ -16,7 +16,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BannerAdSize } from 'react-native-google-mobile-ads';
-import firestore from '@react-native-firebase/firestore';
+import { getFirestore, doc, onSnapshot, getDoc } from '@react-native-firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from '@react-native-vector-icons/material-design-icons';
 import MapView, { Marker } from 'react-native-maps';
@@ -35,10 +35,11 @@ import { readCache, writeCache } from '../utils/cache';
 import { useScreenLoadAnalytics } from '../utils/useScreenLoadAnalytics';
 import NetInfo from '@react-native-community/netinfo';
 import { BlurView } from '@react-native-community/blur';
-import { checkAndApplyHotfix, installManifest, savePendingManifest, setOtaUiHandler, type OtaManifest } from '../services/otaHotfix';
+import { consumePendingOtaNotice, setOtaUiHandler, type OtaManifest } from '../services/otaHotfix';
 import { requestPermissions } from '../components/Permissions';
 import { initPushNotifications } from '../services/pushService';
 import { useAuth } from '../context/AuthContext';
+const db = getFirestore();
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -128,9 +129,6 @@ const Home = () => {
   const [reconnecting, setReconnecting] = useState(false);
   const [otaModalVisible, setOtaModalVisible] = useState(false);
   const [otaManifest, setOtaManifest] = useState<OtaManifest | null>(null);
-  const [otaInstalling, setOtaInstalling] = useState(false);
-  const [otaMinimized, setOtaMinimized] = useState(false);
-  const installTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const unsubscribeNet = NetInfo.addEventListener((state) => {
@@ -161,11 +159,9 @@ const Home = () => {
     };
     loadCache();
 
-    const maintenanceRef = firestore()
-      .collection('config')
-      .doc('appStatus');
-    const unsubMaintenance = maintenanceRef.onSnapshot(snapshot => {
-      if (!snapshot?.exists) {
+    const maintenanceRef = doc(db, 'config', 'appStatus');
+    const unsubMaintenance = onSnapshot(maintenanceRef, snapshot => {
+      if (!snapshot?.exists()) {
         setMaintenance(null);
         return;
       }
@@ -174,9 +170,9 @@ const Home = () => {
       writeCache(MAINT_CACHE_KEY, data);
     }, () => {
     });
-    const homeRef = firestore().collection('config').doc('home');
-    const unsubHome = homeRef.onSnapshot(snapshot => {
-      if (!snapshot?.exists) {
+    const homeRef = doc(db, 'config', 'home');
+    const unsubHome = onSnapshot(homeRef, snapshot => {
+      if (!snapshot?.exists()) {
         setNewsItems([]);
         setNewsEnabled(true);
         setNewsOrder('oldest');
@@ -220,22 +216,21 @@ const Home = () => {
     setOtaUiHandler((manifest) => {
       setOtaManifest(manifest);
       setOtaModalVisible(true);
-      setOtaMinimized(false);
     });
     return () => setOtaUiHandler(null);
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (installTimeoutRef.current) {
-        clearTimeout(installTimeoutRef.current);
-      }
-    };
+  const showPendingOtaNotice = useCallback(async () => {
+    const pending = await consumePendingOtaNotice();
+    if (pending) {
+      setOtaManifest(pending);
+      setOtaModalVisible(true);
+    }
   }, []);
 
   useEffect(() => {
-    checkAndApplyHotfix();
-  }, []);
+    showPendingOtaNotice();
+  }, [showPendingOtaNotice]);
 
   useFocusEffect(
     useCallback(() => {
@@ -252,6 +247,9 @@ const Home = () => {
             setPermissionsDeferred(deferred === 'true');
             setPermissionsGranted(granted === 'true');
           }
+          if (active) {
+            await showPendingOtaNotice();
+          }
         } catch {
           if (active) setNotificationsEnabled(true);
         }
@@ -260,7 +258,7 @@ const Home = () => {
       return () => {
         active = false;
       };
-    }, [])
+    }, [showPendingOtaNotice])
   );
 
   const nextTurn = useMemo(() => {
@@ -395,16 +393,16 @@ const Home = () => {
         return;
       }
       const [statusSnap, homeSnap] = await Promise.all([
-        firestore().collection('config').doc('appStatus').get(),
-        firestore().collection('config').doc('home').get(),
+        getDoc(doc(db, 'config', 'appStatus')),
+        getDoc(doc(db, 'config', 'home')),
       ]);
-      if (statusSnap.exists) {
+      if (statusSnap.exists()) {
         const data = statusSnap.data() as MaintenanceData;
         setMaintenance(data);
         setIsOffline(false);
         writeCache(MAINT_CACHE_KEY, data);
       }
-      if (homeSnap.exists) {
+      if (homeSnap.exists()) {
         const data = homeSnap.data() || {};
         setNewsItems(Array.isArray(data.news) ? data.news : []);
         setNewsEnabled(data.newsEnabled !== false);
@@ -454,16 +452,6 @@ const Home = () => {
 
   const notesList = normalizeNotes(otaManifest?.notes);
 
-  const startInstallTimer = () => {
-    if (installTimeoutRef.current) {
-      clearTimeout(installTimeoutRef.current);
-    }
-    installTimeoutRef.current = setTimeout(() => {
-      setOtaModalVisible(false);
-      setOtaMinimized(true);
-    }, 15000);
-  };
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar backgroundColor={colors.background} barStyle={theme.dark ? 'light-content' : 'dark-content'} />
@@ -473,13 +461,13 @@ const Home = () => {
         transparent
         animationType="fade"
         onRequestClose={() => {
-          if (!otaInstalling) setOtaModalVisible(false);
+          setOtaModalVisible(false);
         }}
       >
         <Pressable
           style={styles.modalBackdrop}
           onPress={() => {
-            if (!otaInstalling) setOtaModalVisible(false);
+            setOtaModalVisible(false);
           }}
         >
           <BlurView
@@ -502,7 +490,7 @@ const Home = () => {
             <View style={{ flex: 1 }}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>Actualizacion disponible</Text>
               <Text style={[styles.modalText, { color: colors.mutedText || colors.placeholderText }]}>
-                Hay mejoras listas para instalar. Se aplicaran al reiniciar la app.
+                Hay cambios listos para aplicar. Se aplicaran al reiniciar la app.
               </Text>
             </View>
           </View>
@@ -519,69 +507,17 @@ const Home = () => {
           )}
           <View style={styles.modalActions}>
             <TouchableOpacity
-              style={[styles.modalButton, { borderColor: colors.border }]}
-              onPress={async () => {
-                if (!otaManifest) return;
-                try {
-                  await savePendingManifest(otaManifest);
-                } catch {
-                  // ignore
-                }
-                setOtaModalVisible(false);
-                setOtaMinimized(false);
-              }}
-              disabled={otaInstalling}
-            >
-              <Text style={[styles.modalButtonText, { color: colors.text }]}>Despues</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
               style={[styles.modalButton, styles.modalPrimaryButton, { backgroundColor: colors.buttonBackground }]}
-              onPress={async () => {
+              onPress={() => {
                 if (!otaManifest) return;
-                setOtaInstalling(true);
-                setOtaMinimized(false);
-                startInstallTimer();
-                try {
-                  await installManifest(otaManifest, 'user');
-                } catch {
-                  Alert.alert('No se pudo instalar', 'Reintenta en unos minutos.');
-                  setOtaInstalling(false);
-                  setOtaMinimized(false);
-                  if (installTimeoutRef.current) {
-                    clearTimeout(installTimeoutRef.current);
-                  }
-                }
+                setOtaModalVisible(false);
               }}
             >
-              {otaInstalling ? (
-                <ActivityIndicator color={colors.buttonText || '#fff'} />
-              ) : (
-                <Text style={[styles.modalButtonText, { color: colors.buttonText || '#fff' }]}>Instalar ahora</Text>
-              )}
+              <Text style={[styles.modalButtonText, { color: colors.buttonText || '#fff' }]}>Entendido</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
-      {otaMinimized && otaInstalling && (
-        <View
-          style={[
-            styles.otaMiniCard,
-            { backgroundColor: colors.card, borderColor: colors.border, bottom: Math.max(insets.bottom + 70, 80) },
-          ]}
-        >
-          <ActivityIndicator color={colors.buttonBackground} />
-          <Text style={[styles.otaMiniText, { color: colors.text }]}>Actualizando...</Text>
-          <TouchableOpacity
-            style={styles.otaMiniButton}
-            onPress={() => {
-              setOtaModalVisible(true);
-              setOtaMinimized(false);
-            }}
-          >
-            <Text style={[styles.otaMiniButtonText, { color: colors.buttonBackground }]}>Ver</Text>
-          </TouchableOpacity>
-        </View>
-      )}
       <ScrollView contentContainerStyle={[styles.scrollContainer, { backgroundColor: colors.background }]}>
 
         {isOffline && (
@@ -682,6 +618,7 @@ const Home = () => {
 
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Farmacia de turno</Text>
+          
           <View style={styles.dayRow}>
             <Icon name="calendar-blank" size={16} color={colors.text} />
             <Text style={[styles.dayText, { color: colors.text }]}>Hoy {todayLabel}</Text>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TouchableOpacity, Alert, Text, ActivityIndicator, StyleSheet, View, TextInput, ScrollView } from 'react-native';
-import firestore from '@react-native-firebase/firestore';
+import { getFirestore, collection, query, where, limit, getDocs, writeBatch, doc, updateDoc } from '@react-native-firebase/firestore';
 import { useTheme } from '../context/ThemeContext';
 
 type Franja = { abre: string; cierra: string; };
@@ -22,6 +22,7 @@ interface Farmacia {
   id: string;
   name: string;
 }
+const db = getFirestore();
 
 // Función para poner primera letra en mayúscula
 const capitalizar = (s: string) =>
@@ -52,12 +53,14 @@ export const BotonActualizarHorariosTodos: React.FC = () => {
     if (busqueda.length < 2) return;
     setLoading(true);
     try {
-      const snap = await firestore()
-        .collection('farmacias')
-        .where('name', '>=', busqueda)
-        .where('name', '<=', busqueda + '\uf8ff')
-        .limit(8)
-        .get();
+      const snap = await getDocs(
+        query(
+          collection(db, 'farmacias'),
+          where('name', '>=', busqueda),
+          where('name', '<=', busqueda + '\uf8ff'),
+          limit(8)
+        )
+      );
       const resultados: Farmacia[] = snap.docs.map(doc => ({
         id: doc.id,
         name: doc.get('name'),
@@ -122,15 +125,15 @@ export const BotonActualizarHorariosTodos: React.FC = () => {
             setLoading(true);
             try {
               if (toAll) {
-                const snap = await firestore().collection('farmacias').get();
-                const batch = firestore().batch();
+                const snap = await getDocs(collection(db, 'farmacias'));
+                const batch = writeBatch(db);
                 snap.forEach(doc => {
                   batch.update(doc.ref, { horarios });
                 });
                 await batch.commit();
                 Alert.alert("¡Listo!", "Se actualizaron los horarios en todas las farmacias.");
               } else {
-                await firestore().collection('farmacias').doc(farmaciaSeleccionada!.id).update({ horarios });
+                await updateDoc(doc(db, 'farmacias', farmaciaSeleccionada!.id), { horarios });
                 Alert.alert("¡Listo!", `Se actualizaron los horarios de "${capitalizar(farmaciaSeleccionada!.name)}".`);
               }
               setFarmaciaNombre('');

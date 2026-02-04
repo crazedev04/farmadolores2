@@ -1,9 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View, TextInput, Linking } from 'react-native';
-import firestore from '@react-native-firebase/firestore';
+import {
+  getFirestore,
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  where,
+  getDocs,
+  doc,
+  setDoc,
+  deleteDoc,
+  serverTimestamp,
+} from '@react-native-firebase/firestore';
 import { useTheme } from '../context/ThemeContext';
 import Icon from '@react-native-vector-icons/material-design-icons';
 import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
+const db = getFirestore();
 
 const formatDate = (ts?: FirebaseFirestoreTypes.Timestamp | null) => {
   if (!ts) return '';
@@ -30,10 +43,8 @@ const AdminAccountRequestsScreen: React.FC = () => {
   const [userDisabledMap, setUserDisabledMap] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    const unsub = firestore()
-      .collection('accountRequests')
-      .orderBy('createdAt', 'desc')
-      .onSnapshot(
+    const unsub = onSnapshot(
+      query(collection(db, 'accountRequests'), orderBy('createdAt', 'desc')),
         snapshot => {
           const next = snapshot.docs.map(doc => {
             const data = doc.data() as Omit<AccountRequest, 'id'>;
@@ -70,7 +81,7 @@ const AdminAccountRequestsScreen: React.FC = () => {
         const results: Record<string, boolean> = {};
         await Promise.all(
           chunks.map(async (chunk) => {
-            const snap = await firestore().collection('users').where('uid', 'in', chunk).get();
+            const snap = await getDocs(query(collection(db, 'users'), where('uid', 'in', chunk)));
             snap.docs.forEach(doc => {
               const data = doc.data() as { uid?: string; disabled?: boolean };
               if (data.uid) {
@@ -99,15 +110,16 @@ const AdminAccountRequestsScreen: React.FC = () => {
 
   const handleReactivate = async (request: AccountRequest) => {
     try {
-      await firestore().collection('users').doc(request.uid).set(
+      await setDoc(
+        doc(db, 'users', request.uid),
         {
           disabled: false,
           disabledAt: null,
-          reactivatedAt: firestore.FieldValue.serverTimestamp(),
+          reactivatedAt: serverTimestamp(),
         },
         { merge: true }
       );
-      await firestore().collection('accountRequests').doc(request.id).delete();
+      await deleteDoc(doc(db, 'accountRequests', request.id));
     } catch (error) {
       Alert.alert('Error', 'No se pudo reactivar la cuenta.');
     }
@@ -132,8 +144,8 @@ UID: ${request.uid}
   
   const handleEliminarUserData = async (request: AccountRequest) => {
     try {
-      await firestore().collection('users').doc(request.uid).delete();
-      await firestore().collection('accountRequests').doc(request.id).delete();
+      await deleteDoc(doc(db, 'users', request.uid));
+      await deleteDoc(doc(db, 'accountRequests', request.id));
     } catch (error) {
       Alert.alert('Error', 'No se pudo eliminar los datos del usuario.');
     }
@@ -141,7 +153,7 @@ UID: ${request.uid}
 
   const handleEliminarRequest = async (request: AccountRequest) => {
     try {
-      await firestore().collection('accountRequests').doc(request.id).delete();
+      await deleteDoc(doc(db, 'accountRequests', request.id));
     } catch (error) {
       Alert.alert('Error', 'No se pudo eliminar la solicitud.');
     }

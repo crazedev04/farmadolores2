@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, Alert } from 'react-native';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import Icon from '@react-native-vector-icons/material-design-icons';
-import firestore from '@react-native-firebase/firestore';
+import { getFirestore, collection, onSnapshot, getDocs } from '@react-native-firebase/firestore';
 import { useTheme } from '../context/ThemeContext';
+const db = getFirestore();
 import AdBanner from '../components/ads/AdBanner';
 import { BannerAdSize } from 'react-native-google-mobile-ads';
 import { RootStackParamList } from '../types/navigationTypes';
@@ -64,9 +65,8 @@ const PrimerosAuxilios = () => {
       const online = !!state.isConnected && reachable !== false;
       setIsOffline(!online);
     });
-    const unsubscribe = firestore()
-      .collection('primerosAuxilios')
-      .onSnapshot(
+    const unsubscribe = onSnapshot(
+      collection(db, 'primerosAuxilios'),
         (snapshot) => {
           const next = snapshot.docs.map((doc) => {
             const data = doc.data() as any;
@@ -104,7 +104,7 @@ const PrimerosAuxilios = () => {
         Alert.alert('Sin conexion', 'Activa WiFi o datos para actualizar.');
         return;
       }
-      const snapshot = await firestore().collection('primerosAuxilios').get();
+      const snapshot = await getDocs(collection(db, 'primerosAuxilios'));
       const next = snapshot.docs.map((doc) => {
         const data = doc.data() as any;
         return {

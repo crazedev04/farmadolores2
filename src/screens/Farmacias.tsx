@@ -9,11 +9,12 @@ import { useTheme } from '../context/ThemeContext';
 import Geolocation from '@react-native-community/geolocation';
 import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 import { DateTime } from 'luxon';
-import firestore from '@react-native-firebase/firestore';
+import { getFirestore, doc, onSnapshot } from '@react-native-firebase/firestore';
 import { logEvent } from '../services/analytics';
 import { readCache, writeCache } from '../utils/cache';
 import { useScreenLoadAnalytics } from '../utils/useScreenLoadAnalytics';
 import NetInfo from '@react-native-community/netinfo';
+const db = getFirestore();
 
 type Coords = { lat: number; lng: number };
 
@@ -131,10 +132,7 @@ const Farmacias: React.FC = () => {
     };
     loadCache();
 
-    const unsub = firestore()
-      .collection('config')
-      .doc('home')
-      .onSnapshot(snapshot => {
+    const unsub = onSnapshot(doc(db, 'config', 'home'), snapshot => {
         const data = snapshot.data() || {};
         if (typeof data.speedThresholdMps === 'number') {
           setSpeedThresholdMps(data.speedThresholdMps);

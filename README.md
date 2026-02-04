@@ -1,93 +1,126 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+<div align="center">
+  <img src="https://i.ibb.co/njpLWh3/javascript.gif" width="100%" alt="Farma Dolores" />
+</div>
 
-# Getting Started
+<div align="center">
+  <h1>Farma Dolores</h1>
+  <p>
+    App móvil para farmacias de turno, información útil y notificaciones.
+    <br />
+    Mobile app for on-duty pharmacies, useful info and notifications.
+  </p>
+</div>
 
->**Note**: Make sure you have completed the [React Native - Environment Setup](https://reactnative.dev/docs/environment-setup) instructions till "Creating a new application" step, before proceeding.
+<div align="center">
+  <a href="#demo">Demo</a> •
+  <a href="#features">Funciones</a> •
+  <a href="#tech">Tecnologías</a> •
+  <a href="#contact">Contacto</a>
+</div>
 
-## Installation
+<br />
 
-Install the project dependencies before running the app:
+<div align="center">
+  <img src="https://img.shields.io/badge/React%20Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" />
+  <img src="https://img.shields.io/badge/TypeScript-0B5FFF?style=for-the-badge&logo=typescript&logoColor=white" />
+  <img src="https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=000" />
+  <img src="https://img.shields.io/badge/Redux-764ABC?style=for-the-badge&logo=redux&logoColor=fff" />
+  <img src="https://img.shields.io/badge/PostgreSQL-2F5B9D?style=for-the-badge&logo=postgresql&logoColor=fff" />
+</div>
 
-```bash
-yarn install
-```
+<br />
 
-## Step 1: Start the Metro Server
+<div align="center">
+  <table>
+    <tr>
+      <td align="center" width="260">
+        <h3>Experiencia</h3>
+        <p>Interfaz clara y rápida, pensada para uso diario.</p>
+      </td>
+      <td align="center" width="260">
+        <h3>Notificaciones</h3>
+        <p>Alertas cuando hay nuevos turnos o cambios.</p>
+      </td>
+      <td align="center" width="260">
+        <h3>Actualizaciones</h3>
+        <p>OTA para publicar mejoras sin esperar store.</p>
+      </td>
+    </tr>
+  </table>
+</div>
 
-First, you will need to start **Metro**, the JavaScript _bundler_ that ships _with_ React Native.
+<br />
 
-To start Metro, run the following command from the _root_ of your React Native project:
+## <a id="demo"></a>Demo
 
-```bash
-# using npm
-npm start
+<div align="center">
+  <a href="https://ejemplo.com/app-demo" target="_blank">
+    <img src="https://img.shields.io/badge/Ver%20Demo-111?style=for-the-badge&logo=vercel&logoColor=white" />
+  </a>
+  <a href="https://ejemplo.com/screens" target="_blank">
+    <img src="https://img.shields.io/badge/Screenshots-1E77B5?style=for-the-badge&logo=googlephotos&logoColor=white" />
+  </a>
+  <a href="https://ejemplo.com/video" target="_blank">
+    <img src="https://img.shields.io/badge/Video-FF0000?style=for-the-badge&logo=youtube&logoColor=white" />
+  </a>
+</div>
 
-# OR using Yarn
-yarn start
-```
+<br />
 
-## Step 2: Start your Application
+## <a id="features"></a>Funciones / Features
 
-Let Metro Bundler run in its _own_ terminal. Open a _new_ terminal from the _root_ of your React Native project. Run the following command to start your _Android_ or _iOS_ app:
+- Farmacias de turno y contacto rápido.
+- Mapa y navegación a la farmacia.
+- Noticias, tips y recomendaciones.
+- Notificaciones automáticas.
+- Panel de administración para contenidos.
+- On-duty pharmacies and quick contact.
+- Map and navigation.
+- News, tips and recommendations.
+- Automatic notifications.
+- Admin panel for content.
 
-### For Android
+<br />
 
-```bash
-# using npm
-npm run android
+## <a id="tech"></a>Tecnologías / Tech Stack
 
-# OR using Yarn
-yarn android
-```
+**Frontend / Mobile**
+- React Native
+- TypeScript
+- Redux
 
-### For iOS
+**Backend**
+- Node.js
+- Express
+- PostgreSQL
+- Firebase
 
-```bash
-# using npm
-npm run ios
+<br />
 
-# OR using Yarn
-yarn ios
-```
+## Arquitectura / Architecture
 
-If everything is set up _correctly_, you should see your new app running in your _Android Emulator_ or _iOS Simulator_ shortly provided you have set up your emulator/simulator correctly.
+- App móvil con OTA para actualizaciones rápidas.
+- Background tasks para notificaciones de turnos.
+- Persistencia de datos y tracking de eventos.
 
-This is one way to run your app — you can also run it directly from within Android Studio and Xcode respectively.
+<br />
 
-## Step 3: Modifying your App
+## <a id="contact"></a>Contacto / Contact
 
-Now that you have successfully run the app, let's modify it.
+<div align="center">
+  <a href="https://github.com/oversightdolores" target="_blank">
+    <img src="https://img.shields.io/badge/GitHub-24292e?style=for-the-badge&logo=github&logoColor=white" />
+  </a>
+  <a href="https://linkedin.com/in/nicolas-lo-giudice" target="_blank">
+    <img src="https://img.shields.io/badge/LinkedIn-1E77B5?style=for-the-badge&logo=linkedin&logoColor=white" />
+  </a>
+  <a href="mailto:logiudicenicolas04@gmail.com" target="_blank">
+    <img src="https://img.shields.io/badge/Email-000?style=for-the-badge&logo=gmail&logoColor=white" />
+  </a>
+</div>
 
-1. Open `App.tsx` in your text editor of choice and edit some lines.
-2. For **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Developer Menu** (<kbd>Ctrl</kbd> + <kbd>M</kbd> (on Window and Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (on macOS)) to see your changes!
+<br />
 
-   For **iOS**: Hit <kbd>Cmd ⌘</kbd> + <kbd>R</kbd> in your iOS Simulator to reload the app and see your changes!
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [Introduction to React Native](https://reactnative.dev/docs/getting-started).
-
-## Background notifications
-
-The app periodically checks for pharmacy shifts using `react-native-background-fetch`.
-Even when the application is closed, the service runs in the background and
-schedules notifications whenever a new shift begins.
-
-# Troubleshooting
-
-If you can't get this to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+<div align="center">
+  <img src="https://komarev.com/ghpvc/?username=oversightdolores&style=flat-square" />
+</div>

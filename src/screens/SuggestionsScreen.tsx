@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import firestore from '@react-native-firebase/firestore';
+import { getFirestore, collection, addDoc, serverTimestamp } from '@react-native-firebase/firestore';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { logEvent } from '../services/analytics';
+const db = getFirestore();
 
 const TYPE_OPTIONS = [
   { key: 'sugerencia', label: 'Sugerencia' },
@@ -35,12 +36,12 @@ const SuggestionsScreen: React.FC = () => {
 
     setLoading(true);
     try {
-      await firestore().collection('sugerencias').add({
+      await addDoc(collection(db, 'sugerencias'), {
         title: title.trim(),
         message: message.trim(),
         type,
         resolved: false,
-        createdAt: firestore.FieldValue.serverTimestamp(),
+        createdAt: serverTimestamp(),
         userId: user.uid,
         userName: user.displayName || '',
         userEmail: user.email || '',

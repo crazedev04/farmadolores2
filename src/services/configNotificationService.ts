@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import firestore from '@react-native-firebase/firestore';
+import { getFirestore, doc, onSnapshot } from '@react-native-firebase/firestore';
 import notifee, { AndroidImportance } from '@notifee/react-native';
 import { createNotificationChannels } from '../constants/notificationChannels';
 
@@ -9,6 +9,7 @@ const STORAGE_MAINTENANCE = 'maintenance_notification_last';
 
 const MAX_SEEN = 50;
 const MAX_BATCH = 3;
+const db = getFirestore();
 
 const getNotificationsEnabled = async () => {
   try {
@@ -69,11 +70,11 @@ export const startConfigNotifications = () => {
   const init = async () => {
     await createNotificationChannels();
 
-    const maintenanceRef = firestore().collection('config').doc('appStatus');
-    const homeRef = firestore().collection('config').doc('home');
+    const maintenanceRef = doc(db, 'config', 'appStatus');
+    const homeRef = doc(db, 'config', 'home');
 
-    unsubMaintenance = maintenanceRef.onSnapshot(async snapshot => {
-      if (cancelled || !snapshot.exists) return;
+    unsubMaintenance = onSnapshot(maintenanceRef, async snapshot => {
+      if (cancelled || !snapshot.exists()) return;
       const data = snapshot.data() || {};
       if (!data.enabled) return;
 
@@ -91,8 +92,8 @@ export const startConfigNotifications = () => {
       await AsyncStorage.setItem(STORAGE_MAINTENANCE, key);
     });
 
-    unsubHome = homeRef.onSnapshot(async snapshot => {
-      if (cancelled || !snapshot.exists) return;
+    unsubHome = onSnapshot(homeRef, async snapshot => {
+      if (cancelled || !snapshot.exists()) return;
       const data = snapshot.data() || {};
       const newsEnabled = data.newsEnabled !== false;
       const promosEnabled = data.promosEnabled !== false;

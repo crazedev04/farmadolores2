@@ -1,6 +1,6 @@
 {
   "name": "farmadolores",
-  "version": "1.9.0",
+  "version": "1.9.3",
   "private": true,
   "scripts": {
     "list": "echo 'Listing something...'",
@@ -8,6 +8,7 @@
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "ota": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\\\scripts\\\\ota-upload.ps1",
+    "ota:git": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\\\scripts\\\\ota-publish-git.ps1",
     "start": "react-native start",
     "test": "jest"
   },
@@ -31,6 +32,8 @@
     "@react-navigation/drawer": "^7.4.1",
     "@react-navigation/native": "^7.1.10",
     "@react-navigation/native-stack": "^7.3.14",
+    "buffer": "^6.0.3",
+    "isomorphic-git": "^1.24.5",
     "lottie-react-native": "^7.2.2",
     "luxon": "^3.4.4",
     "react": "19.0.0",

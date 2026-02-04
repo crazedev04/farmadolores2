@@ -1,5 +1,5 @@
 // src/services/turnoService.ts
-import firestore, { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
+import { FirebaseFirestoreTypes, getFirestore, collection, getDocs } from '@react-native-firebase/firestore';
 import { DateTime } from 'luxon';
 import { showNotification } from './notificationService';
 import { createNotificationChannels } from '../constants/notificationChannels';
@@ -13,6 +13,7 @@ const LAST_TURNO_PHARMACY_KEY = 'lastTurnoPharmacyId';
 const NOTIFICATIONS_ENABLED_KEY = 'notificationsEnabled';
 const TURNOS_CACHE_KEY = 'cache:farmacias:turnos';
 const TURNOS_CACHE_TTL_MS = 1000 * 60 * 10; // 10 min
+const db = getFirestore();
 
 interface NotificationSchedule {
   readonly hour: number;
@@ -64,7 +65,7 @@ export async function checkAndNotifyTurnos(): Promise<void> {
     if (farmacias) {
       farmacias = rehydrateFromCache(farmacias) as Farmacia[];
     } else {
-      const snapshot = await firestore().collection('farmacias').get();
+      const snapshot = await getDocs(collection(db, 'farmacias'));
       farmacias = snapshot.docs.map(doc => {
         const data = doc.data() as Partial<Farmacia>;
         return {

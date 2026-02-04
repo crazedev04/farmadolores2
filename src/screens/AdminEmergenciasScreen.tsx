@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import firestore from '@react-native-firebase/firestore';
+import { getFirestore, collection, onSnapshot, updateDoc, doc, writeBatch } from '@react-native-firebase/firestore';
 import Icon from '@react-native-vector-icons/material-design-icons';
 import { useTheme } from '../context/ThemeContext';
+const db = getFirestore();
 
 const DEFAULT_BADGE_TEXT = 'Guardia 24hs';
 const DEFAULT_BADGE_ICON = 'alert-decagram';
@@ -62,9 +63,8 @@ const AdminEmergenciasScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    const unsub = firestore()
-      .collection('emergencias')
-      .onSnapshot(
+    const unsub = onSnapshot(
+      collection(db, 'emergencias'),
         (snapshot) => {
           const next = snapshot.docs.map((doc) => {
             const data = doc.data();
@@ -111,7 +111,7 @@ const AdminEmergenciasScreen: React.FC = () => {
     try {
       const resolvedText = item.badge.text.trim() || DEFAULT_BADGE_TEXT;
       const resolvedIcon = item.badge.icon.trim();
-      await firestore().collection('emergencias').doc(item.id).update({
+      await updateDoc(doc(db, 'emergencias', item.id), {
         badge: {
           enabled: item.badge.enabled,
           text: resolvedText,
@@ -142,9 +142,9 @@ const AdminEmergenciasScreen: React.FC = () => {
           try {
             const resolvedText = bulkBadge.text.trim() || DEFAULT_BADGE_TEXT;
             const resolvedIcon = bulkBadge.icon.trim();
-            const batch = firestore().batch();
+            const batch = writeBatch(db);
             items.forEach((item) => {
-              const ref = firestore().collection('emergencias').doc(item.id);
+              const ref = doc(db, 'emergencias', item.id);
               batch.update(ref, {
                 badge: {
                   enabled: true,

@@ -12,13 +12,15 @@ import AppNavigator from './src/screens/AppNavigator';
 // Importamos BackgroundFetch
 import BackgroundFetch from 'react-native-background-fetch';
 // Importamos la función que hace el chequeo y la notificación
-import { checkAndNotifyTurnos } from './src/services/TurnoService'; 
+import { checkAndNotifyTurnos } from './src/services/TurnoService';
+import { checkAndApplyHotfix } from './src/services/otaHotfix';
 import { initPushNotifications } from './src/services/pushService';
 import { useAuth } from './src/context/AuthContext';
 import { ThemeContextProvider, useTheme } from './src/context/ThemeContext';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { PharmacyProvider } from './src/context/PharmacyContext';
-import firestore from '@react-native-firebase/firestore';
+import { getApp } from '@react-native-firebase/app';
+import { initializeFirestore } from '@react-native-firebase/firestore';
 
 const AppContent = () => {
   const { theme } = useTheme();
@@ -32,11 +34,15 @@ const AppContent = () => {
   });
 
   useEffect(() => {
-    try {
-      firestore().settings({ persistence: true });
-    } catch {
-      // ignore persistence setup errors
-    }
+    const initFirestore = async () => {
+      try {
+        await initializeFirestore(getApp(), { persistence: true });
+      } catch {
+        // ignore persistence setup errors
+      }
+    };
+
+    initFirestore();
   }, []);
 
   useEffect(() => {
@@ -51,11 +57,10 @@ const AppContent = () => {
           requiredNetworkType: BackgroundFetch.NETWORK_TYPE_ANY,
         },
         async (taskId) => {
-          if (__DEV__) {
-            console.log('[BackgroundFetch] Task start:', taskId);
-          }
+          console.log('[BackgroundFetch] Task start:', taskId);
           // Llamamos a nuestra lógica para revisar turnos y programar notificaciones
           await checkAndNotifyTurnos();
+          await checkAndApplyHotfix({ notify: false });
           // MUY IMPORTANTE: marcar la tarea como finalizada
           BackgroundFetch.finish(taskId);
         },

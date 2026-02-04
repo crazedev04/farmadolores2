@@ -26,100 +26,140 @@ jest.mock('@notifee/react-native', () => ({
   EventType: { ACTION_PRESS: 'ACTION_PRESS', DISMISSED: 'DISMISSED' },
 }));
 
+jest.mock('@react-native-firebase/app', () => ({
+  getApp: jest.fn(() => ({
+    name: 'mock-app',
+    firestore: jest.fn(() => ({ settings: jest.fn() })),
+  })),
+  setLogLevel: jest.fn(),
+}));
+
 jest.mock('@react-native-firebase/auth', () => {
-  return () => ({
-    onAuthStateChanged: (cb) => {
+  const currentUser = {
+    updateProfile: jest.fn(),
+    getIdTokenResult: jest.fn().mockResolvedValue({ claims: {} }),
+  };
+  const authInstance = {
+    currentUser,
+  };
+  return {
+    getAuth: jest.fn(() => authInstance),
+    onAuthStateChanged: jest.fn((_auth, cb) => {
       cb(null);
       return () => {};
-    },
+    }),
     signInWithEmailAndPassword: jest.fn(),
     createUserWithEmailAndPassword: jest.fn(),
-    signOut: jest.fn(),
+    fetchSignInMethodsForEmail: jest.fn().mockResolvedValue([]),
+    sendPasswordResetEmail: jest.fn(),
     signInWithCredential: jest.fn(),
-  });
+    GoogleAuthProvider: { credential: jest.fn(() => ({ providerId: 'google.com' })) },
+    signOut: jest.fn(),
+    updateProfile: jest.fn(),
+  };
 });
 
 jest.mock('@react-native-firebase/firestore', () => {
-  const firestore = () => ({
-    collection: () => ({
-      onSnapshot: (cb) => {
-        cb({ docs: [] });
-        return () => {};
-      },
-      get: jest.fn().mockResolvedValue({ docs: [] }),
-      add: jest.fn().mockResolvedValue({ id: 'mock-id' }),
-      doc: () => ({
-        update: jest.fn(),
-        set: jest.fn(),
-        delete: jest.fn(),
-        get: jest.fn().mockResolvedValue({ exists: false }),
-        onSnapshot: (cb) => {
-          cb({ data: () => ({}) });
-          return () => {};
-        },
-      }),
-      orderBy: () => ({
-        onSnapshot: (cb) => {
-          cb({ docs: [] });
-          return () => {};
-        },
-        get: jest.fn().mockResolvedValue({ docs: [] }),
-      }),
-      where: () => ({
-        where: () => ({
-          limit: () => ({
-            get: jest.fn().mockResolvedValue({ docs: [] }),
-          }),
-        }),
-      }),
-      limit: () => ({
-        get: jest.fn().mockResolvedValue({ docs: [] }),
-      }),
-    }),
-    batch: () => ({ update: jest.fn(), set: jest.fn(), delete: jest.fn(), commit: jest.fn() }),
+  const db = {};
+  const getFirestore = jest.fn(() => db);
+  const collection = jest.fn((_db, path) => ({ _path: path }));
+  const doc = jest.fn((_parent, path, ...segments) => {
+    const id = segments.length > 0 ? segments[segments.length - 1] : path;
+    return { id, _path: [path, ...segments].join('/'), ref: {} };
   });
+  const getDoc = jest.fn(async () => ({ exists: () => false, data: () => undefined }));
+  const getDocs = jest.fn(async () => ({ docs: [], empty: true }));
+  const onSnapshot = jest.fn((_ref, cb) => {
+    if (cb) {
+      cb({ docs: [], data: () => ({}), exists: () => true });
+    }
+    return () => {};
+  });
+  const setDoc = jest.fn(async () => {});
+  const updateDoc = jest.fn(async () => {});
+  const addDoc = jest.fn(async () => ({ id: 'mock-id' }));
+  const deleteDoc = jest.fn(async () => {});
+  const writeBatch = jest.fn(() => ({
+    set: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    commit: jest.fn(),
+  }));
+  const query = jest.fn((...args) => ({ _query: args }));
+  const where = jest.fn((...args) => ({ _where: args }));
+  const orderBy = jest.fn((...args) => ({ _orderBy: args }));
+  const limit = jest.fn((n) => ({ _limit: n }));
+  const startAfter = jest.fn((...args) => ({ _startAfter: args }));
+  const serverTimestamp = jest.fn(() => 'serverTimestamp');
+  const increment = jest.fn((value) => value);
+  const deleteField = jest.fn(() => 'deleteField');
 
-  firestore.GeoPoint = class {
+  class GeoPoint {
     constructor(latitude, longitude) {
       this.latitude = latitude;
       this.longitude = longitude;
     }
-  };
-  firestore.Timestamp = class {
+  }
+
+  class Timestamp {
     toDate() {
       return new Date();
     }
+  }
+
+  return {
+    getFirestore,
+    collection,
+    doc,
+    getDoc,
+    getDocs,
+    onSnapshot,
+    setDoc,
+    updateDoc,
+    addDoc,
+    deleteDoc,
+    writeBatch,
+    query,
+    where,
+    orderBy,
+    limit,
+    startAfter,
+    serverTimestamp,
+    increment,
+    deleteField,
+    GeoPoint,
+    Timestamp,
+    initializeFirestore: jest.fn(async () => db),
   };
-  firestore.FieldValue = {
-    serverTimestamp: jest.fn(() => 'serverTimestamp'),
-    delete: jest.fn(() => 'deleteField'),
-    increment: jest.fn((value) => value),
-  };
-  return firestore;
 });
 
 jest.mock('@react-native-firebase/analytics', () => {
-  const analytics = () => ({
+  const instance = {};
+  return {
+    getAnalytics: jest.fn(() => instance),
     logEvent: jest.fn(),
     logScreenView: jest.fn(),
     logLogin: jest.fn(),
     logSignUp: jest.fn(),
     setUserId: jest.fn(),
     setUserProperties: jest.fn(),
-  });
-  return analytics;
+  };
 });
 
 jest.mock('@react-native-firebase/messaging', () => {
-  const messaging = () => ({
+  const instance = {};
+  return {
+    getMessaging: jest.fn(() => instance),
     requestPermission: jest.fn().mockResolvedValue(1),
     registerDeviceForRemoteMessages: jest.fn(),
     getToken: jest.fn().mockResolvedValue('mock-token'),
-    onTokenRefresh: jest.fn(() => jest.fn()),
+    onTokenRefresh: jest.fn((_messaging, cb) => {
+      if (cb) cb('mock-token');
+      return jest.fn();
+    }),
     onMessage: jest.fn(() => jest.fn()),
     setBackgroundMessageHandler: jest.fn(),
-  });
-  return messaging;
+  };
 });
 
 jest.mock('react-native-google-mobile-ads', () => ({
@@ -158,6 +198,9 @@ jest.mock('@react-native-google-signin/google-signin', () => ({
     signIn: jest.fn().mockResolvedValue({ data: { idToken: 'token' } }),
     signOut: jest.fn(),
   },
+  statusCodes: {
+    SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED',
+  },
 }));
 
 jest.mock('@react-native-vector-icons/material-design-icons', () => {
@@ -174,6 +217,7 @@ jest.mock('@react-native-community/geolocation', () => ({
 
 jest.mock('@react-native-community/netinfo', () => ({
   fetch: jest.fn().mockResolvedValue({ isConnected: true }),
+  addEventListener: jest.fn(() => jest.fn()),
 }));
 
 jest.mock('react-native-permissions', () => ({
@@ -205,16 +249,17 @@ jest.mock('react-native-image-resizer', () => ({
 }));
 
 jest.mock('@react-native-firebase/storage', () => {
-  const storage = () => ({
-    ref: () => ({
-      putFile: jest.fn().mockResolvedValue(undefined),
-      getDownloadURL: jest.fn().mockResolvedValue('https://example.com/image.jpg'),
-    }),
-    refFromURL: () => ({
-      delete: jest.fn().mockResolvedValue(undefined),
-    }),
-  });
-  return storage;
+  const instance = {};
+  const ref = jest.fn((_storage, path) => ({ path }));
+  const refFromURL = jest.fn((_storage, url) => ({ url }));
+  return {
+    getStorage: jest.fn(() => instance),
+    ref,
+    refFromURL,
+    putFile: jest.fn().mockResolvedValue(undefined),
+    getDownloadURL: jest.fn().mockResolvedValue('https://example.com/image.jpg'),
+    deleteObject: jest.fn().mockResolvedValue(undefined),
+  };
 });
 
 jest.mock('react-native-fs', () => ({

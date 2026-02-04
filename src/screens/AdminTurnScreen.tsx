@@ -3,9 +3,10 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ActivityIndicator, Alert, ScrollView
 } from 'react-native';
-import firestore from '@react-native-firebase/firestore';
+import { getFirestore, collection, query, orderBy, limit, startAfter, where, getDocs, updateDoc, doc } from '@react-native-firebase/firestore';
 import PickerTurno from '../components/PikerTurno'; // Cambia ruta si es necesario
 import { useTheme } from '../context/ThemeContext';
+const db = getFirestore();
 
 interface Farmacia {
   id: string;
@@ -35,11 +36,11 @@ const AdminCambiarTurnoFarmacia: React.FC = () => {
     if (loadingListado) return;
     setLoadingListado(true);
     try {
-      let query = firestore().collection('farmacias').orderBy('name').limit(12);
+      let farmaciasQuery = query(collection(db, 'farmacias'), orderBy('name'), limit(12));
       if (!reset && lastFarmaciaDoc) {
-        query = query.startAfter(lastFarmaciaDoc);
+        farmaciasQuery = query(collection(db, 'farmacias'), orderBy('name'), startAfter(lastFarmaciaDoc), limit(12));
       }
-      const snap = await query.get();
+      const snap = await getDocs(farmaciasQuery);
       const results: Farmacia[] = snap.docs.map(doc => {
         const data = doc.data();
         let turnArr: (Date | null)[] = [];
@@ -75,12 +76,14 @@ const AdminCambiarTurnoFarmacia: React.FC = () => {
     try {
       const inicio = nombre.charAt(0).toUpperCase() + nombre.slice(1);
       const fin = inicio + '\uf8ff';
-      const snap = await firestore()
-        .collection('farmacias')
-        .where('name', '>=', inicio)
-        .where('name', '<=', fin)
-        .limit(8)
-        .get();
+      const snap = await getDocs(
+        query(
+          collection(db, 'farmacias'),
+          where('name', '>=', inicio),
+          where('name', '<=', fin),
+          limit(8)
+        )
+      );
       const results: Farmacia[] = snap.docs.map(doc => {
         const data = doc.data();
         // Convierte los turnos a array de Date o null
@@ -144,10 +147,7 @@ const AdminCambiarTurnoFarmacia: React.FC = () => {
     }
     setLoading(true);
     try {
-      await firestore()
-        .collection('farmacias')
-        .doc(farmaciaSeleccionada.id)
-        .update({ turn: turnos }); // Firebase convierte Date[] a Timestamp[]
+      await updateDoc(doc(db, 'farmacias', farmaciaSeleccionada.id), { turn: turnos }); // Firebase convierte Date[] a Timestamp[]
       Alert.alert('¡Listo!', `Turnos actualizados para "${farmaciaSeleccionada.name}"`);
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Ocurrió un error');

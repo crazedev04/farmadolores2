@@ -12,9 +12,21 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import firestore from '@react-native-firebase/firestore';
+import {
+  getFirestore,
+  collection,
+  onSnapshot,
+  updateDoc,
+  addDoc,
+  deleteDoc,
+  doc,
+  setDoc,
+  getDocs,
+  writeBatch,
+} from '@react-native-firebase/firestore';
 import Icon from '@react-native-vector-icons/material-design-icons';
 import RNFS from 'react-native-fs';
+const db = getFirestore();
 import { useTheme } from '../context/ThemeContext';
 
 type GuideItem = {
@@ -497,9 +509,8 @@ const AdminPrimerosAuxiliosScreen: React.FC = () => {
   );
 
   useEffect(() => {
-    const unsubscribe = firestore()
-      .collection('primerosAuxilios')
-      .onSnapshot(
+    const unsubscribe = onSnapshot(
+      collection(db, 'primerosAuxilios'),
         (snapshot) => {
           const next = snapshot.docs.map((doc) => {
             const data = doc.data() as any;
@@ -575,9 +586,9 @@ const AdminPrimerosAuxiliosScreen: React.FC = () => {
       payload.icon = (icon || suggestedIcon).trim();
 
       if (editingId) {
-        await firestore().collection('primerosAuxilios').doc(editingId).update(payload);
+        await updateDoc(doc(db, 'primerosAuxilios', editingId), payload);
       } else {
-        await firestore().collection('primerosAuxilios').add(payload);
+        await addDoc(collection(db, 'primerosAuxilios'), payload);
       }
       resetForm();
     } catch {
@@ -595,7 +606,7 @@ const AdminPrimerosAuxiliosScreen: React.FC = () => {
         style: 'destructive',
         onPress: async () => {
           try {
-            await firestore().collection('primerosAuxilios').doc(item.id).delete();
+            await deleteDoc(doc(db, 'primerosAuxilios', item.id));
           } catch {
             Alert.alert('Error', 'No se pudo eliminar la guia.');
           }
@@ -614,10 +625,7 @@ const AdminPrimerosAuxiliosScreen: React.FC = () => {
           try {
             const tasks = DEFAULT_GUIDES.map((item, index) => {
               const id = `guia-${index + 1}`;
-              return firestore()
-                .collection('primerosAuxilios')
-                .doc(id)
-                .set({
+              return setDoc(doc(db, 'primerosAuxilios', id), {
                   title: item.title,
                   description: item.description,
                   url: item.url,
@@ -665,9 +673,9 @@ const AdminPrimerosAuxiliosScreen: React.FC = () => {
   };
 
   const clearCollection = async () => {
-    const snapshot = await firestore().collection('primerosAuxilios').get();
+    const snapshot = await getDocs(collection(db, 'primerosAuxilios'));
     if (snapshot.empty) return;
-    const batch = firestore().batch();
+    const batch = writeBatch(db);
     snapshot.docs.forEach((doc) => {
       batch.delete(doc.ref);
     });
@@ -678,9 +686,9 @@ const AdminPrimerosAuxiliosScreen: React.FC = () => {
     if (mode === 'replace') {
       await clearCollection();
     }
-    const batch = firestore().batch();
+    const batch = writeBatch(db);
     guidesToSave.forEach((item) => {
-      const docRef = firestore().collection('primerosAuxilios').doc();
+      const docRef = doc(collection(db, 'primerosAuxilios'));
       batch.set(docRef, {
         title: item.title,
         description: item.description || '',

@@ -1,9 +1,21 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import firestore, { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
+import {
+  FirebaseFirestoreTypes,
+  getFirestore,
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  updateDoc,
+  doc,
+  deleteDoc,
+  serverTimestamp,
+} from '@react-native-firebase/firestore';
 import Icon from '@react-native-vector-icons/material-design-icons';
 import { DateTime } from 'luxon';
 import { useTheme } from '../context/ThemeContext';
+const db = getFirestore();
 
 const FILTERS = ['todos', 'pendientes', 'resueltas'] as const;
 
@@ -28,10 +40,8 @@ const AdminSuggestionsScreen: React.FC = () => {
   const [filter, setFilter] = useState<FilterType>('todos');
 
   useEffect(() => {
-    const unsub = firestore()
-      .collection('sugerencias')
-      .orderBy('createdAt', 'desc')
-      .onSnapshot(
+    const unsub = onSnapshot(
+      query(collection(db, 'sugerencias'), orderBy('createdAt', 'desc')),
         (snapshot) => {
           const data = snapshot.docs.map((doc) => ({
             id: doc.id,
@@ -65,9 +75,9 @@ const AdminSuggestionsScreen: React.FC = () => {
 
   const handleResolve = async (item: Suggestion, value: boolean) => {
     try {
-      await firestore().collection('sugerencias').doc(item.id).update({
+      await updateDoc(doc(db, 'sugerencias', item.id), {
         resolved: value,
-        resolvedAt: value ? firestore.FieldValue.serverTimestamp() : null,
+        resolvedAt: value ? serverTimestamp() : null,
       });
     } catch (error) {
       Alert.alert('Error', 'No se pudo actualizar la sugerencia.');
@@ -102,7 +112,7 @@ const AdminSuggestionsScreen: React.FC = () => {
         style: 'destructive',
         onPress: async () => {
           try {
-            await firestore().collection('sugerencias').doc(item.id).delete();
+            await deleteDoc(doc(db, 'sugerencias', item.id));
           } catch (error) {
             Alert.alert('Error', 'No se pudo eliminar la sugerencia.');
           }

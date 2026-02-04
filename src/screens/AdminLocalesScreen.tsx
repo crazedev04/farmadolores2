@@ -11,9 +11,21 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import firestore from '@react-native-firebase/firestore';
+import {
+  getFirestore,
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  updateDoc,
+  addDoc,
+  deleteDoc,
+  doc,
+  deleteField,
+} from '@react-native-firebase/firestore';
 import Icon from '@react-native-vector-icons/material-design-icons';
 import { useTheme } from '../context/ThemeContext';
+const db = getFirestore();
 import { deleteImageByUrl, pickAndUploadImage } from '../utils/uploadImage';
 
 type LocalItem = {
@@ -52,10 +64,8 @@ const AdminLocalesScreen: React.FC = () => {
   );
 
   useEffect(() => {
-    const unsubscribe = firestore()
-      .collection('publi')
-      .orderBy('name')
-      .onSnapshot(
+    const unsubscribe = onSnapshot(
+      query(collection(db, 'publi'), orderBy('name')),
         (snapshot) => {
           const next = snapshot.docs.map((doc) => {
             const data = doc.data() as any;
@@ -137,13 +147,13 @@ const AdminLocalesScreen: React.FC = () => {
       if (galleryList.length > 0) {
         payload.gallery = galleryList;
       } else if (editingId) {
-        payload.gallery = firestore.FieldValue.delete();
+        payload.gallery = deleteField();
       }
 
       if (editingId) {
-        await firestore().collection('publi').doc(editingId).update(payload);
+        await updateDoc(doc(db, 'publi', editingId), payload);
       } else {
-        await firestore().collection('publi').add(payload);
+        await addDoc(collection(db, 'publi'), payload);
       }
       resetForm();
     } catch {
@@ -161,7 +171,7 @@ const AdminLocalesScreen: React.FC = () => {
         style: 'destructive',
         onPress: async () => {
           try {
-            await firestore().collection('publi').doc(item.id).delete();
+            await deleteDoc(doc(db, 'publi', item.id));
           } catch {
             Alert.alert('Error', 'No se pudo eliminar el negocio.');
           }

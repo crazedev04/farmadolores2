@@ -10,7 +10,7 @@ import {
   View,
   Alert,
 } from 'react-native';
-import firestore from '@react-native-firebase/firestore';
+import { getFirestore, collection, onSnapshot, getDocs } from '@react-native-firebase/firestore';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import Icon from '@react-native-vector-icons/material-design-icons';
 import { RootStackParamList, Local } from '../types/navigationTypes';
@@ -21,6 +21,7 @@ import { logEvent } from '../services/analytics';
 import { useDebouncedValue } from '../utils/useDebouncedValue';
 import { useScreenLoadAnalytics } from '../utils/useScreenLoadAnalytics';
 import NetInfo from '@react-native-community/netinfo';
+const db = getFirestore();
 
 type LocalesListScreenNavigationProp = NavigationProp<RootStackParamList, 'LocalDetail'>;
 
@@ -42,7 +43,8 @@ const LocalesListScreen: React.FC = () => {
       const online = !!state.isConnected && reachable !== false;
       setIsOffline(!online);
     });
-    const snapshot = firestore().collection('publi').onSnapshot(
+    const snapshot = onSnapshot(
+      collection(db, 'publi'),
       (querySnapshot) => {
         const localesData: Local[] = querySnapshot.docs.map((doc) => {
           const data = doc.data() as Local;
@@ -81,7 +83,7 @@ const LocalesListScreen: React.FC = () => {
         Alert.alert('Sin conexion', 'Activa WiFi o datos para actualizar.');
         return;
       }
-      const snap = await firestore().collection('publi').get();
+      const snap = await getDocs(collection(db, 'publi'));
       const localesData: Local[] = snap.docs.map((doc) => {
         const data = doc.data() as Local;
         return {

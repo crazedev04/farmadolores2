@@ -11,10 +11,24 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import firestore, { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
+import {
+  FirebaseFirestoreTypes,
+  getFirestore,
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  updateDoc,
+  addDoc,
+  deleteDoc,
+  doc,
+  deleteField,
+  GeoPoint,
+} from '@react-native-firebase/firestore';
 import Icon from '@react-native-vector-icons/material-design-icons';
 import { useTheme } from '../context/ThemeContext';
 import { deleteImageByUrl, pickAndUploadImage } from '../utils/uploadImage';
+const db = getFirestore();
 
 type FarmaciaItem = {
   id: string;
@@ -53,10 +67,8 @@ const AdminFarmaciasScreen: React.FC = () => {
   );
 
   useEffect(() => {
-    const unsubscribe = firestore()
-      .collection('farmacias')
-      .orderBy('name')
-      .onSnapshot(
+    const unsubscribe = onSnapshot(
+      query(collection(db, 'farmacias'), orderBy('name')),
         (snapshot) => {
           const next = snapshot.docs.map((doc) => {
             const data = doc.data();
@@ -134,17 +146,17 @@ const AdminFarmaciasScreen: React.FC = () => {
       if (galleryList.length > 0) {
         payload.gallery = galleryList;
       } else if (editingId) {
-        payload.gallery = firestore.FieldValue.delete();
+        payload.gallery = deleteField();
       }
       const latNum = Number(lat);
       const lngNum = Number(lng);
       if (Number.isFinite(latNum) && Number.isFinite(lngNum)) {
-        payload.gps = new firestore.GeoPoint(latNum, lngNum);
+        payload.gps = new GeoPoint(latNum, lngNum);
       }
       if (editingId) {
-        await firestore().collection('farmacias').doc(editingId).update(payload);
+        await updateDoc(doc(db, 'farmacias', editingId), payload);
       } else {
-        await firestore().collection('farmacias').add(payload);
+        await addDoc(collection(db, 'farmacias'), payload);
       }
       resetForm();
     } catch {
@@ -217,7 +229,7 @@ const AdminFarmaciasScreen: React.FC = () => {
         style: 'destructive',
         onPress: async () => {
           try {
-            await firestore().collection('farmacias').doc(item.id).delete();
+            await deleteDoc(doc(db, 'farmacias', item.id));
           } catch {
             Alert.alert('Error', 'No se pudo eliminar la farmacia.');
           }

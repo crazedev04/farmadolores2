@@ -1,5 +1,13 @@
-import analytics from '@react-native-firebase/analytics';
-import firestore from '@react-native-firebase/firestore';
+import {
+  getAnalytics,
+  logEvent as logEventNative,
+  setUserId as setUserIdNative,
+  setUserProperties as setUserPropertiesNative,
+} from '@react-native-firebase/analytics';
+import { getFirestore, doc, setDoc, serverTimestamp, increment } from '@react-native-firebase/firestore';
+
+const analyticsInstance = getAnalytics();
+const db = getFirestore();
 
 const MAX_PARAM_LENGTH = 100;
 
@@ -46,16 +54,14 @@ const incrementCounter = async (group: string, key?: string) => {
   const safeGroup = toKey(group);
   const safeKey = toKey(key);
   try {
-    await firestore()
-      .collection('analytics')
-      .doc('counters')
-      .set(
-        {
-          [`${safeGroup}.${safeKey}`]: firestore.FieldValue.increment(1),
-          updatedAt: firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
+    await setDoc(
+      doc(db, 'analytics', 'counters'),
+      {
+        [`${safeGroup}.${safeKey}`]: increment(1),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
   } catch {
     // Ignore counter errors
   }
@@ -115,7 +121,7 @@ const counterFromEvent = (name: string, params?: Record<string, unknown>) => {
 
 export const logEvent = async (name: string, params?: Record<string, unknown>) => {
   try {
-    await analytics().logEvent(name, sanitizeParams(params));
+    await logEventNative(analyticsInstance, name, sanitizeParams(params));
     const counter = counterFromEvent(name, params);
     if (counter) {
       await incrementCounter(counter.group, counter.key);
@@ -127,10 +133,14 @@ export const logEvent = async (name: string, params?: Record<string, unknown>) =
 
 export const logScreenView = async (screenName: string) => {
   try {
-    await analytics().logScreenView({
-      screen_name: screenName,
-      screen_class: screenName,
-    });
+    await logEventNative(
+      analyticsInstance,
+      'screen_view',
+      sanitizeParams({
+        screen_name: screenName,
+        screen_class: screenName,
+      })
+    );
     await incrementCounter('screen_views', screenName);
   } catch {
     // Silently ignore analytics errors
@@ -139,7 +149,11 @@ export const logScreenView = async (screenName: string) => {
 
 export const logLogin = async (method: string) => {
   try {
-    await analytics().logLogin({ method });
+    await logEventNative(
+      analyticsInstance,
+      'login',
+      sanitizeParams({ method })
+    );
     await incrementCounter('login', method);
   } catch {
     // Silently ignore analytics errors
@@ -148,7 +162,11 @@ export const logLogin = async (method: string) => {
 
 export const logSignUp = async (method: string) => {
   try {
-    await analytics().logSignUp({ method });
+    await logEventNative(
+      analyticsInstance,
+      'sign_up',
+      sanitizeParams({ method })
+    );
     await incrementCounter('signup', method);
   } catch {
     // Silently ignore analytics errors
@@ -157,7 +175,7 @@ export const logSignUp = async (method: string) => {
 
 export const setUserId = async (userId: string | null) => {
   try {
-    await analytics().setUserId(userId || null);
+    await setUserIdNative(analyticsInstance, userId || null);
   } catch {
     // Silently ignore analytics errors
   }
@@ -165,7 +183,7 @@ export const setUserId = async (userId: string | null) => {
 
 export const setUserProperties = async (properties: Record<string, string>) => {
   try {
-    await analytics().setUserProperties(properties);
+    await setUserPropertiesNative(analyticsInstance, properties);
   } catch {
     // Silently ignore analytics errors
   }

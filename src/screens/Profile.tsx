@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, Image, TouchableOpacity, StatusBar, Platform, ScrollView, Modal, Pressable } from 'react-native';
-import firestore from '@react-native-firebase/firestore';
+import { getFirestore, doc, onSnapshot } from '@react-native-firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import Icon from '@react-native-vector-icons/material-design-icons';
@@ -10,6 +10,7 @@ import AdBanner from '../components/ads/AdBanner';
 import { BannerAdSize } from 'react-native-google-mobile-ads';
 import SettingsScreen from './SettingsScreen';
 import { openWebLink } from '../utils/openWebLink';
+const db = getFirestore();
 
 const DEFAULT_CAFECITO_URL = 'https://cafecito.app/crazedev';
 
@@ -28,10 +29,8 @@ const Profile: React.FC = () => {
   };
 
   useEffect(() => {
-    const unsubscribe = firestore()
-      .collection('config')
-      .doc('app')
-      .onSnapshot(
+    const unsubscribe = onSnapshot(
+      doc(db, 'config', 'app'),
         (snapshot) => {
           const data = snapshot.data();
           if (data && typeof data.cafecitoUrl === 'string') {

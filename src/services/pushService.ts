@@ -1,5 +1,5 @@
-import messaging, { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
-import firestore from '@react-native-firebase/firestore';
+import { FirebaseMessagingTypes, getMessaging, requestPermission, registerDeviceForRemoteMessages, getToken, onTokenRefresh, onMessage } from '@react-native-firebase/messaging';
+import { getFirestore, doc, setDoc, serverTimestamp } from '@react-native-firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DeviceInfo from 'react-native-device-info';
 import notifee, { AndroidImportance, AuthorizationStatus } from '@notifee/react-native';
@@ -10,6 +10,8 @@ import { requestNotificationPermission } from '../components/Permissions';
 const TOKEN_COLLECTION = 'fcmTokens';
 const STORAGE_NOTIFICATIONS = 'notificationsEnabled';
 const STORAGE_PERMISSIONS_GRANTED = 'permissionsGranted';
+const messagingInstance = getMessaging();
+const db = getFirestore();
 
 const getNotificationsEnabled = async () => {
   try {
@@ -48,10 +50,10 @@ const saveToken = async (token: string, userId: string | null) => {
       deviceId: DeviceInfo.getUniqueIdSync ? DeviceInfo.getUniqueIdSync() : await DeviceInfo.getUniqueId(),
       platform: Platform.OS,
       appVersion: DeviceInfo.getVersion(),
-      updatedAt: firestore.FieldValue.serverTimestamp(),
+      updatedAt: serverTimestamp(),
     };
 
-    await firestore().collection(TOKEN_COLLECTION).doc(token).set(payload, { merge: true });
+    await setDoc(doc(db, TOKEN_COLLECTION, token), payload, { merge: true });
   } catch {
     // ignore write errors (rules, offline)
   }
@@ -131,24 +133,24 @@ export const initPushNotifications = (userId: string | null, force = false) => {
     }
 
     try {
-      await messaging().requestPermission();
+      await requestPermission(messagingInstance);
     } catch {
       // ignore
     }
 
-    await messaging().registerDeviceForRemoteMessages();
+    await registerDeviceForRemoteMessages(messagingInstance);
     await createNotificationChannels();
 
-    const token = await messaging().getToken();
+    const token = await getToken(messagingInstance);
     if (token) {
       await saveToken(token, userId);
     }
 
-    unsubscribeToken = messaging().onTokenRefresh(async (newToken) => {
+    unsubscribeToken = onTokenRefresh(messagingInstance, async (newToken) => {
       await saveToken(newToken, userId);
     });
 
-    unsubscribeMessage = messaging().onMessage(async (message) => {
+    unsubscribeMessage = onMessage(messagingInstance, async (message) => {
       await displayRemoteNotification(message);
     });
     activeUnsubscribeMessage = unsubscribeMessage;

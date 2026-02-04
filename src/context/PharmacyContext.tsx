@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import firestore from '@react-native-firebase/firestore';
+import { getFirestore, collection, getDocs, onSnapshot } from '@react-native-firebase/firestore';
 import { Farmacia } from '../types/navigationTypes';
 import { readCache, writeCache, serializeForCache, rehydrateFromCache } from '../utils/cache';
 import NetInfo from '@react-native-community/netinfo';
@@ -16,6 +16,7 @@ const PharmacyContext = createContext<PharmacyContextType | undefined>(undefined
 
 const CACHE_KEY = 'cache:farmacias';
 const CACHE_TTL_MS = 1000 * 60 * 30; // 30 min
+const db = getFirestore();
 
 export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [farmacias, setFarmacias] = useState<Farmacia[]>([]);
@@ -50,9 +51,8 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
     loadCache();
 
     const subscribe = () =>
-      firestore()
-      .collection('farmacias')
-      .onSnapshot(
+      onSnapshot(
+        collection(db, 'farmacias'),
         snapshot => {
           const fetchedFarmacias: Farmacia[] = snapshot.docs.map(doc => {
             const data = doc.data() as Farmacia;
@@ -90,9 +90,7 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
   // Función manual de recarga (opcional)
   const fetchPharmacies = useCallback(() => {
     setLoading(true);
-    firestore()
-      .collection('farmacias')
-      .get()
+    getDocs(collection(db, 'farmacias'))
       .then(snapshot => {
         const fetchedFarmacias: Farmacia[] = snapshot.docs.map(doc => {
           const data = doc.data() as Farmacia;

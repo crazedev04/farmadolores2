@@ -1,5 +1,12 @@
-import storage from '@react-native-firebase/storage';
-import firestore from '@react-native-firebase/firestore';
+import {
+  getStorage,
+  ref,
+  putFile,
+  getDownloadURL,
+  refFromURL,
+  deleteObject,
+} from '@react-native-firebase/storage';
+import { getFirestore, doc, getDoc } from '@react-native-firebase/firestore';
 import { launchImageLibrary, ImagePickerResponse } from 'react-native-image-picker';
 import ImageResizer from 'react-native-image-resizer';
 
@@ -22,6 +29,8 @@ const getAsset = (response: ImagePickerResponse) => {
 
 let cachedConfig: { ts: number; maxWidth: number; quality: number } | null = null;
 const CONFIG_TTL_MS = 1000 * 60 * 5;
+const storageInstance = getStorage();
+const db = getFirestore();
 
 const getUploadConfig = async () => {
   if (cachedConfig && Date.now() - cachedConfig.ts < CONFIG_TTL_MS) {
@@ -30,7 +39,7 @@ const getUploadConfig = async () => {
   let maxWidth = 1280;
   let quality = 80;
   try {
-    const snap = await firestore().collection('config').doc('app').get();
+    const snap = await getDoc(doc(db, 'config', 'app'));
     const data = snap.data() || {};
     if (typeof data.imageMaxWidth === 'number' && data.imageMaxWidth > 300) {
       maxWidth = Math.round(data.imageMaxWidth);
@@ -79,9 +88,9 @@ export const pickAndUploadImage = async (
     quality
   );
   const fileName = `${baseName}.webp`;
-  const ref = storage().ref(`${pathPrefix}/${Date.now()}_${fileName}`);
-  await ref.putFile(resized.uri);
-  const url = await ref.getDownloadURL();
+  const storageRef = ref(storageInstance, `${pathPrefix}/${Date.now()}_${fileName}`);
+  await putFile(storageRef, resized.uri);
+  const url = await getDownloadURL(storageRef);
   return { url, name: fileName };
 };
 
@@ -89,7 +98,7 @@ export const deleteImageByUrl = async (url?: string) => {
   const trimmed = (url || '').trim();
   if (!trimmed) return;
   try {
-    await storage().refFromURL(trimmed).delete();
+    await deleteObject(refFromURL(storageInstance, trimmed));
   } catch {
     // ignore delete errors
   }

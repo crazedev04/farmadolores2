@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
-import firestore from '@react-native-firebase/firestore';
+import { getFirestore, doc, updateDoc } from '@react-native-firebase/firestore';
 import { useAuth } from '../context/AuthContext';
-import auth from '@react-native-firebase/auth';
+import { getAuth, updateProfile } from '@react-native-firebase/auth';
 import { deleteImageByUrl, pickAndUploadImage } from '../utils/uploadImage';
+const db = getFirestore();
+const authInstance = getAuth();
 
 const EditProfileScreen: React.FC = () => {
   const { theme } = useTheme();
@@ -33,13 +35,15 @@ const EditProfileScreen: React.FC = () => {
     setLoading(true);
 
     try {
-      await firestore().collection('users').doc(user.uid).update({
+      await updateDoc(doc(db, 'users', user.uid), {
         displayName: name,
         email: email,
         photoURL: photoUrl || '',
       });
-      await auth().currentUser?.updateProfile({ displayName: name, photoURL: photoUrl || '' });
-      const refreshed = auth().currentUser;
+      if (authInstance.currentUser) {
+        await updateProfile(authInstance.currentUser, { displayName: name, photoURL: photoUrl || '' });
+      }
+      const refreshed = authInstance.currentUser;
       if (refreshed) {
         setUser(refreshed);
       }

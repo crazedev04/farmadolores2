@@ -8,10 +8,11 @@ import TurnoCard from './TurnoCard';
 import Icon from '@react-native-vector-icons/material-design-icons';
 import Geolocation from '@react-native-community/geolocation';
 import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
-import firestore from '@react-native-firebase/firestore';
+import { getFirestore, doc, onSnapshot } from '@react-native-firebase/firestore';
 import { logEvent } from '../services/analytics';
 
 type Coords = { lat: number; lng: number };
+const db = getFirestore();
 
 const haversineKm = (a: Coords, b: Coords) => {
   const toRad = (value: number) => (value * Math.PI) / 180;
@@ -115,10 +116,7 @@ const Turno: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const unsub = firestore()
-      .collection('config')
-      .doc('home')
-      .onSnapshot(snapshot => {
+    const unsub = onSnapshot(doc(db, 'config', 'home'), snapshot => {
         const data = snapshot.data() || {};
         if (typeof data.speedThresholdMps === 'number') {
           setSpeedThresholdMps(data.speedThresholdMps);

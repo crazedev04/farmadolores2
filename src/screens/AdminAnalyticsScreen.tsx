@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
-import firestore from '@react-native-firebase/firestore';
+import { getFirestore, doc, onSnapshot } from '@react-native-firebase/firestore';
 import { useTheme } from '../context/ThemeContext';
+const db = getFirestore();
 
 type CounterMap = Record<string, number>;
 
@@ -56,10 +57,8 @@ const AdminAnalyticsScreen: React.FC = () => {
   const [updatedAt, setUpdatedAt] = useState<string>('');
 
   useEffect(() => {
-    const unsub = firestore()
-      .collection('analytics')
-      .doc('counters')
-      .onSnapshot(
+    const unsub = onSnapshot(
+      doc(db, 'analytics', 'counters'),
         (snapshot) => {
           const data = snapshot.data() || {};
           const next: Record<string, CounterMap> = {};

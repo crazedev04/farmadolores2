@@ -5,8 +5,6 @@ import Icon from '@react-native-vector-icons/material-design-icons';
 import { getFirestore, collection, onSnapshot, getDocs } from '@react-native-firebase/firestore';
 import { useTheme } from '../context/ThemeContext';
 const db = getFirestore();
-import AdBanner from '../components/ads/AdBanner';
-import { BannerAdSize } from 'react-native-google-mobile-ads';
 import { RootStackParamList } from '../types/navigationTypes';
 import { openWebLink } from '../utils/openWebLink';
 import { logEvent } from '../services/analytics';

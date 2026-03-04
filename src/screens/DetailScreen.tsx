@@ -11,13 +11,17 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
 } from 'react-native';
-import { RouteProp, useRoute } from '@react-navigation/native';
+import { NavigationProp, RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../context/ThemeContext';
 import MapView, { Marker } from 'react-native-maps';
 import AdBanner from '../components/ads/AdBanner';
 import { BannerAdSize } from 'react-native-google-mobile-ads';
 import { logEvent } from '../services/analytics';
+import { useAuth } from '../context/AuthContext';
+import { isFavoritePharmacy, toggleFavoritePharmacy } from '../services/favoritesService';
+import Icon from '@react-native-vector-icons/material-design-icons';
+import { useFeatureFlags } from '../services/featureFlags';
 
 const DIAS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
 
@@ -58,7 +62,7 @@ function HorarioTable({ horarios }: { horarios?: any }) {
             <Text style={[styles.horarioFranjas, { color: colors.text }]}>
               {Array.isArray(franjas) && franjas.length
                 ? franjas.map(f => `${f.abre} - ${f.cierra}`).join(' / ')
-                : <Text style={{ color: colors.disabled || '#888' }}>Cerrado</Text>
+                : <Text style={{ color: colors.mutedText || colors.placeholderText || '#888' }}>Cerrado</Text>
               }
             </Text>
           </View>
@@ -73,13 +77,38 @@ type DetailScreenRouteProp = RouteProp<RootStackParamList, 'Detail'>;
 const DetailScreen = () => {
   const { theme } = useTheme();
   const { colors } = theme;
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const route = useRoute<DetailScreenRouteProp>();
   const { farmacia } = route.params;
+  const { user } = useAuth();
+  const flags = useFeatureFlags();
   const [activeIndex, setActiveIndex] = useState(0);
+  const [favorite, setFavorite] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
   
   useEffect(() => {
     logEvent('pharmacy_view', { pharmacy_id: farmacia.id, name: farmacia.name });
   }, [farmacia.id, farmacia.name]);
+
+  useEffect(() => {
+    let active = true;
+    const loadFavorite = async () => {
+      if (!user?.uid) {
+        if (active) setFavorite(false);
+        return;
+      }
+      try {
+        const value = await isFavoritePharmacy(user.uid, farmacia.id);
+        if (active) setFavorite(value);
+      } catch {
+        if (active) setFavorite(false);
+      }
+    };
+    loadFavorite();
+    return () => {
+      active = false;
+    };
+  }, [user?.uid, farmacia.id]);
 
   const latitude = farmacia.gps?.latitude ?? 0;
   const longitude = farmacia.gps?.longitude ?? 0;
@@ -109,6 +138,18 @@ const DetailScreen = () => {
     if (!clean) return;
     logEvent('pharmacy_call', { source: 'detail', pharmacy_id: farmacia.id, name: farmacia.name });
     Linking.openURL(`tel:${clean}`);
+  };
+
+  const onToggleFavorite = async () => {
+    if (!user?.uid || favoriteLoading) return;
+    setFavoriteLoading(true);
+    try {
+      const next = await toggleFavoritePharmacy(user.uid, farmacia);
+      setFavorite(next);
+      logEvent('favorite_toggle', { pharmacy_id: farmacia.id, enabled: next });
+    } finally {
+      setFavoriteLoading(false);
+    }
   };
 
   const tieneHorariosNuevos = farmacia.horarios && typeof farmacia.horarios === 'object';
@@ -190,6 +231,43 @@ const DetailScreen = () => {
               </Text>
             </>
           )}
+          {(flags.favorites || flags.dataReports) && (
+            <View style={styles.actionRow}>
+              {flags.favorites && (
+                <TouchableOpacity
+                  style={[
+                    styles.actionButton,
+                    {
+                      backgroundColor: favorite ? (colors.success || '#16a34a') : colors.buttonBackground,
+                      opacity: favoriteLoading ? 0.7 : 1,
+                    },
+                  ]}
+                  onPress={onToggleFavorite}
+                  disabled={!user || favoriteLoading}
+                >
+                  <Icon name={favorite ? 'star' : 'star-outline'} size={18} color={colors.buttonText || '#fff'} />
+                  <Text style={[styles.actionText, { color: colors.buttonText || '#fff' }]}>
+                    {favorite ? 'En favoritos' : 'Agregar favorito'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              {flags.dataReports && (
+                <TouchableOpacity
+                  style={[styles.actionButton, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}
+                  onPress={() =>
+                    navigation.navigate('ReportProblem', {
+                      entityType: 'farmacia',
+                      entityId: farmacia.id,
+                      entityName: farmacia.name,
+                    })
+                  }
+                >
+                  <Icon name="alert-circle-outline" size={18} color={colors.text} />
+                  <Text style={[styles.actionText, { color: colors.text }]}>Reportar datos</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
         </View>
         {latitude !== 0 && longitude !== 0 && (
           <View style={[styles.mapContainer, { borderColor: colors.border }]}>
@@ -266,6 +344,24 @@ const styles = StyleSheet.create({
   info: {
     fontSize: 14,
     marginBottom: 4,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  actionButton: {
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  actionText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   mapContainer: {
     height: Dimensions.get('window').height * 0.26,

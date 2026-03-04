@@ -1,5 +1,5 @@
 // permissions.ts
-import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
+import { check, request, PERMISSIONS, RESULTS, type Permission } from 'react-native-permissions';
 import { Alert, Platform } from 'react-native';
 import notifee, { AuthorizationStatus } from '@notifee/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -44,24 +44,31 @@ export const requestNotificationPermission = async (): Promise<boolean> => {
       const { authorizationStatus } = await notifee.requestPermission();
       if (authorizationStatus !== AuthorizationStatus.AUTHORIZED) {
         Alert.alert('Permiso de notificaciones denegado', 'No se otorgó el permiso para mostrar notificaciones.');
+        await AsyncStorage.setItem('permissionsGranted', 'false');
         return false;
       }
     }
 
-    if (Platform.OS === 'android' && PERMISSIONS.ANDROID.POST_NOTIFICATIONS) {
-      const status = await check(PERMISSIONS.ANDROID.POST_NOTIFICATIONS);
+    const postNotificationsPermission = (
+      PERMISSIONS.ANDROID as Record<string, Permission | undefined>
+    ).POST_NOTIFICATIONS;
+    if (Platform.OS === 'android' && postNotificationsPermission) {
+      const status = await check(postNotificationsPermission);
       if (status !== RESULTS.GRANTED) {
-        const requestStatus = await request(PERMISSIONS.ANDROID.POST_NOTIFICATIONS);
+        const requestStatus = await request(postNotificationsPermission);
         if (requestStatus !== RESULTS.GRANTED) {
           Alert.alert('Permiso denegado', 'No se otorgó el permiso para notificaciones.');
+          await AsyncStorage.setItem('permissionsGranted', 'false');
           return false;
         }
       }
     }
 
+    await AsyncStorage.setItem('permissionsGranted', 'true');
     return true;
   } catch (error) {
     console.error('Error solicitando permisos de notificaciones:', error);
+    await AsyncStorage.setItem('permissionsGranted', 'false');
     return false;
   }
 };

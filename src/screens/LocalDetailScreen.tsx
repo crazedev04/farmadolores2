@@ -20,6 +20,7 @@ import Icon from '@react-native-vector-icons/material-design-icons';
 import { openWebLink } from '../utils/openWebLink';
 import { openMapsLink } from '../utils/openMapsLink';
 import { logEvent } from '../services/analytics';
+import { useFeatureFlags } from '../services/featureFlags';
 
 
 type LocalDetailScreenRouteProp = RouteProp<RootStackParamList, 'LocalDetail'>;
@@ -30,6 +31,7 @@ const LocalDetailScreen: React.FC = () => {
   const { local } = route.params;
   const { theme } = useTheme();
   const { colors } = theme;
+  const flags = useFeatureFlags();
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
@@ -162,6 +164,21 @@ const LocalDetailScreen: React.FC = () => {
               <Icon name="phone" size={18} color={colors.text} />
               <Text style={[styles.actionText, { color: colors.text }]}>Llamar</Text>
             </TouchableOpacity>
+            {flags.dataReports && (
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}
+                onPress={() =>
+                  navigation.navigate('ReportProblem', {
+                    entityType: 'local',
+                    entityId: local.id,
+                    entityName: local.name,
+                  })
+                }
+              >
+                <Icon name="alert-circle-outline" size={18} color={colors.text} />
+                <Text style={[styles.actionText, { color: colors.text }]}>Reportar</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </ScrollView>

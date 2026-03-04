@@ -9,13 +9,13 @@ import {
   where,
   getDocs,
   doc,
-  setDoc,
   deleteDoc,
-  serverTimestamp,
 } from '@react-native-firebase/firestore';
 import { useTheme } from '../context/ThemeContext';
 import Icon from '@react-native-vector-icons/material-design-icons';
 import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
+import { adminDeleteUserData, adminReactivateAccount } from '../services/adminService';
+import { accountActionSchema } from '../admin/validators';
 const db = getFirestore();
 
 const formatDate = (ts?: FirebaseFirestoreTypes.Timestamp | null) => {
@@ -110,24 +110,25 @@ const AdminAccountRequestsScreen: React.FC = () => {
 
   const handleReactivate = async (request: AccountRequest) => {
     try {
-      await setDoc(
-        doc(db, 'users', request.uid),
-        {
-          disabled: false,
-          disabledAt: null,
-          reactivatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
-      await deleteDoc(doc(db, 'accountRequests', request.id));
-    } catch (error) {
+      const parsed = accountActionSchema.safeParse({ uid: request.uid, requestId: request.id });
+      if (!parsed.success) {
+        Alert.alert('Error', parsed.error.issues[0]?.message || 'Solicitud invalida.');
+        return false;
+      }
+      await adminReactivateAccount({
+        uid: parsed.data.uid,
+        requestId: parsed.data.requestId,
+      });
+      return true;
+    } catch {
       Alert.alert('Error', 'No se pudo reactivar la cuenta.');
+      return false;
     }
   };
 
   const handleReactivateAndNotify = async (request: AccountRequest) => {
-    await handleReactivate(request);
-    if (!request.email) return;
+    const reactivated = await handleReactivate(request);
+    if (!reactivated || !request.email) return;
     const subject = encodeURIComponent('Cuenta reactivada');
     const body = encodeURIComponent(
       `Hola,
@@ -144,9 +145,17 @@ UID: ${request.uid}
   
   const handleEliminarUserData = async (request: AccountRequest) => {
     try {
-      await deleteDoc(doc(db, 'users', request.uid));
-      await deleteDoc(doc(db, 'accountRequests', request.id));
-    } catch (error) {
+      const parsed = accountActionSchema.safeParse({ uid: request.uid, requestId: request.id });
+      if (!parsed.success) {
+        Alert.alert('Error', parsed.error.issues[0]?.message || 'Solicitud invalida.');
+        return;
+      }
+      await adminDeleteUserData({
+        uid: parsed.data.uid,
+        requestId: parsed.data.requestId,
+        reason: request.reason,
+      });
+    } catch {
       Alert.alert('Error', 'No se pudo eliminar los datos del usuario.');
     }
   };

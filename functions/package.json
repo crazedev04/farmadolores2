@@ -2,6 +2,10 @@
   "name": "functions",
   "private": true,
   "main": "index.js",
+  "scripts": {
+    "serve": "firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions"
+  },
   "engines": {
     "node": "18"
   },

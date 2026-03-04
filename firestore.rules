@@ -1,0 +1,94 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    match /config/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /farmacias/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /emergencias/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /publi/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /primerosAuxilios/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /analytics/{docId} {
+      allow read: if isAdmin();
+      allow write: if isSignedIn();
+    }
+
+    match /sugerencias/{docId} {
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /reportes/{docId} {
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /dataReports/{docId} {
+      allow create: if isSignedIn()
+        && request.resource.data.reporterUid == request.auth.uid
+        && request.resource.data.status == 'open';
+      allow read: if isAdmin() || (isSignedIn() && resource.data.reporterUid == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    match /accountRequests/{docId} {
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /fcmTokens/{tokenId} {
+      allow read: if isAdmin();
+      allow create, update: if request.resource.data.token == tokenId
+        && (!isSignedIn()
+            || request.resource.data.userId == null
+            || request.resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid) || isAdmin();
+      allow delete: if isAdmin();
+
+      match /favorites/{pharmacyId} {
+        allow read, create, update, delete: if isOwner(uid) || isAdmin();
+      }
+    }
+
+    match /adminAuditLogs/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+  }
+}

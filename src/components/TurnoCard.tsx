@@ -56,11 +56,17 @@ const TurnoCard: React.FC<TurnoCardProps> = ({
     str.charAt(0).toUpperCase() + str.slice(1);
 
   // Lógica para horarios nuevos (por día)
-  let diaNombre = capitalize(diaHoy);
-  let hoyFranjas: { abre: string, cierra: string }[] = [];
-  if (item.horarios && typeof item.horarios === 'object' && item.horarios[diaHoy as keyof typeof item.horarios]) {
-    hoyFranjas = item?.horarios[diaHoy as keyof typeof item.horarios] || [];
-  }
+  const diaNombre = useMemo(() => capitalize(diaHoy), [diaHoy]);
+  const hoyFranjas = useMemo(() => {
+    if (
+      item.horarios &&
+      typeof item.horarios === 'object' &&
+      item.horarios[diaHoy as keyof typeof item.horarios]
+    ) {
+      return item.horarios[diaHoy as keyof typeof item.horarios] || [];
+    }
+    return [];
+  }, [item, diaHoy]);
 
   const status = useMemo(() => {
     if (!hoyFranjas || hoyFranjas.length === 0) return 'Cerrado';

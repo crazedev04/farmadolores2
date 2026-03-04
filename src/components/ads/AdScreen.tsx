@@ -23,9 +23,11 @@ const AdScreen = () => {
       ad = InterstitialAd.createForAdRequest(adUnitId, {
         requestNonPersonalizedAdsOnly: true,
       });
+      const currentAd = ad;
 
       const handleAdLoaded = async () => {
-        await ad.show();
+        if (!currentAd) return;
+        await currentAd.show();
         await AsyncStorage.setItem(LAST_AD_SHOWN_KEY, String(Date.now()));
       };
 
@@ -33,11 +35,11 @@ const AdScreen = () => {
         // Silencioso para no molestar al usuario.
       };
 
-      ad.addAdEventListener(AdEventType.LOADED, handleAdLoaded);
-      ad.addAdEventListener(AdEventType.ERROR, handleAdError);
+      currentAd.addAdEventListener(AdEventType.LOADED, handleAdLoaded);
+      currentAd.addAdEventListener(AdEventType.ERROR, handleAdError);
 
       // Cargamos el anuncio (solo una vez)
-      ad.load();
+      currentAd.load();
 
     };
 

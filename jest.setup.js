@@ -162,6 +162,15 @@ jest.mock('@react-native-firebase/messaging', () => {
   };
 });
 
+jest.mock('@react-native-firebase/functions', () => {
+  const instance = {};
+  const callable = jest.fn((_name) => jest.fn(async () => ({ data: { ok: true } })));
+  return {
+    getFunctions: jest.fn(() => instance),
+    httpsCallable: callable,
+  };
+});
+
 jest.mock('react-native-google-mobile-ads', () => ({
   BannerAd: () => null,
   BannerAdSize: {},
@@ -264,4 +273,16 @@ jest.mock('@react-native-firebase/storage', () => {
 
 jest.mock('react-native-fs', () => ({
   readFile: jest.fn(),
+}));
+
+jest.mock('react-native-ota-hot-update', () => ({
+  git: {
+    getConfig: jest.fn(async () => null),
+    getBranchName: jest.fn(async () => null),
+    pullUpdate: jest.fn(async () => ({ success: false, msg: 'disabled in test' })),
+    cloneRepo: jest.fn(async () => ({ success: false, msg: 'disabled in test' })),
+    setConfig: jest.fn(async () => undefined),
+  },
+  setupExactBundlePath: jest.fn(async () => undefined),
+  resetApp: jest.fn(),
 }));

@@ -1,12 +1,13 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Image, Dimensions, ScrollView, TouchableOpacity, Linking } from 'react-native';
-import { RouteProp, useRoute } from '@react-navigation/native';
+import { NavigationProp, RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigationTypes'; // Ajusta la ruta según tu estructura de archivos
 import { useTheme } from '../context/ThemeContext';
 import MapView, { Marker } from 'react-native-maps';
 import AdBanner from '../components/ads/AdBanner';
 import { BannerAdSize } from 'react-native-google-mobile-ads';
 import { logEvent } from '../services/analytics';
+import { useFeatureFlags } from '../services/featureFlags';
 
 type DetailScreenRouteProp = RouteProp<RootStackParamList, 'DetailE'>;
 
@@ -14,7 +15,9 @@ const DetailE = () => {
   const { theme } = useTheme();
   const { colors } = theme;
   const route = useRoute<DetailScreenRouteProp>();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { emergencia } = route.params;
+  const flags = useFeatureFlags();
 
   useEffect(() => {
     logEvent('emergency_view', { emergency_id: emergencia.id, name: emergencia.name });
@@ -44,6 +47,20 @@ const DetailE = () => {
         <TouchableOpacity onPress={() => makeCall(emergencia.tel)}>
           <Text style={[styles.info, { color: colors.text, textDecorationLine: 'underline' }]}>Teléfono: {telLabel}</Text>
         </TouchableOpacity>
+        {flags.dataReports && (
+          <TouchableOpacity
+            style={[styles.reportButton, { borderColor: colors.border, backgroundColor: colors.inputBackground }]}
+            onPress={() =>
+              navigation.navigate('ReportProblem', {
+                entityType: 'emergencia',
+                entityId: emergencia.id,
+                entityName: emergencia.name,
+              })
+            }
+          >
+            <Text style={[styles.reportButtonText, { color: colors.text }]}>Reportar datos</Text>
+          </TouchableOpacity>
+        )}
        
       </View>
       {latitude !== 0 && longitude !== 0 && (
@@ -105,6 +122,17 @@ const styles = StyleSheet.create({
   info: {
     fontSize: 14,
     marginBottom: 5,
+  },
+  reportButton: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 9,
+    alignItems: 'center',
+  },
+  reportButtonText: {
+    fontWeight: '700',
+    fontSize: 13,
   },
   mapContainer: {
     height: Dimensions.get('window').height * 0.26, // Ajusta la altura del mapa

@@ -54,6 +54,7 @@ const BottomTabs: React.FC = () => {
 
   return (
     <Tab.Navigator
+      id={undefined}
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color: _color, size }: TabBarIconProps) => {
           let iconName: string;

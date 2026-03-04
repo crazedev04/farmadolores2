@@ -36,9 +36,11 @@ import AdminLocalesScreen from './AdminLocalesScreen';
 import AdminPrimerosAuxiliosScreen from './AdminPrimerosAuxiliosScreen';
 import AdminAnalyticsScreen from './AdminAnalyticsScreen';
 import AdminAccountRequestsScreen from './AdminAccountRequestsScreen';
+import AdminDataReportsScreen from './AdminDataReportsScreen';
 import SuggestionsScreen from './SuggestionsScreen';
 import WebViewScreen from './WebViewScreen';
 import { logScreenView } from '../services/analytics';
+import FavoritesScreen from './FavoritesScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -72,7 +74,7 @@ const NotAuthorizedScreen = () => {
 // Navigator for Onboarding Screens
 const OnboardingStack: React.FC<OnboardingStackProps> = ({ setIsFirstLaunch }) => {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator id={undefined}>
       <Stack.Screen name="Welcome" options={{ headerShown: false }}>
         {props => <OnboardingScreen {...props} setIsFirstLaunch={setIsFirstLaunch} />}
       </Stack.Screen>
@@ -100,7 +102,7 @@ const AppStack = () => {
   const { isAdmin, roleLoading, disabledAccount } = useAuth();
   return (
     <>
-    <Stack.Navigator>
+    <Stack.Navigator id={undefined}>
       {disabledAccount && (
         <Stack.Screen
           name="AccountDisabled"
@@ -162,6 +164,11 @@ const AppStack = () => {
         options={{title: 'Solicitudes de cuenta'}}
       />
       <Stack.Screen
+        name="AdminDataReports"
+        component={!roleLoading && isAdmin ? AdminDataReportsScreen : NotAuthorizedScreen}
+        options={{ title: 'Reportes de datos' }}
+      />
+      <Stack.Screen
         name="AdminLocales"
         component={!roleLoading && isAdmin ? AdminLocalesScreen : NotAuthorizedScreen}
         options={{title: 'Negocios'}}
@@ -180,6 +187,7 @@ const AppStack = () => {
       <Stack.Screen name="Detail" component={DetailScreen} options={{headerShown: false}} />
       <Stack.Screen name="DetailE" component={DetailE} options={{headerShown: false}} />
       <Stack.Screen name="Suggestions" component={SuggestionsScreen} options={{title: 'Sugerencias'}} />
+      <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ title: 'Favoritos' }} />
       <Stack.Screen name="WebView" component={WebViewScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
     <AdScreen />
@@ -233,7 +241,7 @@ const AppNavigator: React.FC = () => {
         }
       }}
     >
-      <Stack.Navigator >
+      <Stack.Navigator id={undefined}>
         {isFirstLaunch ? (
           <Stack.Screen name="Onboarding" options={{ headerShown: false }}>
             {props => <OnboardingStack {...props} setIsFirstLaunch={setIsFirstLaunch} />}

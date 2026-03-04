@@ -132,6 +132,11 @@ const AdminHomeConfigScreen: React.FC = () => {
   const [cafecitoUrl, setCafecitoUrl] = useState('');
   const [imageMaxWidth, setImageMaxWidth] = useState('1280');
   const [imageQuality, setImageQuality] = useState('80');
+  const [favoritesEnabled, setFavoritesEnabled] = useState(true);
+  const [customAlertsEnabled, setCustomAlertsEnabled] = useState(true);
+  const [dataReportsEnabled, setDataReportsEnabled] = useState(true);
+  const [newAdminCrudEnabled, setNewAdminCrudEnabled] = useState(true);
+  const [otaGitEnabled, setOtaGitEnabled] = useState(true);
 
   useEffect(() => {
     let mounted = true;
@@ -218,6 +223,11 @@ const AdminHomeConfigScreen: React.FC = () => {
 
         const appData = appSnap.data() || {};
         setCafecitoUrl(appData.cafecitoUrl || '');
+        setFavoritesEnabled(appData.favoritesEnabled !== false);
+        setCustomAlertsEnabled(appData.customAlertsEnabled !== false);
+        setDataReportsEnabled(appData.dataReportsEnabled !== false);
+        setNewAdminCrudEnabled(appData.newAdminCrudEnabled !== false);
+        setOtaGitEnabled(appData.otaGitEnabled !== false);
         setImageMaxWidth(
           appData.imageMaxWidth != null ? String(appData.imageMaxWidth) : '1280'
         );
@@ -334,6 +344,11 @@ const AdminHomeConfigScreen: React.FC = () => {
       const qualityValue = parseNumber(imageQuality);
       const appPayload: any = {
         cafecitoUrl: cafecitoUrl.trim(),
+        favoritesEnabled,
+        customAlertsEnabled,
+        dataReportsEnabled,
+        newAdminCrudEnabled,
+        otaGitEnabled,
       };
       if (maxWidthValue != null) {
         appPayload.imageMaxWidth = maxWidthValue;
@@ -971,6 +986,55 @@ const AdminHomeConfigScreen: React.FC = () => {
           onChangeText={setCafecitoUrl}
           autoCapitalize="none"
         />
+      </View>
+
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Feature flags</Text>
+        <View style={styles.switchRow}>
+          <Text style={[styles.label, { color: colors.text }]}>Favoritos</Text>
+          <Switch
+            value={favoritesEnabled}
+            onValueChange={setFavoritesEnabled}
+            trackColor={{ false: colors.border, true: colors.buttonBackground }}
+            thumbColor={favoritesEnabled ? colors.buttonText || '#fff' : colors.card}
+          />
+        </View>
+        <View style={styles.switchRow}>
+          <Text style={[styles.label, { color: colors.text }]}>Alertas personalizadas</Text>
+          <Switch
+            value={customAlertsEnabled}
+            onValueChange={setCustomAlertsEnabled}
+            trackColor={{ false: colors.border, true: colors.buttonBackground }}
+            thumbColor={customAlertsEnabled ? colors.buttonText || '#fff' : colors.card}
+          />
+        </View>
+        <View style={styles.switchRow}>
+          <Text style={[styles.label, { color: colors.text }]}>Reportes de datos</Text>
+          <Switch
+            value={dataReportsEnabled}
+            onValueChange={setDataReportsEnabled}
+            trackColor={{ false: colors.border, true: colors.buttonBackground }}
+            thumbColor={dataReportsEnabled ? colors.buttonText || '#fff' : colors.card}
+          />
+        </View>
+        <View style={styles.switchRow}>
+          <Text style={[styles.label, { color: colors.text }]}>Nuevo CRUD admin</Text>
+          <Switch
+            value={newAdminCrudEnabled}
+            onValueChange={setNewAdminCrudEnabled}
+            trackColor={{ false: colors.border, true: colors.buttonBackground }}
+            thumbColor={newAdminCrudEnabled ? colors.buttonText || '#fff' : colors.card}
+          />
+        </View>
+        <View style={styles.switchRow}>
+          <Text style={[styles.label, { color: colors.text }]}>OTA Git</Text>
+          <Switch
+            value={otaGitEnabled}
+            onValueChange={setOtaGitEnabled}
+            trackColor={{ false: colors.border, true: colors.buttonBackground }}
+            thumbColor={otaGitEnabled ? colors.buttonText || '#fff' : colors.card}
+          />
+        </View>
       </View>
 
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}

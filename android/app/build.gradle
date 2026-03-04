@@ -87,6 +87,16 @@ def minor = versionParts.size() > 1 ? parsePart(versionParts[1]) : 0
 def patch = versionParts.size() > 2 ? parsePart(versionParts[2]) : 0
 def build = versionParts.size() > 3 ? parsePart(versionParts[3]) : 0
 def computedVersionCode = major * 1000000 + minor * 10000 + patch * 100 + build
+def hasReleaseSigning = (
+  project.hasProperty('MYAPP_RELEASE_STORE_FILE') &&
+  project.hasProperty('MYAPP_RELEASE_STORE_PASSWORD') &&
+  project.hasProperty('MYAPP_RELEASE_KEY_ALIAS') &&
+  project.hasProperty('MYAPP_RELEASE_KEY_PASSWORD') &&
+  MYAPP_RELEASE_STORE_FILE?.toString()?.trim() &&
+  MYAPP_RELEASE_STORE_PASSWORD?.toString()?.trim() &&
+  MYAPP_RELEASE_KEY_ALIAS?.toString()?.trim() &&
+  MYAPP_RELEASE_KEY_PASSWORD?.toString()?.trim()
+)
 
 android {
     ndkVersion rootProject.ext.ndkVersion
@@ -109,10 +119,12 @@ android {
             keyPassword 'android'
         }
         release {
-            storeFile file(MYAPP_RELEASE_STORE_FILE)
-            storePassword MYAPP_RELEASE_STORE_PASSWORD
-            keyAlias MYAPP_RELEASE_KEY_ALIAS
-            keyPassword MYAPP_RELEASE_KEY_PASSWORD
+            if (hasReleaseSigning) {
+                storeFile file(MYAPP_RELEASE_STORE_FILE)
+                storePassword MYAPP_RELEASE_STORE_PASSWORD
+                keyAlias MYAPP_RELEASE_KEY_ALIAS
+                keyPassword MYAPP_RELEASE_KEY_PASSWORD
+            }
         }
     }
     buildTypes {
@@ -122,7 +134,10 @@ android {
         release {
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.release
+            signingConfig hasReleaseSigning ? signingConfigs.release : signingConfigs.debug
+            if (!hasReleaseSigning) {
+                println("[WARN] Release signing credentials are missing. Using debug signing for release build.")
+            }
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }

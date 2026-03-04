@@ -121,7 +121,6 @@ type OnboardingScreenProps = {
           flatListRef={flatListRef}
           flatListIndex={flatListIndex}
           dataLength={data.length}
-          setIsFirstLaunch={setIsFirstLaunch}
           x={x}
           data={data}
           canFinish={permissionsGranted}

@@ -4,18 +4,28 @@ import { useTheme } from '../context/ThemeContext';
 import { getFirestore, collection, addDoc, serverTimestamp } from '@react-native-firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { logEvent } from '../services/analytics';
+import { RouteProp, useRoute } from '@react-navigation/native';
+import { RootStackParamList } from '../types/navigationTypes';
+import { createDataReport } from '../services/dataReportsService';
+import { dataReportSchema } from '../admin/validators';
 const db = getFirestore();
 
 const ReportProblemScreen: React.FC = () => {
+  const route = useRoute<RouteProp<RootStackParamList, 'ReportProblem'>>();
   const { theme } = useTheme();
   const { colors } = theme;
   const [problem, setProblem] = useState('');
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
+  const entityType = route.params?.entityType;
+  const entityId = route.params?.entityId;
+  const entityName = route.params?.entityName;
+  const isDataReport = Boolean(entityType && entityId);
 
   const handleReport = async () => {
-    if (!problem.trim()) {
-      Alert.alert('Error', 'Por favor describe el problema.');
+    const parsed = dataReportSchema.safeParse({ reason: problem });
+    if (!parsed.success) {
+      Alert.alert('Error', parsed.error.issues[0]?.message || 'Por favor describe el problema.');
       return;
     }
     if (!user) {
@@ -27,15 +37,27 @@ const ReportProblemScreen: React.FC = () => {
 
     try {
       const timestamp = serverTimestamp();
-      await addDoc(collection(db, 'reportes'), {
-        problem,
-        timestamp,
-        userId: user.uid,
-        userName: user.displayName,
-        userEmail: user.email,
-      });
+      if (isDataReport && entityType && entityId) {
+        await createDataReport({
+          reporterUid: user.uid,
+          reporterEmail: user.email,
+          entityType,
+          entityId,
+          entityName,
+          reason: parsed.data.reason,
+        });
+        logEvent('data_report_submit', { entityType, entityId });
+      } else {
+        await addDoc(collection(db, 'reportes'), {
+          problem: parsed.data.reason,
+          timestamp,
+          userId: user.uid,
+          userName: user.displayName,
+          userEmail: user.email,
+        });
+        logEvent('report_submit');
+      }
       setProblem('');
-      logEvent('report_submit');
       Alert.alert('Reporte enviado', 'Tu reporte se ha enviado correctamente.');
     } catch (error) {
       console.error('Error reporting problem: ', error);
@@ -47,12 +69,19 @@ const ReportProblemScreen: React.FC = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Text style={[styles.title, { color: colors.text }]}>Reportar problema</Text>
+      <Text style={[styles.title, { color: colors.text }]}>
+        {isDataReport ? 'Reportar datos incorrectos' : 'Reportar problema'}
+      </Text>
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        {isDataReport && (
+          <Text style={[styles.label, { color: colors.mutedText || colors.placeholderText }]}>
+            {entityType}: {entityName || entityId}
+          </Text>
+        )}
         <Text style={[styles.label, { color: colors.text }]}>Descripcion</Text>
         <TextInput
           style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
-          placeholder="Describe el problema"
+          placeholder={isDataReport ? 'Describe el dato incorrecto (telefono, direccion, horario, etc.)' : 'Describe el problema'}
           placeholderTextColor={colors.placeholderText}
           value={problem}
           onChangeText={setProblem}

@@ -84,6 +84,7 @@ export type RootStackParamList = {
   AdminPrimerosAuxilios: undefined;
   AdminAnalytics: undefined;
   AdminAccountRequests: undefined;
+  AdminDataReports: undefined;
   ActualizarHorarios: undefined;
   ActualizarTurnos: undefined;
   BottomTabs: undefined;
@@ -97,6 +98,7 @@ export type RootStackParamList = {
   Settings: undefined;
   Welcome: undefined;
   Onboarding: undefined;
+  AccountDisabled: undefined;
   App: undefined;
   Auth: undefined;
   Drawer: undefined;
@@ -104,8 +106,15 @@ export type RootStackParamList = {
   Local: undefined;
   LocalDetail: { local: Local };
   Help: undefined;
-  ReportProblem: undefined;
+  ReportProblem:
+    | {
+        entityType?: 'farmacia' | 'emergencia' | 'local';
+        entityId?: string;
+        entityName?: string;
+      }
+    | undefined;
   Suggestions: undefined;
+  Favorites: undefined;
   EditProfile: undefined;
   WebView: { url: string; title?: string };
 };

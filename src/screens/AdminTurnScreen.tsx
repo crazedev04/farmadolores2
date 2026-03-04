@@ -29,6 +29,8 @@ const AdminCambiarTurnoFarmacia: React.FC = () => {
 
   useEffect(() => {
     fetchFarmaciasListado(true);
+    // intentionally run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Listado inicial de farmacias
@@ -122,8 +124,8 @@ const AdminCambiarTurnoFarmacia: React.FC = () => {
   const removeTurno = (idx: number) =>
     setTurnos(prev => prev.filter((_, i) => i !== idx));
 
-  const now = new Date();
   const filteredTurnos = useMemo(() => {
+    const now = new Date();
     const normalized = turnos.filter(Boolean) as Date[];
     const sorted = normalized.sort((a, b) => a.getTime() - b.getTime());
     if (turnoFilter === 'future') {
@@ -133,7 +135,7 @@ const AdminCambiarTurnoFarmacia: React.FC = () => {
       return sorted.filter(t => t.getTime() < now.getTime());
     }
     return sorted;
-  }, [turnos, turnoFilter, now]);
+  }, [turnos, turnoFilter]);
 
   // Guardar todos los turnos en Firebase
   const guardarTurnos = async () => {

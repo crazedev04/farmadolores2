@@ -58,11 +58,14 @@ const AppContent = () => {
         },
         async (taskId) => {
           console.log('[BackgroundFetch] Task start:', taskId);
-          // Llamamos a nuestra lógica para revisar turnos y programar notificaciones
-          await checkAndNotifyTurnos();
-          await checkAndApplyHotfix({ notify: false });
-          // MUY IMPORTANTE: marcar la tarea como finalizada
-          BackgroundFetch.finish(taskId);
+          try {
+            // Llamamos a nuestra lógica para revisar turnos y programar notificaciones
+            await checkAndNotifyTurnos();
+            await checkAndApplyHotfix({ notify: false });
+          } finally {
+            // MUY IMPORTANTE: marcar la tarea como finalizada
+            BackgroundFetch.finish(taskId);
+          }
         },
         (error) => {
           if (__DEV__) {
@@ -73,6 +76,13 @@ const AppContent = () => {
 
       // Iniciar el proceso de background (en versiones recientes quizá no sea 100% necesario, pero recomendable)
       BackgroundFetch.start();
+
+      // Reprograma notificaciones al abrir app para no depender del próximo ciclo de background.
+      try {
+        await checkAndNotifyTurnos();
+      } catch {
+        // ignore
+      }
     };
 
     initBackgroundFetch();

@@ -15,13 +15,12 @@ type Props = {
   flatListIndex: SharedValue<number>;
   flatListRef: AnimatedRef<FlatList<OnboardingData>>;
   x: SharedValue<number>;
-  setIsFirstLaunch: React.Dispatch<React.SetStateAction<boolean | null>>;
   data: OnboardingData[];
   canFinish: boolean;
   onFinish: () => void;
 };
 
-const CustomButton = ({ flatListRef, flatListIndex, dataLength, x, setIsFirstLaunch, data, canFinish, onFinish }: Props) => {
+const CustomButton = ({ flatListRef, flatListIndex, dataLength, x, data, canFinish, onFinish }: Props) => {
   const { width: SCREEN_WIDTH } = useWindowDimensions();
   const handleContinue = async () => {
     if (flatListIndex.value < dataLength - 1) {

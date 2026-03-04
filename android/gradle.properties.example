@@ -1,0 +1,7 @@
+# Copy this file to your local untracked Gradle properties and fill with real values.
+# Do NOT commit secrets.
+
+MYAPP_RELEASE_STORE_FILE=/absolute/path/to/keystore.jks
+MYAPP_RELEASE_STORE_PASSWORD=change_me
+MYAPP_RELEASE_KEY_ALIAS=change_me
+MYAPP_RELEASE_KEY_PASSWORD=change_me

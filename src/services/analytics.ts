@@ -8,6 +8,11 @@ import { getFirestore, doc, setDoc, serverTimestamp, increment } from '@react-na
 
 const analyticsInstance = getAnalytics();
 const db = getFirestore();
+const logEventAny = logEventNative as unknown as (
+  analytics: unknown,
+  name: string,
+  params?: Record<string, string | number | boolean>,
+) => Promise<void>;
 
 const MAX_PARAM_LENGTH = 100;
 
@@ -121,7 +126,7 @@ const counterFromEvent = (name: string, params?: Record<string, unknown>) => {
 
 export const logEvent = async (name: string, params?: Record<string, unknown>) => {
   try {
-    await logEventNative(analyticsInstance, name, sanitizeParams(params));
+    await logEventAny(analyticsInstance, name, sanitizeParams(params));
     const counter = counterFromEvent(name, params);
     if (counter) {
       await incrementCounter(counter.group, counter.key);
@@ -133,7 +138,7 @@ export const logEvent = async (name: string, params?: Record<string, unknown>) =
 
 export const logScreenView = async (screenName: string) => {
   try {
-    await logEventNative(
+    await logEventAny(
       analyticsInstance,
       'screen_view',
       sanitizeParams({
@@ -149,7 +154,7 @@ export const logScreenView = async (screenName: string) => {
 
 export const logLogin = async (method: string) => {
   try {
-    await logEventNative(
+    await logEventAny(
       analyticsInstance,
       'login',
       sanitizeParams({ method })
@@ -162,7 +167,7 @@ export const logLogin = async (method: string) => {
 
 export const logSignUp = async (method: string) => {
   try {
-    await logEventNative(
+    await logEventAny(
       analyticsInstance,
       'sign_up',
       sanitizeParams({ method })

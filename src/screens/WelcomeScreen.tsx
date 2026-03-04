@@ -3,14 +3,18 @@ import { View, Text, StyleSheet, Button, PermissionsAndroid, Platform, Alert } f
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Carousel from 'react-native-reanimated-carousel';
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../types/navigationTypes';
 
 type Slide = {
   title: string;
   text: string;
 };
 
+type WelcomeNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Welcome'>;
+
 const WelcomeScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<WelcomeNavigationProp>();
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const slides: Slide[] = [

@@ -9,13 +9,15 @@ import AnimatedToggleSwitch from '../components/AnimatedToggleSwitch';
 import DeviceInfo from 'react-native-device-info';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestNotificationPermission } from '../components/Permissions';
-import { cancelTurnoNotifications } from '../services/TurnoService';
+import { cancelTurnoNotifications, checkAndNotifyTurnos } from '../services/TurnoService';
 import { logEvent } from '../services/analytics';
+import { initPushNotifications, updateNotificationPreferences } from '../services/pushService';
+import { useFeatureFlags } from '../services/featureFlags';
 
 const SettingsScreen: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const { colors } = theme;
-  const { logout, loading, disableAccount, requestFullDeletion, isGuest } = useAuth();
+  const { logout, loading, disableAccount, requestFullDeletion, isGuest, user } = useAuth();
   const [reasonModalVisible, setReasonModalVisible] = useState(false);
   const [reasonText, setReasonText] = useState('');
   const [reasonType, setReasonType] = useState<'disable' | 'delete'>('disable');
@@ -38,6 +40,7 @@ const SettingsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [isDarkTheme, setIsDarkTheme] = useState(theme.dark);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const flags = useFeatureFlags();
 
   const handleToggleTheme = () => {
     toggleTheme();
@@ -56,6 +59,14 @@ const SettingsScreen: React.FC = () => {
     if (notificationsEnabled) {
       setNotificationsEnabled(false);
       await AsyncStorage.setItem('notificationsEnabled', 'false');
+      await updateNotificationPreferences(user?.uid || null, {
+        enabled: false,
+        channels: {
+          updates: false,
+          turno: false,
+          promo: false,
+        },
+      });
       await cancelTurnoNotifications();
       logEvent('notifications_toggle', { enabled: false });
       return;
@@ -63,8 +74,17 @@ const SettingsScreen: React.FC = () => {
 
     const granted = await requestNotificationPermission();
     if (granted) {
+      initPushNotifications(user?.uid || null, true);
       setNotificationsEnabled(true);
       await AsyncStorage.setItem('notificationsEnabled', 'true');
+      await updateNotificationPreferences(user?.uid || null, {
+        enabled: true,
+        channels: {
+          updates: true,
+          turno: true,
+          promo: true,
+        },
+      });
       logEvent('notifications_toggle', { enabled: true });
     }
   };
@@ -74,6 +94,15 @@ const SettingsScreen: React.FC = () => {
       await logout();
     } catch (error) {
       console.error('Error logging out: ', error);
+    }
+  };
+
+  const handleRefreshTurnoNotifications = async () => {
+    try {
+      await checkAndNotifyTurnos();
+      Alert.alert('Listo', 'Notificaciones de turno reprogramadas.');
+    } catch {
+      Alert.alert('Error', 'No se pudieron reprogramar las notificaciones de turno.');
     }
   };
 
@@ -97,6 +126,13 @@ const SettingsScreen: React.FC = () => {
           </View>
           <AnimatedToggleSwitch isOn={notificationsEnabled} onToggle={handleToggleNotifications} />
         </View>
+        <TouchableOpacity style={styles.row} onPress={handleRefreshTurnoNotifications}>
+          <View style={styles.rowLeft}>
+            <Icon name="bell-refresh-outline" size={22} color={colors.text} />
+            <Text style={[styles.rowText, { color: colors.text }]}>Reprogramar turnos</Text>
+          </View>
+          <Icon name="chevron-right" size={24} color={colors.text} />
+        </TouchableOpacity>
       </View>
 
       <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -115,6 +151,15 @@ const SettingsScreen: React.FC = () => {
           </View>
           <Icon name="chevron-right" size={24} color={colors.text} />
         </TouchableOpacity>
+        {flags.favorites && (
+          <TouchableOpacity style={[styles.row, { borderBottomColor: colors.border }]} onPress={() => navigation.navigate('Favorites')}>
+            <View style={styles.rowLeft}>
+              <Icon name="star-outline" size={22} color={colors.text} />
+              <Text style={[styles.rowText, { color: colors.text }]}>Favoritos</Text>
+            </View>
+            <Icon name="chevron-right" size={24} color={colors.text} />
+          </TouchableOpacity>
+        )}
         <TouchableOpacity style={[styles.row, { borderBottomColor: colors.border }]} onPress={() => navigation.navigate('ReportProblem')}>
           <View style={styles.rowLeft}>
             <Icon name="alert-circle" size={22} color={colors.text} />

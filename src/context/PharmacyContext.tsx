@@ -23,13 +23,11 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [loading, setLoading] = useState<boolean>(true);
   const [isOffline, setIsOffline] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [networkOnline, setNetworkOnline] = useState(true);
 
   useEffect(() => {
     const unsubscribeNet = NetInfo.addEventListener((state) => {
       const reachable = state.isInternetReachable;
       const online = !!state.isConnected && reachable !== false;
-      setNetworkOnline(online);
       setIsOffline(!online);
     });
     return () => unsubscribeNet();

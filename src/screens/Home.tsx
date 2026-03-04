@@ -261,23 +261,23 @@ const Home = () => {
     }, [showPendingOtaNotice])
   );
 
-  const nextTurn = useMemo(() => {
+  const nextTurn = useMemo<{ pharmacy: Farmacia; start: DateTime } | null>(() => {
     if (!farmacias || farmacias.length === 0) return null;
     const now = DateTime.local().setZone('America/Argentina/Buenos_Aires');
     let best: { pharmacy: Farmacia; start: DateTime } | null = null;
-    (farmacias as Farmacia[]).forEach(pharmacy => {
-      if (!Array.isArray(pharmacy.turn)) return;
-      pharmacy.turn.forEach(t => {
-        if (!t || typeof t.toDate !== 'function') return;
+    for (const pharmacy of farmacias as Farmacia[]) {
+      if (!Array.isArray(pharmacy.turn)) continue;
+      for (const t of pharmacy.turn) {
+        if (!t || typeof t.toDate !== 'function') continue;
         const start = DateTime.fromJSDate(t.toDate())
           .setZone('America/Argentina/Buenos_Aires')
           .set({ hour: 8, minute: 30, second: 0, millisecond: 0 });
-        if (start < now) return;
+        if (start < now) continue;
         if (!best || start < best.start) {
           best = { pharmacy, start };
         }
-      });
-    });
+      }
+    }
     return best;
   }, [farmacias]);
 
@@ -370,14 +370,6 @@ const Home = () => {
     if (!ok) {
       Alert.alert('No se pudo abrir el enlace', 'Verifica que el enlace sea correcto.');
     }
-  };
-
-  const openPhone = (phone?: string | string[] | number) => {
-    const raw = Array.isArray(phone) ? phone[0] : phone;
-    if (!raw) return;
-    const clean = String(raw).replace(/[^\d+]/g, '');
-    if (!clean) return;
-    openUrl(`tel:${clean}`);
   };
 
   const openMaps = (address?: string, lat?: number, lng?: number, mapUrl?: string) => {

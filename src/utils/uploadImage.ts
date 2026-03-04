@@ -61,7 +61,7 @@ export const pickAndUploadImage = async (
   const result = await launchImageLibrary({
     mediaType: 'photo',
     selectionLimit: 1,
-    quality: 0.85,
+    quality: 1,
   });
 
   if (result.didCancel) return null;

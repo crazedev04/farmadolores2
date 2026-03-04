@@ -9,10 +9,11 @@ import notifee from '@notifee/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { readCache, writeCache, serializeForCache, rehydrateFromCache } from '../utils/cache';
 
-const LAST_TURNO_PHARMACY_KEY = 'lastTurnoPharmacyId';
 const NOTIFICATIONS_ENABLED_KEY = 'notificationsEnabled';
+const LEGACY_LAST_TURNO_PHARMACY_KEY = 'lastTurnoPharmacyId';
 const TURNOS_CACHE_KEY = 'cache:farmacias:turnos';
 const TURNOS_CACHE_TTL_MS = 1000 * 60 * 10; // 10 min
+const ZONE = 'America/Argentina/Buenos_Aires';
 const db = getFirestore();
 
 interface NotificationSchedule {
@@ -43,6 +44,78 @@ const NOTIFICATION_SCHEDULES: NotificationSchedule[] = [
   },
 ];
 
+type ActiveTurn = {
+  pharmacy: Farmacia;
+  start: DateTime;
+};
+
+const parseTurnTimestamp = (value: any): FirebaseFirestoreTypes.Timestamp | null => {
+  const timestamp = value?.timestamp ?? value;
+  if (!timestamp || typeof timestamp.toDate !== 'function') {
+    return null;
+  }
+  return timestamp as FirebaseFirestoreTypes.Timestamp;
+};
+
+const toTurnStart = (timestamp: FirebaseFirestoreTypes.Timestamp) =>
+  DateTime
+    .fromJSDate(timestamp.toDate())
+    .setZone(ZONE)
+    .set({
+      hour: 8,
+      minute: 30,
+      second: 0,
+      millisecond: 0,
+    });
+
+const resolveActiveTurn = (farmacias: Farmacia[], now: DateTime): ActiveTurn | null => {
+  let best: ActiveTurn | null = null;
+
+  for (const pharmacy of farmacias) {
+    if (!Array.isArray(pharmacy.turn) || pharmacy.turn.length === 0) continue;
+
+    for (const turnValue of pharmacy.turn) {
+      const timestamp = parseTurnTimestamp(turnValue);
+      if (!timestamp) continue;
+
+      const start = toTurnStart(timestamp);
+      if (!start.isValid) continue;
+
+      const end = start.plus({ hours: 24 });
+      const isActive = now >= start && now < end;
+      if (!isActive) continue;
+
+      if (!best || start.toMillis() > best.start.toMillis()) {
+        best = { pharmacy, start };
+      }
+    }
+  }
+
+  return best;
+};
+
+const loadFarmacias = async (): Promise<Farmacia[]> => {
+  // Priorizamos Firestore vivo para evitar desfases justo en el cambio de turno.
+  try {
+    const snapshot = await getDocs(collection(db, 'farmacias'));
+    const fresh = snapshot.docs.map((item) => {
+      const data = item.data() as Partial<Farmacia>;
+      return {
+        ...data,
+        id: item.id,
+      } as Farmacia;
+    });
+    await writeCache(TURNOS_CACHE_KEY, serializeForCache(fresh));
+    return fresh;
+  } catch {
+    const cached = await readCache<Farmacia[]>(TURNOS_CACHE_KEY, TURNOS_CACHE_TTL_MS);
+    if (cached) {
+      return rehydrateFromCache(cached) as Farmacia[];
+    }
+    throw new Error('No se pudo obtener listado de farmacias');
+  }
+};
+
 /**
  * checkAndNotifyTurnos()
  *
@@ -60,112 +133,86 @@ export async function checkAndNotifyTurnos(): Promise<void> {
     }
 
     await createNotificationChannels();
-    // 1. Consulta farmacias con cache
-    let farmacias: Farmacia[] | null = await readCache<Farmacia[]>(TURNOS_CACHE_KEY, TURNOS_CACHE_TTL_MS);
-    if (farmacias) {
-      farmacias = rehydrateFromCache(farmacias) as Farmacia[];
-    } else {
-      const snapshot = await getDocs(collection(db, 'farmacias'));
-      farmacias = snapshot.docs.map(doc => {
-        const data = doc.data() as Partial<Farmacia>;
-        return {
-          ...data,
-          id: doc.id,
-        } as Farmacia;
-      });
-      writeCache(TURNOS_CACHE_KEY, serializeForCache(farmacias));
-    }
-    // 2. Determinar farmacia de turno
-    const now = DateTime.local().setZone('America/Argentina/Buenos_Aires');
-    const matchingPharmacy = farmacias.find((pharmacy) => {
-      return pharmacy.turn?.some((t: any) => {
-        const timestamp: FirebaseFirestoreTypes.Timestamp = t?.timestamp ?? t;
-        if (!timestamp?.toDate) return false;
-        const turnStart = DateTime.fromJSDate(timestamp.toDate()).set({
-          hour: 8,
-          minute: 30,
-          second: 0,
-          millisecond: 0,
-        });
-        const turnEnd = turnStart.plus({ hours: 24 });
-        return now >= turnStart && now <= turnEnd;
-      });
-    });
-    if (!matchingPharmacy) {
-      if (__DEV__) {
-        console.log('[TurnoService] No hay farmacia de turno.');
-      }
-      const lastPharmacyId = await AsyncStorage.getItem(LAST_TURNO_PHARMACY_KEY);
-      if (lastPharmacyId) {
-        for (const schedule of NOTIFICATION_SCHEDULES) {
-          await notifee.cancelNotification(`${lastPharmacyId}_${schedule.hour}_${schedule.minute}`);
-        }
-        await AsyncStorage.removeItem(LAST_TURNO_PHARMACY_KEY);
-      }
-      return;
-    }
-    // 3. Evitar duplicados: cancela notificaciones futuras solo de estas IDs
-    const lastPharmacyId = await AsyncStorage.getItem(LAST_TURNO_PHARMACY_KEY);
-    if (lastPharmacyId && lastPharmacyId !== matchingPharmacy.id) {
+    const legacyLastPharmacyId = await AsyncStorage.getItem(LEGACY_LAST_TURNO_PHARMACY_KEY);
+    if (legacyLastPharmacyId) {
       for (const schedule of NOTIFICATION_SCHEDULES) {
-        await notifee.cancelNotification(`${lastPharmacyId}_${schedule.hour}_${schedule.minute}`);
+        await notifee.cancelNotification(`${legacyLastPharmacyId}_${schedule.hour}_${schedule.minute}`);
       }
+      await AsyncStorage.removeItem(LEGACY_LAST_TURNO_PHARMACY_KEY);
     }
+
+    // 1. Consulta farmacias (Firestore primero, cache como fallback)
+    const farmacias = await loadFarmacias();
+
+    // 2. Determinar farmacia de turno
+    const now = DateTime.local().setZone(ZONE);
+    // 2. Programar notificaciones por horario usando la farmacia activa EN ESE horario.
     for (const schedule of NOTIFICATION_SCHEDULES) {
-      await notifee.cancelNotification(`${matchingPharmacy.id}_${schedule.hour}_${schedule.minute}`);
-    }
-    // 4. Programar notificaciones
-    for (const schedule of NOTIFICATION_SCHEDULES) {
+      const notificationId = `turno_${schedule.hour}_${schedule.minute}`;
+      await notifee.cancelNotification(notificationId);
+
       const notificationTime = now.set({
         hour: schedule.hour,
         minute: schedule.minute,
         second: 0,
         millisecond: 0,
       });
-      if (notificationTime > now) {
-        const trigger: TimestampTrigger = {
-          type: TriggerType.TIMESTAMP,
-          timestamp: notificationTime.toMillis(),
-        };
-        // ID único por farmacia y horario
-        const notificationId = `${matchingPharmacy.id}_${schedule.hour}_${schedule.minute}`;
+      if (notificationTime <= now) {
+        continue;
+      }
+
+      const turnForSchedule = resolveActiveTurn(farmacias, notificationTime);
+      if (!turnForSchedule) {
         if (__DEV__) {
-          console.log(`[TurnoService] Programando notificación ${notificationId} para ${notificationTime.toISO()}`);
+          console.log(`[TurnoService] Sin farmacia para horario ${notificationTime.toISO()}`);
         }
-        try {
-          await showNotification(
-            schedule.title,
-            schedule.body(matchingPharmacy.name),
-            {
-              name: matchingPharmacy.name,
-              dir: matchingPharmacy.dir,
-              image: matchingPharmacy.image,
-              detail: matchingPharmacy.detail,
-            },
-            trigger,
-            notificationId
-          );
-          if (__DEV__) {
-            console.log(`[TurnoService] Notificación programada: ${notificationId}`);
-          }
-        } catch (err) {
-          console.error(`[TurnoService] Error programando notificación ${notificationId}:`, err);
-        }
+        continue;
+      }
+
+      const targetPharmacy = turnForSchedule.pharmacy;
+      const trigger: TimestampTrigger = {
+        type: TriggerType.TIMESTAMP,
+        timestamp: notificationTime.toMillis(),
+      };
+
+      if (__DEV__) {
+        console.log(
+          `[TurnoService] Programando ${notificationId} (${notificationTime.toISO()}) => ${targetPharmacy.name}`,
+        );
+      }
+
+      try {
+        await showNotification(
+          schedule.title,
+          schedule.body(targetPharmacy.name),
+          {
+            name: targetPharmacy.name,
+            dir: targetPharmacy.dir,
+            image: targetPharmacy.image,
+            detail: targetPharmacy.detail,
+          },
+          trigger,
+          notificationId,
+        );
+      } catch (err) {
+        console.error(`[TurnoService] Error programando notificación ${notificationId}:`, err);
       }
     }
-    await AsyncStorage.setItem(LAST_TURNO_PHARMACY_KEY, matchingPharmacy.id);
   } catch (error) {
     console.error('[checkAndNotifyTurnos] Error:', error);
   }
 }
 
 export async function cancelTurnoNotifications(): Promise<void> {
-  const lastPharmacyId = await AsyncStorage.getItem(LAST_TURNO_PHARMACY_KEY);
-  if (!lastPharmacyId) {
-    return;
+  const legacyLastPharmacyId = await AsyncStorage.getItem(LEGACY_LAST_TURNO_PHARMACY_KEY);
+  if (legacyLastPharmacyId) {
+    for (const schedule of NOTIFICATION_SCHEDULES) {
+      await notifee.cancelNotification(`${legacyLastPharmacyId}_${schedule.hour}_${schedule.minute}`);
+    }
+    await AsyncStorage.removeItem(LEGACY_LAST_TURNO_PHARMACY_KEY);
   }
+
   for (const schedule of NOTIFICATION_SCHEDULES) {
-    await notifee.cancelNotification(`${lastPharmacyId}_${schedule.hour}_${schedule.minute}`);
+    await notifee.cancelNotification(`turno_${schedule.hour}_${schedule.minute}`);
   }
-  await AsyncStorage.removeItem(LAST_TURNO_PHARMACY_KEY);
 }

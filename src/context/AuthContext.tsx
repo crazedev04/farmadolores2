@@ -27,6 +27,7 @@ import { useTheme } from './ThemeContext';
 import { Alert, Platform, ToastAndroid, Linking } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
 import Geolocation from '@react-native-community/geolocation';
+import type { GeolocationResponse } from '@react-native-community/geolocation';
 import { check, PERMISSIONS, RESULTS } from 'react-native-permissions';
 import { logEvent, logLogin, logSignUp, setUserId, setUserProperties } from '../services/analytics';
 
@@ -106,6 +107,8 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
     });
 
     return () => unsubscribe();
+    // keep subscription stable on mount/unmount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -152,59 +155,89 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
     isTablet: DeviceInfo.isTablet(),
   });
 
+  const getCurrentPositionOnce = (options: {
+    enableHighAccuracy: boolean;
+    timeout: number;
+    maximumAge: number;
+  }) =>
+    new Promise<GeolocationResponse>((resolve, reject) => {
+      Geolocation.getCurrentPosition(resolve, reject, options);
+    });
+
   const getLocationInfo = async () => {
-    const permission = Platform.select({
-      android: PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
-      ios: PERMISSIONS.IOS.LOCATION_WHEN_IN_USE,
-      default: null,
-    });
-    if (!permission) return null;
-
-    const status = await check(permission);
-    if (status !== RESULTS.GRANTED) return null;
-
-    const coords = await new Promise<Geolocation.GeoPosition>((resolve, reject) => {
-      Geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: true,
-        timeout: 5000,
-        maximumAge: 60000,
-      });
-    });
-
-    const { latitude, longitude, accuracy } = coords.coords;
-    let city = '';
-    let region = '';
-    let country = '';
-
     try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`,
-        {
-          headers: {
-            'User-Agent': 'FarmaDoloresApp/1.9.0',
-            'Accept-Language': 'es',
-          },
-        },
-      );
-      const json = await response.json();
-      const address = json?.address || {};
-      city = address.city || address.town || address.village || address.county || '';
-      region = address.state || '';
-      country = address.country || '';
-    } catch {
-      // Mejor esfuerzo: si no hay reverse geocode, guardamos solo coords
-    }
+      const permission =
+        Platform.OS === 'android'
+          ? PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION
+          : Platform.OS === 'ios'
+            ? PERMISSIONS.IOS.LOCATION_WHEN_IN_USE
+            : null;
+      if (!permission) return null;
 
-    return {
-      coords: {
-        latitude,
-        longitude,
-        accuracy,
-      },
-      city,
-      region,
-      country,
-    };
+      const status = await check(permission);
+      if (status !== RESULTS.GRANTED) return null;
+
+      let coords: GeolocationResponse;
+      try {
+        coords = await getCurrentPositionOnce({
+          enableHighAccuracy: true,
+          timeout: 6000,
+          maximumAge: 60000,
+        });
+      } catch (error: any) {
+        // Fallback para dispositivos donde GPS tarda demasiado o no tiene fix preciso.
+        const shouldFallback = error?.code === 3 || error?.code === 2;
+        if (!shouldFallback) {
+          throw error;
+        }
+        coords = await getCurrentPositionOnce({
+          enableHighAccuracy: false,
+          timeout: 10000,
+          maximumAge: 5 * 60 * 1000,
+        });
+      }
+
+      const { latitude, longitude, accuracy } = coords.coords;
+      let city = '';
+      let region = '';
+      let country = '';
+
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`,
+          {
+            headers: {
+              'User-Agent': 'FarmaDoloresApp/1.9.0',
+              'Accept-Language': 'es',
+            },
+          },
+        );
+        const json = await response.json();
+        const address = json?.address || {};
+        city = address.city || address.town || address.village || address.county || '';
+        region = address.state || '';
+        country = address.country || '';
+      } catch {
+        // Mejor esfuerzo: si no hay reverse geocode, guardamos solo coords
+      }
+
+      return {
+        coords: {
+          latitude,
+          longitude,
+          accuracy,
+        },
+        city,
+        region,
+        country,
+      };
+    } catch (error: any) {
+      const expected = error?.code === 1 || error?.code === 2 || error?.code === 3;
+      if (__DEV__ && !expected) {
+        console.log('[Auth] ubicación no disponible:', error?.message || error);
+      }
+      return null;
+    }
   };
 
   const ensureUserDoc = async (currentUser: FirebaseAuthTypes.User) => {
@@ -256,7 +289,11 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
           { merge: true },
         );
       })
-      .catch((error) => console.error('Error getting location info:', error));
+      .catch((error) => {
+        if (__DEV__) {
+          console.log('[Auth] no se pudo guardar enriquecimiento de ubicación:', error);
+        }
+      });
   };
 
   const checkDisabledAndSignOut = async (uid: string) => {
@@ -274,22 +311,6 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
     return false;
   };
-
-
-  const validateEmail = (value: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-  };
-
-  const validatePassword = (pwd: string) => {
-    const errors: string[] = [];
-    if (pwd.length < 8) errors.push('min 8');
-    if (!/[A-Z]/.test(pwd)) errors.push('1 mayus');
-    if (!/[a-z]/.test(pwd)) errors.push('1 minus');
-    if (!/[0-9]/.test(pwd)) errors.push('1 numero');
-    if (!/[^A-Za-z0-9]/.test(pwd)) errors.push('1 simbolo');
-    return errors;
-  };
-
   const login = async (email: string, password: string) => {
     if (!email || !password) {
       notify('Email y contrasena requeridos');
@@ -381,12 +402,17 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return;
     }
     try {
+      const now = serverTimestamp();
       await setDoc(
         doc(db, 'users', user.uid),
         {
           disabled: true,
-          disabledAt: serverTimestamp(),
+          disabledAt: now,
           disableReason: reason || '',
+          deleteStatus: 'scheduled',
+          deleteRequested: true,
+          deleteRequestedAt: now,
+          deleteAfterDays: 30,
         },
         { merge: true }
       );
@@ -395,7 +421,7 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
         email: user.email || '',
         type: 'disable',
         reason: reason || '',
-        createdAt: serverTimestamp(),
+        createdAt: now,
       });
       const subject = encodeURIComponent('Solicitud de baja de cuenta');
       const body = encodeURIComponent(
@@ -441,6 +467,7 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
           deleteRequested: true,
           deleteRequestedAt: now,
           deleteAfterDays: 30,
+          deleteStatus: 'requested',
           deleteReason: reason || '',
         },
         { merge: true }

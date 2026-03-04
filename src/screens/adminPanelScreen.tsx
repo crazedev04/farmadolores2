@@ -4,11 +4,13 @@ import { NavigationProp, useNavigation } from '@react-navigation/native';
 import Icon from '@react-native-vector-icons/material-design-icons';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../context/ThemeContext';
+import { useFeatureFlags } from '../services/featureFlags';
 
 const AdminPanelScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { theme } = useTheme();
   const colors = theme.colors;
+  const flags = useFeatureFlags();
 
   return (
     <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
@@ -157,6 +159,17 @@ const AdminPanelScreen: React.FC = () => {
           <Text style={[styles.gridTitle, { color: colors.text }]}>Cuentas</Text>
           <Text style={[styles.gridSubtitle, { color: colors.mutedText || colors.placeholderText }]}>Solicitudes y reactivacion.</Text>
         </TouchableOpacity>
+
+        {flags.dataReports && (
+          <TouchableOpacity
+            style={[styles.gridCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+            onPress={() => navigation.navigate('AdminDataReports')}
+          >
+            <Icon name="clipboard-alert-outline" size={26} color={colors.text} />
+            <Text style={[styles.gridTitle, { color: colors.text }]}>Reportes</Text>
+            <Text style={[styles.gridSubtitle, { color: colors.mutedText || colors.placeholderText }]}>Revisar datos incorrectos reportados.</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </ScrollView>
   );

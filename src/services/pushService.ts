@@ -1,4 +1,12 @@
-import { FirebaseMessagingTypes, getMessaging, requestPermission, registerDeviceForRemoteMessages, getToken, onTokenRefresh, onMessage } from '@react-native-firebase/messaging';
+import {
+  FirebaseMessagingTypes,
+  getMessaging,
+  requestPermission,
+  registerDeviceForRemoteMessages,
+  getToken,
+  onTokenRefresh,
+  onMessage,
+} from '@react-native-firebase/messaging';
 import { getFirestore, doc, setDoc, serverTimestamp } from '@react-native-firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DeviceInfo from 'react-native-device-info';
@@ -10,8 +18,30 @@ import { requestNotificationPermission } from '../components/Permissions';
 const TOKEN_COLLECTION = 'fcmTokens';
 const STORAGE_NOTIFICATIONS = 'notificationsEnabled';
 const STORAGE_PERMISSIONS_GRANTED = 'permissionsGranted';
+const STORAGE_NOTIFICATION_CHANNELS = 'notificationChannels';
+const DEFAULT_CHANNELS = {
+  updates: true,
+  turno: true,
+  promo: true,
+};
+
 const messagingInstance = getMessaging();
 const db = getFirestore();
+
+export type PushChannels = typeof DEFAULT_CHANNELS;
+
+const sanitizeChannels = (channels?: Partial<PushChannels> | null): PushChannels => ({
+  updates: channels?.updates !== false,
+  turno: channels?.turno !== false,
+  promo: channels?.promo !== false,
+});
+
+const toText = (value: unknown, fallback: string): string => {
+  if (typeof value === 'string' && value.trim()) {
+    return value.trim();
+  }
+  return fallback;
+};
 
 const getNotificationsEnabled = async () => {
   try {
@@ -31,6 +61,21 @@ const getPermissionsGranted = async () => {
   }
 };
 
+const getNotificationChannels = async (): Promise<PushChannels> => {
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_NOTIFICATION_CHANNELS);
+    if (!raw) return { ...DEFAULT_CHANNELS };
+    const parsed = JSON.parse(raw);
+    return sanitizeChannels(parsed);
+  } catch {
+    return { ...DEFAULT_CHANNELS };
+  }
+};
+
+const setNotificationChannels = async (channels: PushChannels) => {
+  await AsyncStorage.setItem(STORAGE_NOTIFICATION_CHANNELS, JSON.stringify(channels));
+};
+
 const canShowNotification = async () => {
   const enabled = await getNotificationsEnabled();
   if (!enabled) return false;
@@ -42,11 +87,18 @@ const canShowNotification = async () => {
   }
 };
 
-const saveToken = async (token: string, userId: string | null) => {
+const saveToken = async (
+  token: string,
+  userId: string | null,
+  notificationsEnabled: boolean,
+  channels: PushChannels,
+) => {
   try {
     const payload = {
       token,
       userId: userId || null,
+      notificationsEnabled,
+      channels,
       deviceId: DeviceInfo.getUniqueIdSync ? DeviceInfo.getUniqueIdSync() : await DeviceInfo.getUniqueId(),
       platform: Platform.OS,
       appVersion: DeviceInfo.getVersion(),
@@ -64,15 +116,27 @@ const displayRemoteNotification = async (remoteMessage: FirebaseMessagingTypes.R
 
   await createNotificationChannels();
 
-  const data = remoteMessage?.data || {};
-  const title =
-    remoteMessage?.notification?.title ||
-    data.title ||
-    'Actualizacion';
-  const body =
-    remoteMessage?.notification?.body ||
-    data.body ||
-    'Tienes una nueva actualizacion.';
+  const data = (remoteMessage?.data || {}) as Record<string, unknown>;
+  const notificationData: Record<string, string | number | object> = {};
+  Object.entries(data).forEach(([key, value]) => {
+    if (typeof value === 'string' || typeof value === 'number') {
+      notificationData[key] = value;
+      return;
+    }
+    if (value && typeof value === 'object') {
+      notificationData[key] = value;
+      return;
+    }
+    notificationData[key] = String(value ?? '');
+  });
+  const title = toText(
+    remoteMessage?.notification?.title ?? data.title,
+    'Actualizacion',
+  );
+  const body = toText(
+    remoteMessage?.notification?.body ?? data.body,
+    'Tienes una nueva actualizacion.',
+  );
 
   await notifee.displayNotification({
     title,
@@ -82,8 +146,25 @@ const displayRemoteNotification = async (remoteMessage: FirebaseMessagingTypes.R
       importance: AndroidImportance.DEFAULT,
       pressAction: { id: 'default', launchActivity: 'default' },
     },
-    data,
+    data: notificationData,
   });
+};
+
+export const updateNotificationPreferences = async (
+  userId: string | null,
+  options: { enabled: boolean; channels?: Partial<PushChannels> } ,
+) => {
+  const channels = sanitizeChannels(options.channels);
+  await AsyncStorage.setItem(STORAGE_NOTIFICATIONS, options.enabled ? 'true' : 'false');
+  await setNotificationChannels(channels);
+
+  try {
+    const token = await getToken(messagingInstance);
+    if (!token) return;
+    await saveToken(token, userId, options.enabled, channels);
+  } catch {
+    // ignore if token is unavailable
+  }
 };
 
 let activeUserId: string | null = null;
@@ -141,13 +222,17 @@ export const initPushNotifications = (userId: string | null, force = false) => {
     await registerDeviceForRemoteMessages(messagingInstance);
     await createNotificationChannels();
 
+    const notificationsEnabled = await getNotificationsEnabled();
+    const channels = await getNotificationChannels();
     const token = await getToken(messagingInstance);
     if (token) {
-      await saveToken(token, userId);
+      await saveToken(token, userId, notificationsEnabled, channels);
     }
 
     unsubscribeToken = onTokenRefresh(messagingInstance, async (newToken) => {
-      await saveToken(newToken, userId);
+      const enabled = await getNotificationsEnabled();
+      const latestChannels = await getNotificationChannels();
+      await saveToken(newToken, userId, enabled, latestChannels);
     });
 
     unsubscribeMessage = onMessage(messagingInstance, async (message) => {

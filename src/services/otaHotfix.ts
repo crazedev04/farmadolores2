@@ -2,6 +2,7 @@ import OtaHotUpdate from 'react-native-ota-hot-update';
 import { Alert } from 'react-native';
 import RNFS from 'react-native-fs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { doc, getDoc, getFirestore } from '@react-native-firebase/firestore';
 
 type GitOtaConfig = {
   enabled?: boolean;
@@ -31,7 +32,13 @@ const GIT_OTA_CONFIG: GitOtaConfig = {
 };
 
 // Activa alerts de diagnostico en release mientras probas.
-const SHOW_OTA_ALERTS = true;
+const SHOW_OTA_ALERTS = __DEV__;
+const db = getFirestore();
+const OTA_FLAG_TTL_MS = 1000 * 60;
+let otaRemoteFlagCache: { value: boolean; ts: number } = {
+  value: true,
+  ts: 0,
+};
 
 let otaUiHandler: ((manifest: OtaManifest) => void) | null = null;
 let otaPromptShown = false;
@@ -48,6 +55,26 @@ const buildManifest = (): OtaManifest => ({
 const showAlert = (title: string, message: string) => {
   if (!SHOW_OTA_ALERTS) return;
   Alert.alert(title, message);
+};
+
+const isRemoteOtaEnabled = async () => {
+  if (Date.now() - otaRemoteFlagCache.ts < OTA_FLAG_TTL_MS) {
+    return otaRemoteFlagCache.value;
+  }
+  let enabled = true;
+  try {
+    const snap = await getDoc(doc(db, 'config', 'app'));
+    const data = snap.data() || {};
+    if (typeof data.otaGitEnabled === 'boolean') {
+      enabled = data.otaGitEnabled;
+    } else if (typeof data.otaEnabled === 'boolean') {
+      enabled = data.otaEnabled;
+    }
+  } catch {
+    // default enabled
+  }
+  otaRemoteFlagCache = { value: enabled, ts: Date.now() };
+  return enabled;
 };
 
 const normalizeFolderName = (folderName?: string) => {
@@ -81,10 +108,15 @@ const getBundleSignature = async () => {
     const exists = await RNFS.exists(path);
     if (!exists) return null;
     const stat = await RNFS.stat(path);
+    const rawMtime = (stat as { mtime?: unknown }).mtime;
     const mtime =
-      typeof stat.mtime === 'number'
-        ? String(stat.mtime)
-        : stat.mtime?.toString?.() || '';
+      typeof rawMtime === 'number'
+        ? String(rawMtime)
+        : rawMtime instanceof Date
+          ? rawMtime.toISOString()
+          : rawMtime
+            ? String(rawMtime)
+            : '';
     return `${stat.size}:${mtime}`;
   } catch {
     return null;
@@ -184,7 +216,7 @@ export const consumePendingOtaNotice = async (): Promise<OtaManifest | null> => 
   }
 };
 
-const promptNotify = async (manifest: OtaManifest) => {
+const promptNotify = async (_manifest: OtaManifest) => {
   if (otaPromptShown) return;
   otaPromptShown = true;
   Alert.alert(
@@ -204,6 +236,11 @@ const promptNotify = async (manifest: OtaManifest) => {
 export const checkAndApplyHotfix = async (options?: { notify?: boolean }) => {
   try {
     if (!GIT_OTA_CONFIG.enabled) return;
+    const remoteEnabled = await isRemoteOtaEnabled();
+    if (!remoteEnabled) {
+      if (__DEV__) console.log('[OTA] disabled by remote config');
+      return;
+    }
     if (!GIT_OTA_CONFIG.url || !GIT_OTA_CONFIG.bundlePath) return;
     const notifyUi = options?.notify !== false;
     console.log('[OTA] check start', notifyUi ? 'notify' : 'silent');

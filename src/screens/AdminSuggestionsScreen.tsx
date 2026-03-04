@@ -44,8 +44,8 @@ const AdminSuggestionsScreen: React.FC = () => {
       query(collection(db, 'sugerencias'), orderBy('createdAt', 'desc')),
         (snapshot) => {
           const data = snapshot.docs.map((doc) => ({
+            ...(doc.data() as Omit<Suggestion, 'id'>),
             id: doc.id,
-            ...(doc.data() as Suggestion),
           }));
           setItems(data);
           setLoading(false);

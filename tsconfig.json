@@ -1,6 +1,16 @@
 {
   "extends": "@react-native/typescript-config",
   "compilerOptions": {
-    "skipLibCheck": true
-  }
+    "skipLibCheck": true,
+    "types": ["jest", "node", "react-native"],
+    "noImplicitAny": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "strictNullChecks": false,
+    "baseUrl": ".",
+    "paths": {
+      "react-native-maps": ["src/types/react-native-maps"]
+    }
+  },
+  "exclude": ["node_modules"]
 }

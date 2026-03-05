@@ -143,6 +143,29 @@ const writeAdminAuditLog = async ({ actorUid, actorRole, action, targetType, tar
   });
 };
 
+exports.adminWriteAuditLog = functions.https.onCall(async (data, context) => {
+  ensureAdmin(context);
+  const action = asTrimmed(data?.action) || 'unknown_action';
+  const targetType = asTrimmed(data?.targetType) || 'unknown_target';
+  const targetId = asTrimmed(data?.targetId);
+  const summary = asTrimmed(data?.summary);
+
+  if (!targetId) {
+    throw new functions.https.HttpsError('invalid-argument', 'targetId is required');
+  }
+
+  await writeAdminAuditLog({
+    actorUid: context.auth.uid,
+    actorRole: 'admin',
+    action,
+    targetType,
+    targetId,
+    summary,
+  });
+
+  return { ok: true };
+});
+
 const deleteCollectionDocs = async (queryRef) => {
   let total = 0;
   while (true) {

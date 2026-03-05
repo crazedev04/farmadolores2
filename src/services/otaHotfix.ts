@@ -1,5 +1,5 @@
 import OtaHotUpdate from 'react-native-ota-hot-update';
-import { Alert } from 'react-native';
+import { Alert, AppState } from 'react-native';
 import RNFS from 'react-native-fs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { doc, getDoc, getFirestore } from '@react-native-firebase/firestore';
@@ -45,6 +45,10 @@ let otaPromptShown = false;
 let otaRetryAttempted = false;
 const OTA_LAST_SIG_KEY = 'ota_git_last_sig';
 const OTA_PENDING_NOTICE_KEY = 'ota_git_pending_notice';
+const OTA_MIN_CHECK_INTERVAL_MS = 1000 * 60 * 5; // 5 min
+const OTA_DEFAULT_TIMEOUT_MS = 1000 * 45; // 45s
+let otaCheckInFlight: Promise<void> | null = null;
+let otaLastCheckAt = 0;
 
 const buildManifest = (): OtaManifest => ({
   source: 'git',
@@ -193,6 +197,22 @@ const shouldRetryForMsg = (msg: string) => {
   );
 };
 
+const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`OTA timeout after ${timeoutMs}ms`)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+};
+
 export const setOtaUiHandler = (handler: ((manifest: OtaManifest) => void) | null) => {
   otaUiHandler = handler;
 };
@@ -233,16 +253,34 @@ const promptNotify = async (_manifest: OtaManifest) => {
   );
 };
 
-export const checkAndApplyHotfix = async (options?: { notify?: boolean }) => {
+type OtaCheckOptions = {
+  notify?: boolean;
+  timeoutMs?: number;
+  force?: boolean;
+  skipIfForeground?: boolean;
+};
+
+const runSafeHotfixCheck = async (options?: OtaCheckOptions) => {
   try {
     if (!GIT_OTA_CONFIG.enabled) return;
+    const notifyUi = options?.notify !== false;
+    const skipIfForeground = options?.skipIfForeground ?? true;
+    const shouldSkipForForeground = !notifyUi && skipIfForeground && AppState.currentState === 'active';
+    if (shouldSkipForForeground) {
+      if (__DEV__) {
+        console.log('[OTA] skipped while app is active');
+      }
+      return;
+    }
+
     const remoteEnabled = await isRemoteOtaEnabled();
     if (!remoteEnabled) {
       if (__DEV__) console.log('[OTA] disabled by remote config');
       return;
     }
     if (!GIT_OTA_CONFIG.url || !GIT_OTA_CONFIG.bundlePath) return;
-    const notifyUi = options?.notify !== false;
+
+    otaRetryAttempted = false;
     console.log('[OTA] check start', notifyUi ? 'notify' : 'silent');
 
     const runGitUpdate = async () => {
@@ -354,7 +392,8 @@ export const checkAndApplyHotfix = async (options?: { notify?: boolean }) => {
       }
     };
 
-    await runGitUpdate();
+    const timeoutMs = options?.timeoutMs ?? OTA_DEFAULT_TIMEOUT_MS;
+    await withTimeout(runGitUpdate(), timeoutMs);
     console.log('[OTA] check finish');
   } catch (error) {
     showAlert('OTA Git error', String(error));
@@ -362,4 +401,32 @@ export const checkAndApplyHotfix = async (options?: { notify?: boolean }) => {
       console.log('OTA git check failed', error);
     }
   }
+};
+
+export const checkAndApplyHotfix = async (options?: OtaCheckOptions) => {
+  const now = Date.now();
+  if (!options?.force && now - otaLastCheckAt < OTA_MIN_CHECK_INTERVAL_MS) {
+    if (__DEV__) {
+      console.log('[OTA] throttled by interval');
+    }
+    return;
+  }
+
+  if (otaCheckInFlight) {
+    if (__DEV__) {
+      console.log('[OTA] check already in progress');
+    }
+    return otaCheckInFlight;
+  }
+
+  otaCheckInFlight = (async () => {
+    try {
+      await runSafeHotfixCheck(options);
+    } finally {
+      otaLastCheckAt = Date.now();
+      otaCheckInFlight = null;
+    }
+  })();
+
+  return otaCheckInFlight;
 };

@@ -28,10 +28,23 @@ export const writeCache = async <T>(key: string, data: T) => {
 };
 
 const isTimestampLike = (value: any) => value && typeof value.toDate === 'function';
+const isGeoPointLike = (value: any) => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const lat = value.latitude ?? value._latitude;
+  const lng = value.longitude ?? value._longitude;
+  return typeof lat === 'number' && Number.isFinite(lat) && typeof lng === 'number' && Number.isFinite(lng);
+};
 
 export const serializeForCache = (value: any): any => {
   if (isTimestampLike(value)) {
     return { __ts: value.toDate().toISOString() };
+  }
+  if (isGeoPointLike(value)) {
+    const lat = value.latitude ?? value._latitude;
+    const lng = value.longitude ?? value._longitude;
+    return { __gp: { lat, lng } };
   }
   if (Array.isArray(value)) {
     return value.map(serializeForCache);
@@ -52,6 +65,13 @@ export const rehydrateFromCache = (value: any): any => {
     if (typeof value.__ts === 'string') {
       const date = new Date(value.__ts);
       return { toDate: () => date };
+    }
+    if (value.__gp && typeof value.__gp === 'object') {
+      const lat = Number(value.__gp.lat);
+      const lng = Number(value.__gp.lng);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        return { latitude: lat, longitude: lng };
+      }
     }
     const out: Record<string, any> = {};
     Object.keys(value).forEach((key) => {

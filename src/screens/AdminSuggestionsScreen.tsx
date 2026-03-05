@@ -1,22 +1,33 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Alert,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import {
   FirebaseFirestoreTypes,
-  getFirestore,
   collection,
-  query,
-  orderBy,
-  onSnapshot,
-  updateDoc,
-  doc,
   deleteDoc,
+  doc,
+  getFirestore,
+  onSnapshot,
+  orderBy,
+  query,
   serverTimestamp,
+  updateDoc,
 } from '@react-native-firebase/firestore';
 import Icon from '@react-native-vector-icons/material-design-icons';
 import { DateTime } from 'luxon';
 import { useTheme } from '../context/ThemeContext';
-const db = getFirestore();
+import AdminList from '../components/admin/AdminList';
+import ConfirmDialog from '../components/admin/ConfirmDialog';
+import { writeAdminAuditLogSafe } from '../services/adminAuditService';
 
+const db = getFirestore();
 const FILTERS = ['todos', 'pendientes', 'resueltas'] as const;
 
 type FilterType = typeof FILTERS[number];
@@ -32,55 +43,76 @@ type Suggestion = {
   resolved?: boolean;
 };
 
+const formatDate = (timestamp?: FirebaseFirestoreTypes.Timestamp) => {
+  if (!timestamp || typeof timestamp.toDate !== 'function') {
+    return '';
+  }
+  return DateTime.fromJSDate(timestamp.toDate()).toFormat('dd/LL/yyyy HH:mm');
+};
+
+const filterLabel = (value: FilterType) => {
+  if (value === 'pendientes') {
+    return 'Pendientes';
+  }
+  if (value === 'resueltas') {
+    return 'Resueltas';
+  }
+  return 'Todos';
+};
+
 const AdminSuggestionsScreen: React.FC = () => {
   const { theme } = useTheme();
   const { colors } = theme;
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<Suggestion[]>([]);
   const [filter, setFilter] = useState<FilterType>('todos');
+  const [workingId, setWorkingId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Suggestion | null>(null);
 
   useEffect(() => {
     const unsub = onSnapshot(
       query(collection(db, 'sugerencias'), orderBy('createdAt', 'desc')),
-        (snapshot) => {
-          const data = snapshot.docs.map((doc) => ({
-            ...(doc.data() as Omit<Suggestion, 'id'>),
-            id: doc.id,
-          }));
-          setItems(data);
-          setLoading(false);
-        },
-        () => {
-          setLoading(false);
-        }
-      );
+      (snapshot) => {
+        const next = snapshot.docs.map((entry) => ({
+          ...(entry.data() as Omit<Suggestion, 'id'>),
+          id: entry.id,
+        }));
+        setItems(next);
+        setLoading(false);
+      },
+      () => setLoading(false),
+    );
 
     return () => unsub();
   }, []);
 
   const visibleItems = useMemo(() => {
     if (filter === 'pendientes') {
-      return items.filter(item => !item.resolved);
+      return items.filter((item) => !item.resolved);
     }
     if (filter === 'resueltas') {
-      return items.filter(item => item.resolved);
+      return items.filter((item) => !!item.resolved);
     }
     return items;
   }, [items, filter]);
 
-  const formatDate = (timestamp?: any) => {
-    if (!timestamp || typeof timestamp.toDate !== 'function') return '';
-    return DateTime.fromJSDate(timestamp.toDate()).toFormat('dd/LL/yyyy HH:mm');
-  };
-
-  const handleResolve = async (item: Suggestion, value: boolean) => {
+  const handleResolve = async (item: Suggestion, nextResolved: boolean) => {
+    setWorkingId(item.id);
     try {
       await updateDoc(doc(db, 'sugerencias', item.id), {
-        resolved: value,
-        resolvedAt: value ? serverTimestamp() : null,
+        resolved: nextResolved,
+        resolvedAt: nextResolved ? serverTimestamp() : null,
       });
-    } catch (error) {
+      writeAdminAuditLogSafe({
+        action: nextResolved ? 'suggestion_resolve' : 'suggestion_reopen',
+        targetType: 'suggestion',
+        targetId: item.id,
+        summary: `${nextResolved ? 'Resuelve' : 'Reabre'} sugerencia: ${item.title || item.id}`,
+      });
+    } catch {
       Alert.alert('Error', 'No se pudo actualizar la sugerencia.');
+    } finally {
+      setWorkingId(null);
     }
   };
 
@@ -89,129 +121,160 @@ const AdminSuggestionsScreen: React.FC = () => {
       Alert.alert('Sin email', 'Esta sugerencia no tiene email asociado.');
       return;
     }
+
     const subject = `Sobre tu sugerencia${item.title ? `: ${item.title}` : ''}`;
     const body = `Hola ${item.userName || ''}\n\nGracias por tu sugerencia.\n\nRespuesta:\n`;
     const mailto = `mailto:${encodeURIComponent(item.userEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
     try {
       const supported = await Linking.canOpenURL(mailto);
-      if (supported) {
-        await Linking.openURL(mailto);
-      } else {
+      if (!supported) {
         Alert.alert('No disponible', 'No se pudo abrir el cliente de correo.');
+        return;
       }
+      await Linking.openURL(mailto);
     } catch {
       Alert.alert('Error', 'No se pudo abrir el correo.');
     }
   };
 
-  const handleDelete = async (item: Suggestion) => {
-    Alert.alert('Eliminar', 'Deseas eliminar esta sugerencia?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Eliminar',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteDoc(doc(db, 'sugerencias', item.id));
-          } catch (error) {
-            Alert.alert('Error', 'No se pudo eliminar la sugerencia.');
-          }
-        },
-      },
-    ]);
+  const requestDelete = (item: Suggestion) => setPendingDelete(item);
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) {
+      return;
+    }
+
+    const selected = pendingDelete;
+    setPendingDelete(null);
+    setWorkingId(selected.id);
+
+    try {
+      await deleteDoc(doc(db, 'sugerencias', selected.id));
+      writeAdminAuditLogSafe({
+        action: 'suggestion_delete',
+        targetType: 'suggestion',
+        targetId: selected.id,
+        summary: `Elimina sugerencia: ${selected.title || selected.id}`,
+      });
+    } catch {
+      Alert.alert('Error', 'No se pudo eliminar la sugerencia.');
+    } finally {
+      setWorkingId(null);
+    }
   };
 
   return (
-    <ScrollView
-      style={{ backgroundColor: colors.background }}
-      contentContainerStyle={styles.container}
-    >
+    <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
       <Text style={[styles.title, { color: colors.text }]}>Sugerencias</Text>
 
       <View style={styles.filterRow}>
-        {FILTERS.map(option => {
+        {FILTERS.map((option) => {
           const active = option === filter;
           return (
             <TouchableOpacity
               key={option}
               style={[
                 styles.filterChip,
-                { borderColor: colors.border, backgroundColor: active ? colors.buttonBackground : colors.card },
+                {
+                  borderColor: colors.border,
+                  backgroundColor: active ? colors.buttonBackground : colors.card,
+                },
               ]}
               onPress={() => setFilter(option)}
             >
-              <Text style={{ color: active ? colors.buttonText || '#fff' : colors.text, fontWeight: '600' }}>
-                {option === 'todos' ? 'Todos' : option === 'pendientes' ? 'Pendientes' : 'Resueltas'}
+              <Text style={[styles.filterText, { color: active ? colors.buttonText || '#fff' : colors.text }]}>
+                {filterLabel(option)}
               </Text>
             </TouchableOpacity>
           );
         })}
       </View>
 
-      {loading && (
-        <ActivityIndicator size="large" color={colors.buttonBackground} style={{ marginTop: 20 }} />
-      )}
+      <AdminList loading={loading} empty={visibleItems.length === 0} emptyText="No hay sugerencias.">
+        <View style={styles.listWrap}>
+          {visibleItems.map((item) => {
+            const rowBusy = workingId === item.id;
+            const resolveButtonColor = item.resolved
+              ? (colors.success || '#16a34a')
+              : colors.buttonBackground;
+            return (
+              <View key={item.id} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={styles.cardHeader}>
+                  <View style={styles.cardTitleWrap}>
+                    <Text style={[styles.cardTitle, { color: colors.text }]}>
+                      {item.title?.trim() || 'Sin titulo'}
+                    </Text>
+                    {item.type ? (
+                      <View style={[styles.typeBadge, { borderColor: colors.border }]}>
+                        <Text style={[styles.typeText, { color: colors.mutedText || colors.placeholderText }]}>
+                          {item.type}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <TouchableOpacity onPress={() => requestDelete(item)} disabled={rowBusy}>
+                    <Icon name="trash-can-outline" size={20} color={colors.error || '#dc2626'} />
+                  </TouchableOpacity>
+                </View>
 
-      {!loading && visibleItems.length === 0 && (
-        <Text style={[styles.emptyText, { color: colors.mutedText || colors.placeholderText }]}>No hay sugerencias.</Text>
-      )}
+                {item.message ? (
+                  <Text style={[styles.message, { color: colors.text }]}>{item.message}</Text>
+                ) : null}
 
-      {visibleItems.map((item) => (
-        <View key={item.id} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
-        >
-          <View style={styles.cardHeader}>
-            <View style={styles.cardTitleWrap}>
-              <Text style={[styles.cardTitle, { color: colors.text }]}> 
-                {item.title?.trim() || 'Sin titulo'}
-              </Text>
-              {item.type && (
-                <View style={[styles.typeBadge, { borderColor: colors.border }]}> 
-                  <Text style={[styles.typeText, { color: colors.mutedText || colors.placeholderText }]}> 
-                    {item.type}
+                <View style={styles.metaRow}>
+                  <Text style={[styles.metaText, { color: colors.mutedText || colors.placeholderText }]}>
+                    {item.userName || item.userEmail || 'Usuario anonimo'}
+                  </Text>
+                  <Text style={[styles.metaText, { color: colors.mutedText || colors.placeholderText }]}>
+                    {formatDate(item.createdAt)}
                   </Text>
                 </View>
-              )}
-            </View>
-            <TouchableOpacity onPress={() => handleDelete(item)}>
-              <Icon name="trash-can-outline" size={20} color={colors.error} />
-            </TouchableOpacity>
-          </View>
 
-          {!!item.message && (
-            <Text style={[styles.message, { color: colors.text }]}>{item.message}</Text>
-          )}
+                <View style={styles.actionRow}>
+                  <TouchableOpacity
+                    style={[styles.secondaryButton, { borderColor: colors.border }]}
+                    onPress={() => handleEmail(item)}
+                    disabled={rowBusy}
+                  >
+                    <Icon name="email-outline" size={18} color={colors.text} />
+                    <Text style={[styles.secondaryButtonText, { color: colors.text }]}>Email</Text>
+                  </TouchableOpacity>
 
-          <View style={styles.metaRow}>
-            <Text style={[styles.metaText, { color: colors.mutedText || colors.placeholderText }]}> 
-              {item.userName || item.userEmail || 'Usuario anonimo'}
-            </Text>
-            <Text style={[styles.metaText, { color: colors.mutedText || colors.placeholderText }]}> 
-              {formatDate(item.createdAt)}
-            </Text>
-          </View>
-
-          <View style={styles.actionRow}>
-            <TouchableOpacity
-              style={[styles.secondaryButton, { borderColor: colors.border }]}
-              onPress={() => handleEmail(item)}
-            >
-              <Icon name="email-outline" size={18} color={colors.text} />
-              <Text style={[styles.secondaryButtonText, { color: colors.text }]}>Email</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.resolveButton,
-                { backgroundColor: item.resolved ? colors.success : colors.buttonBackground },
-              ]}
-              onPress={() => handleResolve(item, !item.resolved)}
-            >
-              <Text style={{ color: colors.buttonText || '#fff', fontWeight: '700' }}>
-                {item.resolved ? 'Resuelta' : 'Marcar resuelta'}
-              </Text>
-            </TouchableOpacity>
-          </View>
+                  <TouchableOpacity
+                    style={[
+                      styles.resolveButton,
+                      { backgroundColor: resolveButtonColor },
+                      rowBusy ? styles.disabledOpacity : null,
+                    ]}
+                    onPress={() => handleResolve(item, !item.resolved)}
+                    disabled={rowBusy}
+                  >
+                    <Text style={[styles.resolveButtonText, { color: colors.buttonText || '#fff' }]}>
+                      {item.resolved ? 'Resuelta' : 'Marcar resuelta'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })}
         </View>
-      ))}
+      </AdminList>
+
+      <ConfirmDialog
+        visible={!!pendingDelete}
+        title="Eliminar sugerencia"
+        message={
+          pendingDelete
+            ? `Se eliminara la sugerencia "${pendingDelete.title || 'Sin titulo'}".`
+            : ''
+        }
+        confirmText="Eliminar"
+        confirmDestructive
+        loading={!!workingId}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={confirmDelete}
+      />
     </ScrollView>
   );
 };
@@ -240,28 +303,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 20,
-    fontSize: 14,
+  filterText: {
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  listWrap: {
+    gap: 12,
   },
   card: {
     borderRadius: 14,
     borderWidth: 1,
     padding: 14,
-    marginBottom: 12,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     marginBottom: 8,
+    gap: 8,
   },
   cardTitleWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
     gap: 6,
+    flex: 1,
   },
   cardTitle: {
     fontSize: 15,
@@ -285,14 +351,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 10,
+    gap: 10,
   },
   metaText: {
     fontSize: 12,
+    flex: 1,
   },
   actionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 10,
   },
   secondaryButton: {
     flexDirection: 'row',
@@ -311,5 +380,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 10,
+  },
+  resolveButtonText: {
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  disabledOpacity: {
+    opacity: 0.7,
   },
 });

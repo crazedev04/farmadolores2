@@ -8,6 +8,7 @@ import { NavigationProp } from '@react-navigation/native';
 import Icon from '@react-native-vector-icons/material-design-icons';
 import { openMapsLink } from '../utils/openMapsLink';
 import { logEvent } from '../services/analytics';
+import { getCoordsFromPharmacyLike } from '../utils/geo';
 
 type Status = 'Abierto' | 'CierraPronto' | 'Cerrado';
 
@@ -289,10 +290,14 @@ const FarmaciaCard: React.FC<FarmaciaCardProps> = ({
   };
 
   const openMaps = () => {
-    const lat = item.gps?.latitude;
-    const lng = item.gps?.longitude;
+    const { lat, lng } = getCoordsFromPharmacyLike(item);
     logEvent('pharmacy_map', { source: 'farmacia_card', pharmacy_id: item.id, name: item.name });
-    openMapsLink(navigation, { address: dir, lat, lng, title: 'Mapa' });
+    openMapsLink(navigation, {
+      address: dir,
+      lat: lat ?? undefined,
+      lng: lng ?? undefined,
+      title: 'Mapa',
+    });
   };
 
   return (

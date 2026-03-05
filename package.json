@@ -12,7 +12,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "ota": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\\\scripts\\\\ota-upload.ps1",
-    "ota:git": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\\\scripts\\\\ota-publish-git.ps1",
+    "ota:git": "node ./scripts/ota-publish-git-runner.js",
     "start": "react-native start",
     "test": "jest"
   },

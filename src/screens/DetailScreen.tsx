@@ -22,6 +22,7 @@ import { useAuth } from '../context/AuthContext';
 import { isFavoritePharmacy, toggleFavoritePharmacy } from '../services/favoritesService';
 import Icon from '@react-native-vector-icons/material-design-icons';
 import { useFeatureFlags } from '../services/featureFlags';
+import { getCoordsFromPharmacyLike } from '../utils/geo';
 
 const DIAS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
 
@@ -110,8 +111,8 @@ const DetailScreen = () => {
     };
   }, [user?.uid, farmacia.id]);
 
-  const latitude = farmacia.gps?.latitude ?? 0;
-  const longitude = farmacia.gps?.longitude ?? 0;
+  const { lat, lng } = useMemo(() => getCoordsFromPharmacyLike(farmacia), [farmacia]);
+  const hasValidCoords = lat != null && lng != null && lat !== 0 && lng !== 0;
   const carouselWidth = Math.max(0, Dimensions.get('window').width - 20);
 
   const { images, detailText } = useMemo(() => {
@@ -269,13 +270,13 @@ const DetailScreen = () => {
             </View>
           )}
         </View>
-        {latitude !== 0 && longitude !== 0 && (
+        {hasValidCoords && (
           <View style={[styles.mapContainer, { borderColor: colors.border }]}>
             <MapView
               style={styles.map}
               initialRegion={{
-                latitude,
-                longitude,
+                latitude: lat as number,
+                longitude: lng as number,
                 latitudeDelta: 0.020,
                 longitudeDelta: 0.010,
               }}
@@ -284,7 +285,7 @@ const DetailScreen = () => {
               pitchEnabled={false}
               rotateEnabled={false}
             >
-              <Marker coordinate={{ latitude, longitude }} title={farmacia.name} />
+              <Marker coordinate={{ latitude: lat as number, longitude: lng as number }} title={farmacia.name} />
             </MapView>
           </View>
         )}

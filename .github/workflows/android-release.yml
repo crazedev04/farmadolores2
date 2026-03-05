@@ -67,6 +67,21 @@ jobs:
           MYAPP_RELEASE_KEY_PASSWORD: ${{ env.MYAPP_RELEASE_KEY_PASSWORD }}
         run: yarn android:release:check-signing
 
+      - name: Validate keystore alias/passwords (fast-fail)
+        env:
+          MYAPP_RELEASE_STORE_FILE: ${{ env.MYAPP_RELEASE_STORE_FILE }}
+          MYAPP_RELEASE_STORE_PASSWORD: ${{ env.MYAPP_RELEASE_STORE_PASSWORD }}
+          MYAPP_RELEASE_KEY_ALIAS: ${{ env.MYAPP_RELEASE_KEY_ALIAS }}
+          MYAPP_RELEASE_KEY_PASSWORD: ${{ env.MYAPP_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          keytool -list \
+            -keystore "${MYAPP_RELEASE_STORE_FILE}" \
+            -storepass "${MYAPP_RELEASE_STORE_PASSWORD}" \
+            -alias "${MYAPP_RELEASE_KEY_ALIAS}" \
+            -keypass "${MYAPP_RELEASE_KEY_PASSWORD}" \
+            >/dev/null
+
       - name: Build release APK
         env:
           ORG_GRADLE_PROJECT_MYAPP_RELEASE_STORE_FILE: ${{ env.MYAPP_RELEASE_STORE_FILE }}

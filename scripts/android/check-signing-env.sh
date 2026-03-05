@@ -32,4 +32,20 @@ if [[ ! -f "${store_file}" ]]; then
   exit 1
 fi
 
+if command -v keytool >/dev/null 2>&1; then
+  if ! keytool -list \
+    -keystore "${MYAPP_RELEASE_STORE_FILE}" \
+    -storepass "${MYAPP_RELEASE_STORE_PASSWORD}" \
+    -alias "${MYAPP_RELEASE_KEY_ALIAS}" \
+    -keypass "${MYAPP_RELEASE_KEY_PASSWORD}" \
+    >/dev/null 2>&1; then
+    echo "Keystore encontrado, pero alias/password no coinciden."
+    echo "Verificá:"
+    echo " - MYAPP_RELEASE_KEY_ALIAS"
+    echo " - MYAPP_RELEASE_KEY_PASSWORD"
+    echo " - MYAPP_RELEASE_STORE_PASSWORD"
+    exit 1
+  fi
+fi
+
 echo "OK: variables de firma cargadas y keystore disponible."

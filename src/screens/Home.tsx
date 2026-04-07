@@ -35,7 +35,7 @@ import { readCache, writeCache } from '../utils/cache';
 import { useScreenLoadAnalytics } from '../utils/useScreenLoadAnalytics';
 import NetInfo from '@react-native-community/netinfo';
 import { BlurView } from '@react-native-community/blur';
-import { consumePendingOtaNotice, setOtaUiHandler, type OtaManifest } from '../services/otaHotfix';
+import { consumePendingOtaNotice, setOtaUiHandler, checkAndApplyHotfix, type OtaManifest } from '../services/otaHotfix';
 import { requestPermissions } from '../components/Permissions';
 import { initPushNotifications } from '../services/pushService';
 import { useAuth } from '../context/AuthContext';
@@ -230,6 +230,8 @@ const Home = () => {
 
   useEffect(() => {
     showPendingOtaNotice();
+    // Forzar chequeo activo al arrancar la Home (debounceado 5 mins por la libreria)
+    checkAndApplyHotfix({ notify: true, skipIfForeground: false });
   }, [showPendingOtaNotice]);
 
   useFocusEffect(

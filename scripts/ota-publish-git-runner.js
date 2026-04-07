@@ -12,7 +12,7 @@ if (showHelp) {
   console.log('Usage: yarn ota:git');
   console.log('Optional env vars:');
   console.log('  OTA_GIT_REPO=https://github.com/<org>/<repo>.git');
-  console.log('  OTA_GIT_BRANCH=main');
+  console.log('  OTA_GIT_BRANCH=ota-production');
   console.log('  OTA_GIT_BUNDLE_PATH=ota/android/main.jsbundle');
   console.log('  OTA_GIT_ASSETS_PATH=ota/android');
   console.log('  OTA_GIT_TEMP_DIR=/tmp/farmadolores_ota_public');

@@ -25,3 +25,12 @@ export const adminDeleteUserData = async ({ uid, requestId, reason }: AdminAccou
     reason: reason || '',
   });
 };
+
+export const adminSendBroadcast = async (title: string, body: string, options?: { type?: string }) => {
+  const result = await invoke('adminSendBroadcast', {
+    title,
+    body,
+    type: options?.type || 'admin_broadcast',
+  }) as { sent?: number, ok?: boolean } | undefined;
+  return result;
+};

@@ -1,5 +1,5 @@
 // App.tsx
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { StatusBar, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -21,11 +21,33 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { PharmacyProvider } from './src/context/PharmacyContext';
 import { getApp } from '@react-native-firebase/app';
 import { initializeFirestore } from '@react-native-firebase/firestore';
+import { checkAppVersionStatus, startInAppUpdate } from './src/services/versionService';
+import ForceUpdateScreen from './src/screens/ForceUpdateScreen';
 
 const AppContent = () => {
   const { theme } = useTheme();
   const { colors, dark } = theme;
   const { user } = useAuth();
+  const [isOutdated, setIsOutdated] = useState(false);
+
+  useEffect(() => {
+    const performVersionCheck = async () => {
+      const status = await checkAppVersionStatus();
+      if (status.isOutdated) {
+        setIsOutdated(true);
+        // Intentamos también disparar el inmediato de Google Play por si acaso
+        startInAppUpdate('immediate');
+      } else {
+        // Chequeo silencioso de actualización flexible
+        startInAppUpdate('flexible');
+      }
+    };
+    performVersionCheck();
+  }, []);
+
+  if (isOutdated) {
+    return <ForceUpdateScreen />;
+  }
   const style = StyleSheet.create({
     container: {
       flex: 1,
@@ -107,6 +129,8 @@ const AppContent = () => {
   );
 };
 
+import { OTAErrorBoundary } from './src/components/common/OTAErrorBoundary';
+
 const App = () => {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -114,7 +138,9 @@ const App = () => {
         <ThemeContextProvider>
           <AuthContextProvider>
             <PharmacyProvider>
-              <AppContent />
+              <OTAErrorBoundary>
+                <AppContent />
+              </OTAErrorBoundary>
             </PharmacyProvider>
           </AuthContextProvider>
         </ThemeContextProvider>

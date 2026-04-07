@@ -1,5 +1,5 @@
 import OtaHotUpdate from 'react-native-ota-hot-update';
-import { Alert, AppState } from 'react-native';
+import { Alert, AppState, Platform } from 'react-native';
 import RNFS from 'react-native-fs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { doc, getDoc, getFirestore } from '@react-native-firebase/firestore';
@@ -24,15 +24,15 @@ export type OtaManifest = {
 const GIT_OTA_CONFIG: GitOtaConfig = {
   enabled: true,
   url: 'https://github.com/crazedev04/farmadolores.git',
-  branch: 'main',
+  branch: 'ota-production',
   bundlePath: 'ota/android/main.jsbundle',
   folderName: 'git_hot_update_v2',
   restartAfterInstall: false,
   notes: undefined,
 };
 
-// Activa alerts de diagnostico en release mientras probas.
-const SHOW_OTA_ALERTS = __DEV__;
+// Desactivado para producción.
+const SHOW_OTA_ALERTS = false;
 const db = getFirestore();
 const OTA_FLAG_TTL_MS = 1000 * 60;
 let otaRemoteFlagCache: { value: boolean; ts: number } = {
@@ -263,6 +263,16 @@ type OtaCheckOptions = {
 const runSafeHotfixCheck = async (options?: OtaCheckOptions) => {
   try {
     if (!GIT_OTA_CONFIG.enabled) return;
+    
+    // TEMPORAL: Forzamos el chequeo para pruebas, ignorando el interval de 5 min.
+    const isForced = options?.force === true;
+    const now = Date.now();
+    if (!isForced && (now - otaLastCheckAt < OTA_MIN_CHECK_INTERVAL_MS)) {
+       // Si querés que ignore el cooldown siempre durante la prueba, comenta la linea de abajo.
+       // return; 
+    }
+    otaLastCheckAt = now;
+
     const notifyUi = options?.notify !== false;
     const skipIfForeground = options?.skipIfForeground ?? true;
     const shouldSkipForForeground = !notifyUi && skipIfForeground && AppState.currentState === 'active';
@@ -281,7 +291,9 @@ const runSafeHotfixCheck = async (options?: OtaCheckOptions) => {
     if (!GIT_OTA_CONFIG.url || !GIT_OTA_CONFIG.bundlePath) return;
 
     otaRetryAttempted = false;
-    console.log('[OTA] check start', notifyUi ? 'notify' : 'silent');
+    if (__DEV__) {
+      console.log('[OTA] check start', notifyUi ? 'notify' : 'silent');
+    }
 
     const runGitUpdate = async () => {
       try {

@@ -53,6 +53,11 @@ export const showNotification = async (
       data: { ...data },
       id: notificationId,
     },
-    trigger
+    {
+      ...trigger,
+      alarmManager: {
+        allowWhileIdle: true,
+      },
+    }
   );
 };

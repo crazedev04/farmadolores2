@@ -117,4 +117,5 @@ export type RootStackParamList = {
   Favorites: undefined;
   EditProfile: undefined;
   WebView: { url: string; title?: string };
+  AdminPushBroadcast: undefined;
 };

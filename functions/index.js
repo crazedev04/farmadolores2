@@ -390,3 +390,30 @@ exports.onHomeUpdate = functions.firestore
 
     return null;
   });
+
+exports.adminSendBroadcast = functions.https.onCall(async (data, context) => {
+  ensureAdmin(context);
+  const title = asTrimmed(data?.title);
+  const body = asTrimmed(data?.body);
+  const type = asTrimmed(data?.type) || 'admin_broadcast';
+
+  if (!title || !body) {
+    throw new functions.https.HttpsError('invalid-argument', 'Title and body are required');
+  }
+
+  const result = await sendFilteredNotifications({
+    channel: 'updates',
+    payload: buildPayload(title, body, { type }),
+  });
+
+  await writeAdminAuditLog({
+    actorUid: context.auth.uid,
+    actorRole: 'admin',
+    action: 'admin_send_broadcast',
+    targetType: 'push',
+    targetId: 'all',
+    summary: `Broadcast sent: ${title} (to ${result.sent} devices)`,
+  });
+
+  return { ok: true, sent: result.sent };
+});

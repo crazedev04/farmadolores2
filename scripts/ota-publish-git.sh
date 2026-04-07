@@ -16,7 +16,7 @@ USAGE
 fi
 
 REPO="${OTA_GIT_REPO:-https://github.com/crazedev04/farmadolores.git}"
-BRANCH="${OTA_GIT_BRANCH:-main}"
+BRANCH="${OTA_GIT_BRANCH:-ota-production}"
 BUNDLE_PATH="${OTA_GIT_BUNDLE_PATH:-ota/android/main.jsbundle}"
 ASSETS_PATH="${OTA_GIT_ASSETS_PATH:-ota/android}"
 TEMP_DIR="${OTA_GIT_TEMP_DIR:-${TMPDIR:-/tmp}/farmadolores_ota_public}"
@@ -35,13 +35,25 @@ if [ ! -d "$TEMP_DIR/.git" ]; then
   if [ -d "$TEMP_DIR" ]; then
     rm -rf "$TEMP_DIR"
   fi
-  echo "Cloning public repo..."
-  git clone --branch "$BRANCH" "$REPO" "$TEMP_DIR"
+  echo "Configuring OTA repository ($BRANCH)..."
+  if git ls-remote --exit-code --heads "$REPO" "$BRANCH" >/dev/null 2>&1; then
+    echo "Branch exists remotely. Cloning only this branch..."
+    git clone --branch "$BRANCH" --single-branch "$REPO" "$TEMP_DIR"
+  else
+    echo "Creating new orphan branch: $BRANCH"
+    mkdir -p "$TEMP_DIR"
+    cd "$TEMP_DIR"
+    git init
+    git checkout --orphan "$BRANCH"
+    git remote add origin "$REPO"
+  fi
 else
-  echo "Updating public repo..."
-  git -C "$TEMP_DIR" fetch origin
-  git -C "$TEMP_DIR" checkout "$BRANCH"
-  git -C "$TEMP_DIR" reset --hard "origin/$BRANCH"
+  echo "Updating local repository..."
+  git -C "$TEMP_DIR" fetch origin || true
+  git -C "$TEMP_DIR" checkout "$BRANCH" 2>/dev/null || git -C "$TEMP_DIR" checkout -b "$BRANCH"
+  if git ls-remote --exit-code --heads "$REPO" "$BRANCH" >/dev/null 2>&1; then
+    git -C "$TEMP_DIR" reset --hard "origin/$BRANCH"
+  fi
   git -C "$TEMP_DIR" clean -fd
 fi
 

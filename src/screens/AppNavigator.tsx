@@ -41,6 +41,7 @@ import SuggestionsScreen from './SuggestionsScreen';
 import WebViewScreen from './WebViewScreen';
 import { logScreenView } from '../services/analytics';
 import FavoritesScreen from './FavoritesScreen';
+import AdminPushBroadcastScreen from './AdminPushBroadcastScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -182,6 +183,11 @@ const AppStack = () => {
         name="ActualizarTurnos"
         component={!roleLoading && isAdmin ? AdminTurnosScreen : NotAuthorizedScreen}
         options={{title: 'Turnos'}}
+      />
+      <Stack.Screen
+        name="AdminPushBroadcast"
+        component={!roleLoading && isAdmin ? AdminPushBroadcastScreen : NotAuthorizedScreen}
+        options={{ title: 'Enviar Notificación' }}
       />
       <Stack.Screen name="LocalDetail" component={LocalDetailScreen} options={{headerShown: false}} />
       <Stack.Screen name="Detail" component={DetailScreen} options={{headerShown: false}} />

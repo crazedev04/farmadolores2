@@ -1,43 +1,16 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import {
-  FirebaseAuthTypes,
-  getAuth,
-  getIdTokenResult,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  fetchSignInMethodsForEmail,
-  sendPasswordResetEmail,
-  signInWithCredential,
-  GoogleAuthProvider,
-  signOut,
-} from '@react-native-firebase/auth';
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc,
-  collection,
-  addDoc,
-  serverTimestamp,
-} from '@react-native-firebase/firestore';
+import { FirebaseAuthTypes, onAuthStateChanged, getIdTokenResult } from '@react-native-firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { useTheme } from './ThemeContext';
 import { Alert, Platform, ToastAndroid, Linking } from 'react-native';
-import DeviceInfo from 'react-native-device-info';
-import Geolocation from '@react-native-community/geolocation';
-import type { GeolocationResponse } from '@react-native-community/geolocation';
-import { check, PERMISSIONS, RESULTS } from 'react-native-permissions';
+import { AuthRepository } from '../services/AuthRepository';
 import { logEvent, logLogin, logSignUp, setUserId, setUserProperties } from '../services/analytics';
 
 // Configura Google Sign-In
 GoogleSignin.configure({
-  webClientId: '320257863836-7mq4mav5bst0iuraeahu2lpoinjrtc02.apps.googleusercontent.com', // Reemplaza con tu web client ID de Firebase console
+  webClientId: '320257863836-7mq4mav5bst0iuraeahu2lpoinjrtc02.apps.googleusercontent.com',
 });
-
-const authInstance = getAuth();
-const db = getFirestore();
 
 type AuthContextType = {
   user: FirebaseAuthTypes.User | null;
@@ -68,35 +41,47 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [loading, setLoading] = useState<boolean>(false);
   const [role, setRole] = useState<AuthContextType['role']>('guest');
   const [roleLoading, setRoleLoading] = useState<boolean>(false);
-  const isAdmin = role === 'admin';
-  const isGuest = role === 'guest';
   const [disabledAccount, setDisabledAccount] = useState(false);
 
+  const isAdmin = role === 'admin';
+  const isGuest = role === 'guest';
+
+  const notify = (message: string, long = false) => {
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, long ? ToastAndroid.LONG : ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Aviso', message);
+    }
+  };
+
+  const handleSignOut = async (message?: string) => {
+    await AuthRepository.signOut();
+    await AsyncStorage.removeItem('user');
+    setUser(null);
+    setIsAuth(false);
+    setUserId(null);
+    if (message) notify(message, true);
+  };
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(authInstance, async (user) => {
-      if (user) {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        const disabled = !!userDoc.data()?.disabled;
-        if (disabled) {
+    const unsubscribe = onAuthStateChanged(AuthRepository.authInstance, async (currentUser) => {
+      if (currentUser) {
+        const status = await AuthRepository.checkUserStatus(currentUser.uid);
+        if (status.disabled) {
           setDisabledAccount(true);
-          await signOut(authInstance);
-          await AsyncStorage.removeItem('user');
-          setUser(null);
-          setIsAuth(false);
-          setUserId(null);
-          notify('Cuenta desactivada. Contacta soporte si fue un error.', true);
+          await handleSignOut('Cuenta desactivada. Contacta soporte si fue un error.');
           return;
         }
+        
         setDisabledAccount(false);
-        setUser(user);
+        setUser(currentUser);
         setIsAuth(true);
-        setUserId(user.uid);
+        setUserId(currentUser.uid);
         logEvent('auth_state', { state: 'signed_in' });
-        try {
-          await ensureUserDoc(user);
-        } catch (error) {
-          console.error('Error ensuring user doc:', error);
-        }
+        
+        AuthRepository.ensureUserDoc(currentUser).catch(err => 
+          console.error('[AuthContext] sync failed:', err)
+        );
       } else {
         setUser(null);
         setIsAuth(false);
@@ -107,12 +92,10 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
     });
 
     return () => unsubscribe();
-    // keep subscription stable on mount/unmount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    const fetchRoleFromClaims = async () => {
+    const fetchRole = async () => {
       if (!user) {
         setRole('guest');
         setRoleLoading(false);
@@ -123,8 +106,9 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
       try {
         const tokenResult = await getIdTokenResult(user, true);
         const isAdminClaim = !!tokenResult?.claims?.admin;
-        setRole(isAdminClaim ? 'admin' : 'user');
-        setUserProperties({ role: isAdminClaim ? 'admin' : 'user' });
+        const currentRole = isAdminClaim ? 'admin' : 'user';
+        setRole(currentRole);
+        setUserProperties({ role: currentRole });
       } catch (error) {
         setRole('user');
         setUserProperties({ role: 'user' });
@@ -133,239 +117,43 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
     };
 
-    fetchRoleFromClaims();
+    fetchRole();
   }, [user]);
 
-  const notify = (message: string, long = false) => {
-    if (Platform.OS === 'android') {
-      ToastAndroid.show(message, long ? ToastAndroid.LONG : ToastAndroid.SHORT);
-    } else {
-      Alert.alert('Aviso', message);
-    }
-  };
-
-  const getDeviceSnapshot = async () => ({
-    brand: DeviceInfo.getBrand(),
-    model: DeviceInfo.getModel(),
-    systemName: DeviceInfo.getSystemName(),
-    systemVersion: DeviceInfo.getSystemVersion(),
-    deviceId: DeviceInfo.getDeviceId(),
-    appVersion: DeviceInfo.getVersion(),
-    buildNumber: DeviceInfo.getBuildNumber(),
-    isTablet: DeviceInfo.isTablet(),
-  });
-
-  const getCurrentPositionOnce = (options: {
-    enableHighAccuracy: boolean;
-    timeout: number;
-    maximumAge: number;
-  }) =>
-    new Promise<GeolocationResponse>((resolve, reject) => {
-      Geolocation.getCurrentPosition(resolve, reject, options);
-    });
-
-  const getLocationInfo = async () => {
-    try {
-      const permission =
-        Platform.OS === 'android'
-          ? PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION
-          : Platform.OS === 'ios'
-            ? PERMISSIONS.IOS.LOCATION_WHEN_IN_USE
-            : null;
-      if (!permission) return null;
-
-      const status = await check(permission);
-      if (status !== RESULTS.GRANTED) return null;
-
-      let coords: GeolocationResponse;
-      try {
-        coords = await getCurrentPositionOnce({
-          enableHighAccuracy: true,
-          timeout: 6000,
-          maximumAge: 60000,
-        });
-      } catch (error: any) {
-        // Fallback para dispositivos donde GPS tarda demasiado o no tiene fix preciso.
-        const shouldFallback = error?.code === 3 || error?.code === 2;
-        if (!shouldFallback) {
-          throw error;
-        }
-        coords = await getCurrentPositionOnce({
-          enableHighAccuracy: false,
-          timeout: 10000,
-          maximumAge: 5 * 60 * 1000,
-        });
-      }
-
-      const { latitude, longitude, accuracy } = coords.coords;
-      let city = '';
-      let region = '';
-      let country = '';
-
-      try {
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`,
-          {
-            headers: {
-              'User-Agent': 'FarmaDoloresApp/1.9.0',
-              'Accept-Language': 'es',
-            },
-          },
-        );
-        const json = await response.json();
-        const address = json?.address || {};
-        city = address.city || address.town || address.village || address.county || '';
-        region = address.state || '';
-        country = address.country || '';
-      } catch {
-        // Mejor esfuerzo: si no hay reverse geocode, guardamos solo coords
-      }
-
-      return {
-        coords: {
-          latitude,
-          longitude,
-          accuracy,
-        },
-        city,
-        region,
-        country,
-      };
-    } catch (error: any) {
-      const expected = error?.code === 1 || error?.code === 2 || error?.code === 3;
-      if (__DEV__ && !expected) {
-        console.log('[Auth] ubicación no disponible:', error?.message || error);
-      }
-      return null;
-    }
-  };
-
-  const ensureUserDoc = async (currentUser: FirebaseAuthTypes.User) => {
-    const userRef = doc(db, 'users', currentUser.uid);
-    const existing = await getDoc(userRef);
-    const existingData = existing.exists() ? existing.data() : null;
-    const device = await getDeviceSnapshot();
-    const payload = {
-      uid: currentUser.uid,
-      email: currentUser.email || '',
-      displayName: currentUser.displayName || '',
-      photoURL: currentUser.photoURL || '',
-      phoneNumber: currentUser.phoneNumber || '',
-      emailVerified: currentUser.emailVerified || false,
-      isAnonymous: currentUser.isAnonymous || false,
-      providerIds: (currentUser.providerData || []).map((provider) => provider.providerId),
-      providers: (currentUser.providerData || []).map((provider) => ({
-        providerId: provider.providerId,
-        uid: provider.uid || '',
-        displayName: provider.displayName || '',
-        email: provider.email || '',
-        phoneNumber: provider.phoneNumber || '',
-        photoURL: provider.photoURL || '',
-      })),
-      metadata: {
-        creationTime: currentUser.metadata?.creationTime || '',
-        lastSignInTime: currentUser.metadata?.lastSignInTime || '',
-      },
-      device,
-      createdAt: existingData?.createdAt || serverTimestamp(),
-      lastLoginAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-
-    await setDoc(userRef, payload, { merge: true });
-
-    getLocationInfo()
-      .then((location) => {
-        if (!location) return;
-        return setDoc(
-          userRef,
-          {
-            location: location.coords,
-            city: location.city || '',
-            region: location.region || '',
-            country: location.country || '',
-            locationUpdatedAt: serverTimestamp(),
-          },
-          { merge: true },
-        );
-      })
-      .catch((error) => {
-        if (__DEV__) {
-          console.log('[Auth] no se pudo guardar enriquecimiento de ubicación:', error);
-        }
-      });
-  };
-
-  const checkDisabledAndSignOut = async (uid: string) => {
-    const snapshot = await getDoc(doc(db, 'users', uid));
-    const disabled = !!snapshot.data()?.disabled;
-    if (disabled) {
-      setDisabledAccount(true);
-      await signOut(authInstance);
-      await AsyncStorage.removeItem('user');
-      setUser(null);
-      setIsAuth(false);
-      setUserId(null);
-      notify('Cuenta desactivada. Contacta soporte si fue un error.', true);
-      return true;
-    }
-    return false;
-  };
   const login = async (email: string, password: string) => {
-    if (!email || !password) {
-      notify('Email y contrasena requeridos');
-      return;
-    }
-
+    if (!email || !password) return notify('Email y contraseña requeridos');
     setLoading(true);
     try {
-      const credential = await signInWithEmailAndPassword(authInstance, email, password);
-      if (credential.user) {
-        const blocked = await checkDisabledAndSignOut(credential.user.uid);
-        if (blocked) return;
-        await ensureUserDoc(credential.user);
+      const cred = await AuthRepository.signIn(email, password);
+      if (cred.user) {
+        const status = await AuthRepository.checkUserStatus(cred.user.uid);
+        if (status.disabled) {
+          setDisabledAccount(true);
+          return await handleSignOut('Cuenta desactivada.');
+        }
+        await AuthRepository.ensureUserDoc(cred.user);
       }
       logLogin('password');
     } catch (error: any) {
-      notify(error.message || 'Error iniciando sesion', true);
-      console.error('Login error:', error);
+      notify(error.message || 'Error iniciando sesión', true);
       logEvent('login_error', { method: 'password' });
     } finally {
       setLoading(false);
     }
   };
 
-  
   const register = async (email: string, password: string) => {
-    if (!email || !password) {
-      notify('Email y contrasena requeridos');
-      return;
-    }
-
+    if (!email || !password) return notify('Email y contraseña requeridos');
     setLoading(true);
     try {
-      const credential = await createUserWithEmailAndPassword(authInstance, email, password);
-      if (credential.user) {
-        const blocked = await checkDisabledAndSignOut(credential.user.uid);
-        if (blocked) return;
-        await ensureUserDoc(credential.user);
+      const cred = await AuthRepository.signUp(email, password);
+      if (cred.user) {
+        await AuthRepository.ensureUserDoc(cred.user);
       }
       logSignUp('password');
     } catch (error: any) {
-      if (error?.code == 'auth/email-already-in-use') {
-        notify('Ese email ya esta registrado. Inicia sesion o recupera la contrasena.', true);
-        throw new Error('Ese email ya esta registrado.');
-      }
-      if (error?.code == 'auth/invalid-email') {
-        notify('Email invalido', true);
-        throw new Error('Email invalido.');
-      }
-      if (error?.code == 'auth/weak-password') {
-        notify('Contrasena debil. Usa una contrasena mas segura.', true);
-        throw new Error('Contrasena debil.');
-      }
-      notify(error.message || 'Error registrando usuario', true);
-      console.error('Register error:', error);
+      const msg = error?.code === 'auth/email-already-in-use' ? 'Email ya registrado.' : 'Error registrando usuario.';
+      notify(msg, true);
       logEvent('register_error', { method: 'password' });
       throw error;
     } finally {
@@ -374,156 +162,62 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const resetPassword = async (email: string) => {
-    if (!email) {
-      notify('Ingresa tu email para recuperar la contrasena');
-      return;
-    }
+    if (!email) return notify('Ingresa tu email');
     try {
-      await sendPasswordResetEmail(authInstance, email);
-      notify('Solicitud enviada. Revisa tu email y usa una contrasena segura', true);
+      await AuthRepository.sendResetEmail(email);
+      notify('Email de recuperación enviado.', true);
       logEvent('password_reset_requested');
     } catch (error: any) {
-      if (error.code === 'auth/invalid-email') {
-        notify('Email invalido', true);
-      } else if (error.code === 'auth/user-not-found') {
-        notify('No existe una cuenta con ese email', true);
-      } else if (error.code === 'auth/too-many-requests') {
-        notify('Demasiados intentos. Proba mas tarde', true);
-      } else {
-        notify(error.message || 'No se pudo enviar el email', true);
-      }
-      console.error('Reset password error:', error);
-    }
-  };
-
-  const disableAccount = async (reason?: string) => {
-    if (!user) {
-      notify('No hay usuario logueado', false);
-      return;
-    }
-    try {
-      const now = serverTimestamp();
-      await setDoc(
-        doc(db, 'users', user.uid),
-        {
-          disabled: true,
-          disabledAt: now,
-          disableReason: reason || '',
-          deleteStatus: 'scheduled',
-          deleteRequested: true,
-          deleteRequestedAt: now,
-          deleteAfterDays: 30,
-        },
-        { merge: true }
-      );
-      await addDoc(collection(db, 'accountRequests'), {
-        uid: user.uid,
-        email: user.email || '',
-        type: 'disable',
-        reason: reason || '',
-        createdAt: now,
-      });
-      const subject = encodeURIComponent('Solicitud de baja de cuenta');
-      const body = encodeURIComponent(
-        `Hola, quiero desactivar mi cuenta.\n\nUID: ${user.uid}\nEmail: ${user.email || ''}\nMotivo: ${reason || 'No especificado'}`
-      );
-      Linking.openURL(`mailto:crazedevs@gmail.com?subject=${subject}&body=${body}`).catch(() => {});
-      await signOut(authInstance);
-      await AsyncStorage.removeItem('user');
-      setUser(null);
-      setIsAuth(false);
-      setUserId(null);
-      setDisabledAccount(true);
-      notify('Cuenta desactivada. Tus datos se conservaran 30 dias antes de eliminarse.', true);
-      logEvent('account_disabled');
-    } catch (error: any) {
-      notify(error.message || 'No se pudo desactivar la cuenta', true);
-      console.error('Disable account error:', error);
+      notify(error.message || 'No se pudo enviar el email', true);
     }
   };
 
   const getSignInMethods = async (email: string) => {
     if (!email) return [];
-    try {
-      return await fetchSignInMethodsForEmail(authInstance, email);
-    } catch (error: any) {
-      console.error('Fetch sign-in methods error:', error);
-      return [];
-    }
+    return await AuthRepository.getMethodsForEmail(email);
   };
 
-  const requestFullDeletion = async (reason?: string) => {
-    if (!user) {
-      notify('No hay usuario logueado', false);
-      return;
-    }
+  const handleAccountRequest = async (type: 'disable' | 'delete', reason?: string) => {
+    if (!user) return notify('No hay usuario logueado');
     try {
-      const now = serverTimestamp();
-      await setDoc(
-        doc(db, 'users', user.uid),
-        {
-          disabled: true,
-          disabledAt: now,
-          deleteRequested: true,
-          deleteRequestedAt: now,
-          deleteAfterDays: 30,
-          deleteStatus: 'requested',
-          deleteReason: reason || '',
-        },
-        { merge: true }
-      );
-      await addDoc(collection(db, 'accountRequests'), {
-        uid: user.uid,
-        email: user.email || '',
-        type: 'delete',
-        reason: reason || '',
-        createdAt: now,
-      });
-      const subject = encodeURIComponent('Solicitud de eliminacion total de cuenta');
-      const body = encodeURIComponent(
-        `Hola, solicito eliminacion total de mi cuenta.\n\nUID: ${user.uid}\nEmail: ${user.email || ''}\nMotivo: ${reason || 'No especificado'}\n`
-      );
+      await AuthRepository.submitAccountRequest(user.uid, user.email || '', type, reason || '');
+      
+      const subject = encodeURIComponent(type === 'delete' ? 'Eliminación total de cuenta' : 'Baja de cuenta');
+      const body = encodeURIComponent(`UID: ${user.uid}\nEmail: ${user.email}\nMotivo: ${reason || 'No especificado'}`);
       Linking.openURL(`mailto:crazedevs@gmail.com?subject=${subject}&body=${body}`).catch(() => {});
-      await signOut(authInstance);
-      await AsyncStorage.removeItem('user');
-      setUser(null);
-      setIsAuth(false);
-      setUserId(null);
+      
+      await handleSignOut(type === 'delete' ? 'Solicitud de eliminación enviada' : 'Cuenta desactivada temporalmente');
       setDisabledAccount(true);
-      notify('Solicitud de eliminacion enviada', false);
-      logEvent('account_deletion_requested');
+      logEvent(type === 'delete' ? 'account_deletion_requested' : 'account_disabled');
     } catch (error: any) {
-      notify(error.message || 'No se pudo solicitar la eliminacion', true);
-      console.error('Request deletion error:', error);
+      notify(error.message || 'Error en la solicitud', true);
     }
   };
 
   const loginWithGoogle = async () => {
     setLoading(true);
     try {
-      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      await GoogleSignin.hasPlayServices();
       const userInfo: any = await GoogleSignin.signIn();
       const tokens = await GoogleSignin.getTokens();
       const idToken = userInfo?.idToken || tokens?.idToken;
-      if (!idToken) {
-        throw new Error('No se pudo obtener el token de Google. Proba nuevamente.');
-      }
-      const googleCredential = GoogleAuthProvider.credential(idToken);
-      const credential = await signInWithCredential(authInstance, googleCredential);
-      if (credential.user) {
-        const blocked = await checkDisabledAndSignOut(credential.user.uid);
-        if (blocked) return;
-        ensureUserDoc(credential.user).catch((error) => console.error('Error ensuring user doc:', error));
+      
+      if (!idToken) throw new Error('No se pudo obtener el token de Google.');
+      
+      const cred = await AuthRepository.signInWithGoogle(idToken);
+      if (cred.user) {
+        const status = await AuthRepository.checkUserStatus(cred.user.uid);
+        if (status.disabled) {
+          setDisabledAccount(true);
+          return await handleSignOut('Cuenta desactivada.');
+        }
+        await AuthRepository.ensureUserDoc(cred.user);
       }
       logLogin('google');
     } catch (error: any) {
-      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-        notify('Inicio de sesion cancelado.', false);
-        return;
+      if (error.code !== statusCodes.SIGN_IN_CANCELLED) {
+        notify(error.message || 'Error con Google Sign-In', true);
       }
-      notify(error.message || 'Error con Google Sign-In', true);
-      console.error('Google login error:', error);
-      logEvent('login_error', { method: 'google' });
     } finally {
       setLoading(false);
     }
@@ -532,13 +226,9 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const logout = async () => {
     setLoading(true);
     try {
-      await signOut(authInstance);
+      await AuthRepository.signOut();
       await GoogleSignin.signOut();
       logEvent('logout');
-    } catch (error: any) {
-      notify('Error cerrando sesion', true);
-      console.error('Logout error:', error);
-      logEvent('logout_error');
     } finally {
       setUser(null);
       setIsAuth(false);
@@ -564,8 +254,8 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
         register,
         getSignInMethods,
         resetPassword,
-        disableAccount,
-        requestFullDeletion,
+        disableAccount: (reason) => handleAccountRequest('disable', reason),
+        requestFullDeletion: (reason) => handleAccountRequest('delete', reason),
         loginWithGoogle,
         logout,
         setUser,
@@ -579,8 +269,6 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthContextProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthContextProvider');
   return context;
 };

@@ -13,6 +13,7 @@ import RegisterScreen from './RegisterScreen';
 import PrimerosAuxilios from './PrimeroAuxilios';
 import { RootStackParamList } from '../types/navigationTypes';
 import { useAuth } from '../context/AuthContext';
+import { NotAuthorizedScreen } from '../components/common/NotAuthorizedScreen';
 import SettingsScreen from './SettingsScreen';
 import Profile from './Profile';
 import OnboardingScreen from '../onboarding/OnboardingScreen';
@@ -41,34 +42,12 @@ import SuggestionsScreen from './SuggestionsScreen';
 import WebViewScreen from './WebViewScreen';
 import { logScreenView } from '../services/analytics';
 import FavoritesScreen from './FavoritesScreen';
+import AdminPushBroadcastScreen from './AdminPushBroadcastScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 type OnboardingStackProps = {
   setIsFirstLaunch: React.Dispatch<React.SetStateAction<boolean | null>>;
-};
-// Simple screen shown when user is not admin
-const NotAuthorizedScreen = () => {
-  const navigation = useNavigation();
-  const { theme } = useTheme();
-  const { colors } = theme;
-  const { isGuest } = useAuth();
-
-  return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: colors.background }}>
-      <Text style={{ color: colors.text, fontSize: 18, marginBottom: 12, textAlign: 'center' }}>
-        No tienes permisos para acceder a esta sección.
-      </Text>
-      {isGuest && (
-        <TouchableOpacity
-          style={{ backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: 20, borderRadius: 8 }}
-          onPress={() => navigation.navigate('Login' as never)}
-        >
-          <Text style={{ color: colors.buttonText || '#fff', fontWeight: 'bold' }}>Iniciar sesión</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
 };
 
 // Navigator for Onboarding Screens
@@ -182,6 +161,11 @@ const AppStack = () => {
         name="ActualizarTurnos"
         component={!roleLoading && isAdmin ? AdminTurnosScreen : NotAuthorizedScreen}
         options={{title: 'Turnos'}}
+      />
+      <Stack.Screen
+        name="AdminPushBroadcast"
+        component={!roleLoading && isAdmin ? AdminPushBroadcastScreen : NotAuthorizedScreen}
+        options={{ title: 'Enviar Notificación' }}
       />
       <Stack.Screen name="LocalDetail" component={LocalDetailScreen} options={{headerShown: false}} />
       <Stack.Screen name="Detail" component={DetailScreen} options={{headerShown: false}} />

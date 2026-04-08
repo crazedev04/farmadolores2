@@ -2,7 +2,7 @@ export const lightTheme = {
   dark: false,
   colors: {
     primary: '#0F172A',
-    background: '#F5F7FA',
+    background: '#F8FAFC', // Slightly softer background
     card: '#FFFFFF',
     text: '#0F172A',
     border: '#E2E8F0',
@@ -19,7 +19,30 @@ export const lightTheme = {
     error: '#EF4444',
     success: '#10B981',
     mutedText: '#64748B',
+    glassBackground: 'rgba(255, 255, 255, 0.7)',
+    glassBorder: 'rgba(255, 255, 255, 0.4)',
   },
+  spacing: {
+    xs: 4,
+    sm: 8,
+    md: 16,
+    lg: 24,
+    xl: 32,
+    xxl: 48,
+  },
+  shadows: {
+    sm: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 2 },
+    md: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 4 },
+    lg: { shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 15, elevation: 10 },
+  },
+  typography: {
+    // We can expand this with custom fonts (Inter/Roboto) if linked, for now standardizing weights
+    h1: { fontSize: 28, fontWeight: '700' as const },
+    h2: { fontSize: 24, fontWeight: '600' as const },
+    h3: { fontSize: 20, fontWeight: '600' as const },
+    body: { fontSize: 16, fontWeight: '400' as const },
+    small: { fontSize: 13, fontWeight: '400' as const },
+  }
 };
 
 export const darkTheme = {
@@ -28,14 +51,14 @@ export const darkTheme = {
     primary: '#E2E8F0',
     background: '#0B0F14',
     card: '#131A22',
-    text: '#E5E7EB',
-    border: '#1F2A37',
+    text: '#F8FAFC',
+    border: '#1E293B',
     notification: '#EF4444',
     buttonBackground: '#0099B3',
     buttonText: '#FFFFFF',
     inputBackground: '#0F172A',
-    placeholderText: '#64748B',
-    iconActive: '#E5E7EB',
+    placeholderText: '#475569',
+    iconActive: '#F8FAFC',
     iconInactive: '#64748B',
     tabBarBackground: '#0B0F14',
     tabBarBorder: '#111827',
@@ -43,5 +66,14 @@ export const darkTheme = {
     error: '#EF4444',
     success: '#10B981',
     mutedText: '#94A3B8',
+    glassBackground: 'rgba(11, 15, 20, 0.7)',
+    glassBorder: 'rgba(30, 41, 59, 0.6)',
   },
+  spacing: lightTheme.spacing,
+  shadows: {
+    sm: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.3, shadowRadius: 2, elevation: 2 },
+    md: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 6, elevation: 4 },
+    lg: { shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.5, shadowRadius: 15, elevation: 10 },
+  },
+  typography: lightTheme.typography,
 };

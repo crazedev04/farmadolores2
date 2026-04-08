@@ -1,303 +1,443 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View, TextInput, Linking } from 'react-native';
 import {
-  getFirestore,
+  Alert,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import {
+  FirebaseFirestoreTypes,
   collection,
-  query,
-  orderBy,
-  onSnapshot,
-  where,
-  getDocs,
-  doc,
   deleteDoc,
+  doc,
+  getDocs,
+  getFirestore,
+  onSnapshot,
+  orderBy,
+  query,
+  where,
 } from '@react-native-firebase/firestore';
-import { useTheme } from '../context/ThemeContext';
 import Icon from '@react-native-vector-icons/material-design-icons';
-import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
+import { useTheme } from '../context/ThemeContext';
 import { adminDeleteUserData, adminReactivateAccount } from '../services/adminService';
 import { accountActionSchema } from '../admin/validators';
-const db = getFirestore();
+import AdminList from '../components/admin/AdminList';
+import ConfirmDialog from '../components/admin/ConfirmDialog';
+import { writeAdminAuditLogSafe } from '../services/adminAuditService';
 
-const formatDate = (ts?: FirebaseFirestoreTypes.Timestamp | null) => {
-  if (!ts) return '';
-  const date = ts.toDate();
-  return date.toLocaleString('es-AR');
-};
+const db = getFirestore();
+const TYPE_FILTERS = ['all', 'disable', 'delete'] as const;
+
+type TypeFilter = typeof TYPE_FILTERS[number];
+
+type AccountRequestType = 'disable' | 'delete';
 
 type AccountRequest = {
   id: string;
   uid: string;
   email: string;
-  type: string;
+  type: AccountRequestType;
   reason?: string;
   createdAt?: FirebaseFirestoreTypes.Timestamp | null;
+};
+
+const formatDate = (ts?: FirebaseFirestoreTypes.Timestamp | null) => {
+  if (!ts) {
+    return '';
+  }
+  return ts.toDate().toLocaleString('es-AR');
+};
+
+const filterLabel = (value: TypeFilter) => {
+  if (value === 'disable') {
+    return 'Disable';
+  }
+  if (value === 'delete') {
+    return 'Eliminar';
+  }
+  return 'Todas';
 };
 
 const AdminAccountRequestsScreen: React.FC = () => {
   const { theme } = useTheme();
   const { colors } = theme;
+
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<AccountRequest[]>([]);
   const [searchEmail, setSearchEmail] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'disable' | 'delete'>('all');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [userDisabledMap, setUserDisabledMap] = useState<Record<string, boolean>>({});
+  const [workingActionKey, setWorkingActionKey] = useState<string | null>(null);
+  const [pendingDeleteRequest, setPendingDeleteRequest] = useState<AccountRequest | null>(null);
+  const [pendingDeleteData, setPendingDeleteData] = useState<AccountRequest | null>(null);
 
   useEffect(() => {
     const unsub = onSnapshot(
       query(collection(db, 'accountRequests'), orderBy('createdAt', 'desc')),
-        snapshot => {
-          const next = snapshot.docs.map(doc => {
-            const data = doc.data() as Omit<AccountRequest, 'id'>;
-            return {
-              id: doc.id,
-              uid: data.uid,
-              email: data.email || '',
-              type: data.type || 'disable',
-              reason: data.reason || '',
-              createdAt: data.createdAt || null,
-            };
-          });
-          setItems(next);
-          setLoading(false);
-        },
-        () => setLoading(false)
-      );
+      (snapshot) => {
+        const next = snapshot.docs.map((entry) => {
+          const data = entry.data() as Omit<AccountRequest, 'id' | 'type'> & { type?: string };
+          const type: AccountRequestType = data.type === 'delete' ? 'delete' : 'disable';
+          return {
+            id: entry.id,
+            uid: data.uid,
+            email: data.email || '',
+            type,
+            reason: data.reason || '',
+            createdAt: data.createdAt || null,
+          };
+        });
+        setItems(next);
+        setLoading(false);
+      },
+      () => setLoading(false),
+    );
 
     return () => unsub();
   }, []);
 
   useEffect(() => {
+    let mounted = true;
+
     const loadDisabled = async () => {
-      const uniqueUids = Array.from(new Set(items.map(item => item.uid).filter(Boolean)));
-      if (uniqueUids.length == 0) {
-        setUserDisabledMap({});
+      const uniqueUids = Array.from(new Set(items.map((item) => item.uid).filter(Boolean)));
+      if (uniqueUids.length === 0) {
+        if (mounted) {
+          setUserDisabledMap({});
+        }
         return;
       }
+
       try {
         const chunks: string[][] = [];
-        for (let i = 0; i < uniqueUids.length; i += 10) {
-          chunks.push(uniqueUids.slice(i, i + 10));
+        for (let index = 0; index < uniqueUids.length; index += 10) {
+          chunks.push(uniqueUids.slice(index, index + 10));
         }
-        const results: Record<string, boolean> = {};
+
+        const next: Record<string, boolean> = {};
         await Promise.all(
           chunks.map(async (chunk) => {
             const snap = await getDocs(query(collection(db, 'users'), where('uid', 'in', chunk)));
-            snap.docs.forEach(doc => {
-              const data = doc.data() as { uid?: string; disabled?: boolean };
+            snap.docs.forEach((entry) => {
+              const data = entry.data() as { uid?: string; disabled?: boolean };
               if (data.uid) {
-                results[data.uid] = !!data.disabled;
+                next[data.uid] = !!data.disabled;
               }
             });
-          })
+          }),
         );
-        setUserDisabledMap(results);
+
+        if (mounted) {
+          setUserDisabledMap(next);
+        }
       } catch {
-        setUserDisabledMap({});
+        if (mounted) {
+          setUserDisabledMap({});
+        }
       }
     };
 
     loadDisabled();
+
+    return () => {
+      mounted = false;
+    };
   }, [items]);
 
   const filteredItems = useMemo(() => {
     const term = searchEmail.trim().toLowerCase();
-    return items.filter(item => {
+    return items.filter((item) => {
       const matchesType = typeFilter === 'all' ? true : item.type === typeFilter;
-      const matchesEmail = term.length === 0 ? true : (item.email || '').toLowerCase().includes(term);
+      const matchesEmail = term.length === 0 ? true : item.email.toLowerCase().includes(term);
       return matchesType && matchesEmail;
     });
   }, [items, searchEmail, typeFilter]);
 
+  const parseRequest = (request: AccountRequest) => {
+    const parsed = accountActionSchema.safeParse({ uid: request.uid, requestId: request.id });
+    if (!parsed.success) {
+      Alert.alert('Error', parsed.error.issues[0]?.message || 'Solicitud invalida.');
+      return null;
+    }
+    return parsed.data;
+  };
+
   const handleReactivate = async (request: AccountRequest) => {
+    const parsed = parseRequest(request);
+    if (!parsed) {
+      return false;
+    }
+
+    setWorkingActionKey(`reactivate:${request.id}`);
     try {
-      const parsed = accountActionSchema.safeParse({ uid: request.uid, requestId: request.id });
-      if (!parsed.success) {
-        Alert.alert('Error', parsed.error.issues[0]?.message || 'Solicitud invalida.');
-        return false;
-      }
-      await adminReactivateAccount({
-        uid: parsed.data.uid,
-        requestId: parsed.data.requestId,
+      await adminReactivateAccount({ uid: parsed.uid, requestId: parsed.requestId });
+      writeAdminAuditLogSafe({
+        action: 'account_request_reactivate',
+        targetType: 'accountRequest',
+        targetId: request.id,
+        summary: `Reactivar cuenta ${request.uid} desde solicitud ${request.id}`,
       });
       return true;
     } catch {
       Alert.alert('Error', 'No se pudo reactivar la cuenta.');
       return false;
+    } finally {
+      setWorkingActionKey(null);
     }
   };
 
   const handleReactivateAndNotify = async (request: AccountRequest) => {
     const reactivated = await handleReactivate(request);
-    if (!reactivated || !request.email) return;
+    if (!reactivated) {
+      return;
+    }
+    if (!request.email) {
+      return;
+    }
+
     const subject = encodeURIComponent('Cuenta reactivada');
     const body = encodeURIComponent(
-      `Hola,
-
-Tu cuenta fue reactivada. Ya podes ingresar nuevamente.
-
-Email: ${request.email}
-UID: ${request.uid}
-`
+      `Hola,\n\nTu cuenta fue reactivada. Ya podes ingresar nuevamente.\n\nEmail: ${request.email}\nUID: ${request.uid}\n`,
     );
-    Linking.openURL(`mailto:${request.email}?subject=${subject}&body=${body}`).catch(() => {});
-  };
 
-  
-  const handleEliminarUserData = async (request: AccountRequest) => {
     try {
-      const parsed = accountActionSchema.safeParse({ uid: request.uid, requestId: request.id });
-      if (!parsed.success) {
-        Alert.alert('Error', parsed.error.issues[0]?.message || 'Solicitud invalida.');
+      const mailto = `mailto:${request.email}?subject=${subject}&body=${body}`;
+      const canOpen = await Linking.canOpenURL(mailto);
+      if (!canOpen) {
+        Alert.alert('No disponible', 'No se pudo abrir el cliente de correo.');
         return;
       }
-      await adminDeleteUserData({
-        uid: parsed.data.uid,
-        requestId: parsed.data.requestId,
-        reason: request.reason,
-      });
+      await Linking.openURL(mailto);
     } catch {
-      Alert.alert('Error', 'No se pudo eliminar los datos del usuario.');
+      Alert.alert('Error', 'No se pudo abrir el correo.');
     }
   };
 
-  const handleEliminarRequest = async (request: AccountRequest) => {
+  const confirmDeleteUserData = async () => {
+    if (!pendingDeleteData) {
+      return;
+    }
+
+    const selected = pendingDeleteData;
+    setPendingDeleteData(null);
+    const parsed = parseRequest(selected);
+    if (!parsed) {
+      return;
+    }
+
+    setWorkingActionKey(`deleteData:${selected.id}`);
     try {
-      await deleteDoc(doc(db, 'accountRequests', request.id));
-    } catch (error) {
+      await adminDeleteUserData({
+        uid: parsed.uid,
+        requestId: parsed.requestId,
+        reason: selected.reason,
+      });
+      writeAdminAuditLogSafe({
+        action: 'account_request_delete_data',
+        targetType: 'accountRequest',
+        targetId: selected.id,
+        summary: `Eliminar datos para ${selected.uid} desde solicitud ${selected.id}`,
+      });
+    } catch {
+      Alert.alert('Error', 'No se pudo eliminar los datos del usuario.');
+    } finally {
+      setWorkingActionKey(null);
+    }
+  };
+
+  const confirmDeleteRequest = async () => {
+    if (!pendingDeleteRequest) {
+      return;
+    }
+
+    const selected = pendingDeleteRequest;
+    setPendingDeleteRequest(null);
+    setWorkingActionKey(`deleteRequest:${selected.id}`);
+    try {
+      await deleteDoc(doc(db, 'accountRequests', selected.id));
+      writeAdminAuditLogSafe({
+        action: 'account_request_delete',
+        targetType: 'accountRequest',
+        targetId: selected.id,
+        summary: `Eliminar solicitud ${selected.id} para ${selected.uid}`,
+      });
+    } catch {
       Alert.alert('Error', 'No se pudo eliminar la solicitud.');
+    } finally {
+      setWorkingActionKey(null);
     }
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}> 
+    <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
       <Text style={[styles.title, { color: colors.text }]}>Solicitudes de cuenta</Text>
+
       <View style={styles.filters}>
         <TextInput
-          style={[styles.searchInput, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
+          style={[
+            styles.searchInput,
+            {
+              backgroundColor: colors.inputBackground,
+              borderColor: colors.border,
+              color: colors.text,
+            },
+          ]}
           placeholder="Buscar por email"
           placeholderTextColor={colors.placeholderText}
           value={searchEmail}
           onChangeText={setSearchEmail}
           autoCapitalize="none"
         />
+
         <View style={styles.filterRow}>
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              { backgroundColor: typeFilter === 'all' ? colors.buttonBackground : colors.card, borderColor: colors.border },
-            ]}
-            onPress={() => setTypeFilter('all')}
-          >
-            <Text style={{ color: typeFilter === 'all' ? colors.buttonText || '#fff' : colors.text, fontWeight: '700' }}>
-              Todas
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              { backgroundColor: typeFilter === 'disable' ? colors.buttonBackground : colors.card, borderColor: colors.border },
-            ]}
-            onPress={() => setTypeFilter('disable')}
-          >
-            <Text style={{ color: typeFilter === 'disable' ? colors.buttonText || '#fff' : colors.text, fontWeight: '700' }}>
-              Disable
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              { backgroundColor: typeFilter === 'delete' ? colors.buttonBackground : colors.card, borderColor: colors.border },
-            ]}
-            onPress={() => setTypeFilter('delete')}
-          >
-            <Text style={{ color: typeFilter === 'delete' ? colors.buttonText || '#fff' : colors.text, fontWeight: '700' }}>
-              Eliminar
-            </Text>
-          </TouchableOpacity>
+          {TYPE_FILTERS.map((value) => {
+            const active = typeFilter === value;
+            return (
+              <TouchableOpacity
+                key={value}
+                style={[
+                  styles.filterChip,
+                  {
+                    backgroundColor: active ? colors.buttonBackground : colors.card,
+                    borderColor: colors.border,
+                  },
+                ]}
+                onPress={() => setTypeFilter(value)}
+              >
+                <Text style={[styles.filterText, { color: active ? colors.buttonText || '#fff' : colors.text }]}>
+                  {filterLabel(value)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
-      {loading ? (
-        <ActivityIndicator color={colors.primary} />
-      ) : (
-        <FlatList
-          data={filteredItems}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          ListEmptyComponent={
-            <Text style={[styles.emptyText, { color: colors.mutedText || colors.placeholderText }]}>No hay solicitudes.</Text>
-          }
-          renderItem={({ item }) => (
-            <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}> 
-              <View style={styles.rowBetween}>
-                <Text style={[styles.email, { color: colors.text }]}>{item.email || 'Sin email'}</Text>
-                <View style={[styles.badge, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}> 
-                  <Text style={[styles.badgeText, { color: colors.text }]}>{item.type}</Text>
+
+      <AdminList loading={loading} empty={filteredItems.length === 0} emptyText="No hay solicitudes.">
+        <View style={styles.listWrap}>
+          {filteredItems.map((item) => {
+            const rowBusy = !!workingActionKey && workingActionKey.endsWith(`:${item.id}`);
+            return (
+              <View key={item.id} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={styles.rowBetween}>
+                  <Text style={[styles.email, { color: colors.text }]}>{item.email || 'Sin email'}</Text>
+                  <View style={[styles.badge, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
+                    <Text style={[styles.badgeText, { color: colors.text }]}>{item.type}</Text>
+                  </View>
+                </View>
+
+                {item.reason ? <Text style={[styles.reason, { color: colors.text }]}>Motivo: {item.reason}</Text> : null}
+
+                <Text style={[styles.meta, { color: colors.mutedText || colors.placeholderText }]}>UID: {item.uid}</Text>
+                {item.createdAt ? (
+                  <Text style={[styles.meta, { color: colors.mutedText || colors.placeholderText }]}>Fecha: {formatDate(item.createdAt)}</Text>
+                ) : null}
+
+                <View style={styles.statusRow}>
+                  <Text style={[styles.statusText, { color: colors.mutedText || colors.placeholderText }]}>
+                    Estado: {userDisabledMap[item.uid] ? 'Desactivada' : 'Activa'}
+                    {item.type === 'delete' ? ' · Solicita eliminacion' : ''}
+                  </Text>
+                  {item.type === 'delete' ? (
+                    <Icon name="alert-circle-outline" size={16} color={colors.error || '#dc2626'} />
+                  ) : null}
+                </View>
+
+                <View style={styles.actions}>
+                  <TouchableOpacity
+                    style={[
+                      styles.actionButton,
+                      { backgroundColor: colors.buttonBackground },
+                      rowBusy ? styles.disabledOpacity : null,
+                    ]}
+                    onPress={() => handleReactivate(item)}
+                    disabled={rowBusy}
+                  >
+                    <Icon name="account-check-outline" size={18} color={colors.buttonText || '#fff'} />
+                    <Text style={[styles.actionText, { color: colors.buttonText || '#fff' }]}>Reactivar</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.actionGhost,
+                      { borderColor: colors.border },
+                      rowBusy ? styles.disabledOpacity : null,
+                    ]}
+                    onPress={() => handleReactivateAndNotify(item)}
+                    disabled={rowBusy}
+                  >
+                    <Icon name="email-outline" size={18} color={colors.text} />
+                    <Text style={[styles.actionGhostText, { color: colors.text }]}>Reactivar y notificar</Text>
+                  </TouchableOpacity>
+
+                  {item.type === 'delete' ? (
+                    <TouchableOpacity
+                      style={[
+                        styles.actionButton,
+                        { backgroundColor: colors.error || '#dc2626' },
+                        rowBusy ? styles.disabledOpacity : null,
+                      ]}
+                      onPress={() => setPendingDeleteData(item)}
+                      disabled={rowBusy}
+                    >
+                      <Icon name="delete-forever-outline" size={18} color={colors.buttonText || '#fff'} />
+                      <Text style={[styles.actionText, { color: colors.buttonText || '#fff' }]}>Eliminar datos</Text>
+                    </TouchableOpacity>
+                  ) : null}
+
+                  <TouchableOpacity
+                    style={[
+                      styles.actionGhost,
+                      { borderColor: colors.border },
+                      rowBusy ? styles.disabledOpacity : null,
+                    ]}
+                    onPress={() => setPendingDeleteRequest(item)}
+                    disabled={rowBusy}
+                  >
+                    <Icon name="trash-can-outline" size={18} color={colors.error || '#dc2626'} />
+                    <Text style={[styles.actionGhostText, { color: colors.error || '#dc2626' }]}>Eliminar solicitud</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
-              {item.reason ? (
-                <Text style={[styles.reason, { color: colors.text }]}>Motivo: {item.reason}</Text>
-              ) : null}
-              <Text style={[styles.uid, { color: colors.mutedText || colors.placeholderText }]}>UID: {item.uid}</Text>
-              {!!item.createdAt && (
-                <Text style={[styles.date, { color: colors.mutedText || colors.placeholderText }]}>
-                  Fecha: {formatDate(item.createdAt)}
-                </Text>
-              )}
-              <View style={styles.statusRow}>
-                <Text style={[styles.statusText, { color: colors.mutedText || colors.placeholderText }]}>
-                  Estado: {userDisabledMap[item.uid] ? 'Desactivada' : 'Activa'}{item.type === 'delete' ? ' · Solicita eliminacion' : ''}
-                </Text>
-                {item.type === 'delete' && (
-                  <Icon name="alert-circle-outline" size={16} color={colors.error} />
-                )}
-              </View>
-              <View style={styles.actions}>
-                <TouchableOpacity
-                  style={[styles.actionButton, { backgroundColor: colors.buttonBackground }]}
-                  onPress={() => handleReactivate(item)}
-                >
-                  <Icon name="account-check-outline" size={18} color={colors.buttonText || '#fff'} />
-                  <Text style={[styles.actionText, { color: colors.buttonText || '#fff' }]}>Reactivar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionGhost, { borderColor: colors.border }]}
-                  onPress={() => handleReactivateAndNotify(item)}
-                >
-                  <Icon name="email-outline" size={18} color={colors.text} />
-                  <Text style={[styles.actionGhostText, { color: colors.text }]}>Reactivar y notificar</Text>
-                </TouchableOpacity>
-                {item.type === 'delete' && (
-                  <TouchableOpacity
-                    style={[styles.actionButton, { backgroundColor: colors.error }]}
-                    onPress={() =>
-                      Alert.alert('Eliminar definitivamente', 'Esto borra los datos de Firestore. Esta accion es irreversible.', [
-                        { text: 'Cancelar', style: 'cancel' },
-                        { text: 'Eliminar', style: 'destructive', onPress: () => handleEliminarUserData(item) },
-                      ])
-                    }
-                  >
-                    <Icon name="delete-forever-outline" size={18} color={colors.buttonText || '#fff'} />
-                    <Text style={[styles.actionText, { color: colors.buttonText || '#fff' }]}>Eliminar datos</Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity
-                  style={[styles.actionGhost, { borderColor: colors.border }]}
-                  onPress={() =>
-                    Alert.alert('Eliminar solicitud', '¿Seguro que queres borrar esta solicitud?', [
-                      { text: 'Cancelar', style: 'cancel' },
-                      { text: 'Eliminar', style: 'destructive', onPress: () => handleEliminarRequest(item) },
-                    ])
-                  }
-                >
-                  <Icon name="trash-can-outline" size={18} color={colors.error} />
-                  <Text style={[styles.actionGhostText, { color: colors.error }]}>Eliminar</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-        />
-      )}
-    </View>
+            );
+          })}
+        </View>
+      </AdminList>
+
+      <ConfirmDialog
+        visible={!!pendingDeleteData}
+        title="Eliminar datos del usuario"
+        message={
+          pendingDeleteData
+            ? `Se eliminaran los datos de ${pendingDeleteData.email || pendingDeleteData.uid}. Esta accion es irreversible.`
+            : ''
+        }
+        confirmText="Eliminar datos"
+        confirmDestructive
+        loading={!!workingActionKey}
+        onCancel={() => setPendingDeleteData(null)}
+        onConfirm={confirmDeleteUserData}
+      />
+
+      <ConfirmDialog
+        visible={!!pendingDeleteRequest}
+        title="Eliminar solicitud"
+        message={
+          pendingDeleteRequest
+            ? `Se eliminara la solicitud ${pendingDeleteRequest.id}.`
+            : ''
+        }
+        confirmText="Eliminar"
+        confirmDestructive
+        loading={!!workingActionKey}
+        onCancel={() => setPendingDeleteRequest(null)}
+        onConfirm={confirmDeleteRequest}
+      />
+    </ScrollView>
   );
 };
 
@@ -305,11 +445,11 @@ export default AdminAccountRequestsScreen;
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     padding: 20,
+    paddingBottom: 24,
   },
   title: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
     marginBottom: 12,
   },
@@ -327,6 +467,7 @@ const styles = StyleSheet.create({
   filterRow: {
     flexDirection: 'row',
     gap: 8,
+    flexWrap: 'wrap',
   },
   filterChip: {
     borderWidth: 1,
@@ -334,13 +475,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 6,
   },
-  list: {
-    gap: 12,
-    paddingBottom: 20,
+  filterText: {
+    fontWeight: '700',
+    fontSize: 13,
   },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 20,
+  listWrap: {
+    gap: 12,
   },
   card: {
     borderRadius: 14,
@@ -352,19 +492,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 8,
   },
   email: {
     fontSize: 15,
     fontWeight: '700',
+    flex: 1,
   },
   reason: {
     fontSize: 12,
     fontWeight: '600',
   },
-  uid: {
-    fontSize: 12,
-  },
-  date: {
+  meta: {
     fontSize: 12,
   },
   statusRow: {
@@ -375,6 +514,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 12,
+    flex: 1,
   },
   badge: {
     borderRadius: 999,
@@ -401,6 +541,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
     flex: 1,
+    minWidth: 150,
   },
   actionText: {
     fontWeight: '700',
@@ -415,9 +556,13 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     flex: 1,
+    minWidth: 170,
   },
   actionGhostText: {
     fontWeight: '700',
     fontSize: 13,
+  },
+  disabledOpacity: {
+    opacity: 0.7,
   },
 });

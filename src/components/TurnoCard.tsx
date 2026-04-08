@@ -7,6 +7,7 @@ import { DateTime } from 'luxon';
 import Icon from '@react-native-vector-icons/material-design-icons';
 import { openMapsLink } from '../utils/openMapsLink';
 import { logEvent } from '../services/analytics';
+import { getCoordsFromPharmacyLike } from '../utils/geo';
 
 function printFranjas(franjas: { abre: string, cierra: string }[]) {
   if (!franjas || !franjas.length) return "Cerrado";
@@ -166,10 +167,14 @@ const TurnoCard: React.FC<TurnoCardProps> = ({
   };
 
   const openMaps = () => {
-    const lat = item.gps?.latitude;
-    const lng = item.gps?.longitude;
+    const { lat, lng } = getCoordsFromPharmacyLike(item);
     logEvent('pharmacy_map', { source: 'turno_card', pharmacy_id: item.id, name: item.name });
-    openMapsLink(navigation, { address: item.dir, lat, lng, title: 'Mapa' });
+    openMapsLink(navigation, {
+      address: item.dir,
+      lat: lat ?? undefined,
+      lng: lng ?? undefined,
+      title: 'Mapa',
+    });
   };
 
   return (

@@ -10,6 +10,7 @@ import Geolocation from '@react-native-community/geolocation';
 import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 import { getFirestore, doc, onSnapshot } from '@react-native-firebase/firestore';
 import { logEvent } from '../services/analytics';
+import { getCoordsFromPharmacyLike } from '../utils/geo';
 
 type Coords = { lat: number; lng: number };
 const db = getFirestore();
@@ -130,9 +131,8 @@ const Turno: React.FC = () => {
   }, []);
 
   const distanceKm = useMemo(() => {
-    if (!userLocation || !matchingPharmacy?.gps) return null;
-    const lat = matchingPharmacy.gps?.latitude;
-    const lng = matchingPharmacy.gps?.longitude;
+    if (!userLocation || !matchingPharmacy) return null;
+    const { lat, lng } = getCoordsFromPharmacyLike(matchingPharmacy);
     if (lat == null || lng == null) return null;
     return haversineKm(userLocation, { lat, lng });
   }, [userLocation, matchingPharmacy]);

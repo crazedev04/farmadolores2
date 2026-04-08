@@ -14,6 +14,7 @@ import { logEvent } from '../services/analytics';
 import { readCache, writeCache } from '../utils/cache';
 import { useScreenLoadAnalytics } from '../utils/useScreenLoadAnalytics';
 import NetInfo from '@react-native-community/netinfo';
+import { getCoordsFromPharmacyLike } from '../utils/geo';
 const db = getFirestore();
 
 type Coords = { lat: number; lng: number };
@@ -153,8 +154,7 @@ const Farmacias: React.FC = () => {
     if (!userLocation) return {};
     const map: Record<string, number> = {};
     farmacias.forEach((item) => {
-      const lat = item.gps?.latitude;
-      const lng = item.gps?.longitude;
+      const { lat, lng } = getCoordsFromPharmacyLike(item);
       if (lat == null || lng == null) return;
       map[item.id] = haversineKm(userLocation, { lat, lng });
     });

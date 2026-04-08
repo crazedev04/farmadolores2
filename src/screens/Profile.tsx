@@ -10,6 +10,7 @@ import AdBanner from '../components/ads/AdBanner';
 import { BannerAdSize } from 'react-native-google-mobile-ads';
 import SettingsScreen from './SettingsScreen';
 import { openWebLink } from '../utils/openWebLink';
+import { GlassCard } from '../components/common/GlassCard';
 const db = getFirestore();
 
 const DEFAULT_CAFECITO_URL = 'https://cafecito.app/crazedev';
@@ -62,7 +63,7 @@ const Profile: React.FC = () => {
         )}
       </View>
       <ScrollView contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.profileCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <GlassCard style={styles.profileCard}>
           <Image
             style={[styles.profileImage, { borderColor: colors.primary, backgroundColor: colors.card }]}
             source={{ uri: user?.photoURL || 'https://via.placeholder.com/150' }}
@@ -72,9 +73,9 @@ const Profile: React.FC = () => {
           <Text style={[styles.bio, { color: colors.text }]}>
             Gracias por usar nuestra aplicacion. Tu confianza nos ayuda a mejorar cada dia.
           </Text>
-        </View>
+        </GlassCard>
 
-        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <GlassCard style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Apoyanos</Text>
           {hasCafecito ? (
             <TouchableOpacity style={[styles.cafecitoButton, { backgroundColor: colors.buttonBackground }]} onPress={handleCafecitoPress}>
@@ -95,12 +96,12 @@ const Profile: React.FC = () => {
             <Text style={[styles.adminEditButtonText, { color: colors.buttonText }]}>Panel Admin</Text>
           </TouchableOpacity>
         )}
-        </View>
+        </GlassCard>
 
 
 
         {isGuest && (
-          <View style={[styles.section, styles.authActions, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <GlassCard style={[styles.section, styles.authActions]}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Cuenta</Text>
             <TouchableOpacity
               style={[styles.authButton, { backgroundColor: colors.buttonBackground }]}
@@ -109,12 +110,12 @@ const Profile: React.FC = () => {
               <Text style={styles.authButtonText}>Iniciar sesion</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.authButton, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}
+              style={[styles.authButton, { backgroundColor: colors.glassBackground, borderColor: colors.glassBorder, borderWidth: 1 }]}
               onPress={() => navigation.navigate('Register')}
             >
               <Text style={[styles.authButtonText, { color: colors.text }]}>Crear cuenta</Text>
             </TouchableOpacity>
-          </View>
+          </GlassCard>
         )}
 
         

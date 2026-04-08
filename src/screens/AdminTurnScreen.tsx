@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Alert, ScrollView
+  ActivityIndicator, Alert, ScrollView, ToastAndroid, Platform
 } from 'react-native';
 import { getFirestore, collection, query, orderBy, limit, startAfter, where, getDocs, updateDoc, doc } from '@react-native-firebase/firestore';
 import PickerTurno from '../components/PikerTurno'; // Cambia ruta si es necesario
@@ -149,10 +149,20 @@ const AdminCambiarTurnoFarmacia: React.FC = () => {
     }
     setLoading(true);
     try {
-      await updateDoc(doc(db, 'farmacias', farmaciaSeleccionada.id), { turn: turnos }); // Firebase convierte Date[] a Timestamp[]
-      Alert.alert('¡Listo!', `Turnos actualizados para "${farmaciaSeleccionada.name}"`);
+      await updateDoc(doc(db, 'farmacias', farmaciaSeleccionada.id), { turn: turnos }); 
+      
+      const updatedFarmacia = { ...farmaciaSeleccionada, turn: turnos };
+      setFarmaciaSeleccionada(updatedFarmacia);
+      setFarmacias(prev => prev.map(f => f.id === updatedFarmacia.id ? updatedFarmacia : f));
+      setFarmaciasListado(prev => prev.map(f => f.id === updatedFarmacia.id ? updatedFarmacia : f));
+
+      if (Platform.OS === 'android') {
+        ToastAndroid.show(`Turnos de ${farmaciaSeleccionada.name} guardados`, ToastAndroid.SHORT);
+      } else {
+        Alert.alert('¡Listo!', `Turnos actualizados para "${farmaciaSeleccionada.name}"`);
+      }
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Ocurrió un error');
+      Alert.alert('Error', e.message || 'Ocurrio un error');
     } finally {
       setLoading(false);
     }

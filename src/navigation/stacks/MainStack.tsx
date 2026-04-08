@@ -1,6 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { MainStackParamList } from '../types';
+import { MainStackParamList } from '../../types/navigationTypes';
 
 // Screens
 import BottomTabs from '../../components/BottomTabs';
@@ -28,7 +28,7 @@ const Stack = createNativeStackNavigator<MainStackParamList>();
  */
 export const MainStack = () => {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator id={undefined} screenOptions={{ headerShown: false }}>
       <Stack.Screen name="BottomTabs" component={BottomTabs} />
       <Stack.Screen name="Home" component={Home} />
       <Stack.Screen name="Farmacias" component={Farmacias} />

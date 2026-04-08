@@ -17,7 +17,7 @@ import Icon from '@react-native-vector-icons/material-design-icons';
 import { GlassCard } from '../components/common/GlassCard';
 import { adminSendBroadcast } from '../services/adminService';
 
-const AdminPushBroadcastScreen = () => {
+const AdminPushBroadcastScreen: React.FC = () => {
   const { theme } = useTheme();
   const { colors } = theme;
   const navigation = useNavigation();
@@ -56,8 +56,9 @@ const AdminPushBroadcastScreen = () => {
               setTitle('');
               setBody('');
               navigation.goBack();
-            } catch (error: any) {
-              Alert.alert('Error al enviar', error.message || 'Ocurrió un error inesperado');
+            } catch (error: unknown) {
+              const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error inesperado';
+              Alert.alert('Error al enviar', errorMessage);
             } finally {
               setLoading(false);
             }

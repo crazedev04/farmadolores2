@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View, Animated, TextInput, Alert, ToastAndroid, ActivityIndicator, Platform } from 'react-native';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import Icon from '@react-native-vector-icons/material-design-icons';
-import { AdminStackParamList } from '../navigation/types';
+import { AdminStackParamList } from '../types/navigationTypes';
 import { useTheme } from '../context/ThemeContext';
 import { useFeatureFlags } from '../services/featureFlags';
 import { GlassCard } from '../components/common/GlassCard';
@@ -114,8 +114,9 @@ const AdminPanelScreen: React.FC = () => {
       } else {
         Alert.alert('Éxito', 'Versión mínima actualizada correctamente.');
       }
-    } catch (e: any) {
-      Alert.alert('Error', 'No se pudo actualizar la versión: ' + e.message);
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : 'Error desconocido';
+      Alert.alert('Error', 'No se pudo actualizar la versión: ' + errorMessage);
     } finally {
       setLoadingVersion(false);
     }

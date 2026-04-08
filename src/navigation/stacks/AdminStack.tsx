@@ -1,10 +1,8 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { AdminStackParamList } from '../types';
+import { AdminStackParamList } from '../../types/navigationTypes';
 import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
-import { View, Text, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { NotAuthorizedScreen } from '../../components/common/NotAuthorizedScreen';
 
 // Admin Screens
 import AdminPanelScreen from '../../screens/adminPanelScreen';
@@ -23,29 +21,6 @@ import AdminPushBroadcastScreen from '../../screens/AdminPushBroadcastScreen';
 import { BotonActualizarHorariosTodos } from '../../components/BotonActualizarHorariosTodos';
 
 const Stack = createNativeStackNavigator<AdminStackParamList>();
-
-const NotAuthorizedScreen = () => {
-  const navigation = useNavigation();
-  const { theme } = useTheme();
-  const { colors } = theme;
-  const { isGuest } = useAuth();
-
-  return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: colors.background }}>
-      <Text style={{ color: colors.text, fontSize: 18, marginBottom: 12, textAlign: 'center' }}>
-        No tienes permisos para acceder a esta sección.
-      </Text>
-      {isGuest && (
-        <TouchableOpacity
-          style={{ backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: 20, borderRadius: 8 }}
-          onPress={() => (navigation as any).navigate('Login')}
-        >
-          <Text style={{ color: colors.buttonText || '#fff', fontWeight: 'bold' }}>Iniciar sesión</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-};
 
 /**
  * Admin Stack: Secure flow for administrative operations.

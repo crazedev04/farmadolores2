@@ -21,11 +21,11 @@ import { logEvent } from '../services/analytics';
 const ZONE = 'America/Argentina/Buenos_Aires';
 
 const isOnDuty = (item: Farmacia) => {
-  if (!Array.isArray(item?.turn)) return false;
+  if (!Array.isArray(item?.turn)) {return false;}
   const now = DateTime.local().setZone(ZONE);
   return item.turn.some((turn) => {
     const date = turn && typeof turn.toDate === 'function' ? turn.toDate() : null;
-    if (!date) return false;
+    if (!date) {return false;}
     const start = DateTime.fromJSDate(date).setZone(ZONE).set({
       hour: 8,
       minute: 30,
@@ -74,16 +74,16 @@ const FavoritesScreen: React.FC = () => {
       };
     });
     merged.sort((a, b) => {
-      if (a.onDuty !== b.onDuty) return a.onDuty ? -1 : 1;
+      if (a.onDuty !== b.onDuty) {return a.onDuty ? -1 : 1;}
       return a.favorite.name.localeCompare(b.favorite.name);
     });
     return merged;
   }, [favorites, farmacias]);
 
   const callPhone = (phone?: string | number) => {
-    if (!phone) return;
+    if (!phone) {return;}
     const clean = String(phone).replace(/[^\d+]/g, '');
-    if (!clean) return;
+    if (!clean) {return;}
     Linking.openURL(`tel:${clean}`).catch(() => null);
   };
 
@@ -134,7 +134,7 @@ const FavoritesScreen: React.FC = () => {
               <TouchableOpacity
                 style={[styles.action, { backgroundColor: colors.buttonBackground }]}
                 onPress={() => {
-                  if (!item.full) return;
+                  if (!item.full) {return;}
                   logEvent('favorite_open', { pharmacy_id: item.full.id, source: 'favorites' });
                   navigation.navigate('Detail', { farmacia: item.full });
                 }}

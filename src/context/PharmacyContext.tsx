@@ -66,7 +66,7 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
         error => {
           console.error('Error onSnapshot: ', error);
           setLoading(false);
-          if (retryTimer) return;
+          if (retryTimer) {return;}
           retryTimer = setTimeout(() => {
             retryTimer = null;
             subscribe();

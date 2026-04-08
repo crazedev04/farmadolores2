@@ -1,5 +1,5 @@
 import OtaHotUpdate from 'react-native-ota-hot-update';
-import { Alert, AppState, Platform } from 'react-native';
+import { Alert, AppState } from 'react-native';
 import RNFS from 'react-native-fs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { doc, getDoc, getFirestore } from '@react-native-firebase/firestore';
@@ -57,7 +57,7 @@ const buildManifest = (): OtaManifest => ({
 });
 
 const showAlert = (title: string, message: string) => {
-  if (!SHOW_OTA_ALERTS) return;
+  if (!SHOW_OTA_ALERTS) {return;}
   Alert.alert(title, message);
 };
 
@@ -82,7 +82,7 @@ const isRemoteOtaEnabled = async () => {
 };
 
 const normalizeFolderName = (folderName?: string) => {
-  if (!folderName) return '/git_hot_update';
+  if (!folderName) {return '/git_hot_update';}
   return folderName.startsWith('/') ? folderName : `/${folderName}`;
 };
 
@@ -110,7 +110,7 @@ const getBundleSignature = async () => {
   try {
     const path = getBundleFilePath();
     const exists = await RNFS.exists(path);
-    if (!exists) return null;
+    if (!exists) {return null;}
     const stat = await RNFS.stat(path);
     const rawMtime = (stat as { mtime?: unknown }).mtime;
     const mtime =
@@ -129,9 +129,9 @@ const getBundleSignature = async () => {
 
 const shouldNotifyUpdate = async () => {
   const signature = await getBundleSignature();
-  if (!signature) return true;
+  if (!signature) {return true;}
   const last = await AsyncStorage.getItem(OTA_LAST_SIG_KEY);
-  if (last === signature) return false;
+  if (last === signature) {return false;}
   await AsyncStorage.setItem(OTA_LAST_SIG_KEY, signature);
   return true;
 };
@@ -147,7 +147,7 @@ const cleanLocalRepo = async () => {
       }
     }
   } catch (error) {
-    if (__DEV__) console.log('[OTA] clean repo failed', error);
+    if (__DEV__) {console.log('[OTA] clean repo failed', error);}
   }
 };
 
@@ -155,7 +155,7 @@ const ensureRepoHealthy = async () => {
   try {
     const repoPath = getRepoPath();
     const exists = await RNFS.exists(repoPath);
-    if (!exists) return;
+    if (!exists) {return;}
     const headPath = `${repoPath}/.git/HEAD`;
     const headExists = await RNFS.exists(headPath);
     if (!headExists) {
@@ -163,13 +163,13 @@ const ensureRepoHealthy = async () => {
       await cleanLocalRepo();
     }
   } catch (error) {
-    if (__DEV__) console.log('[OTA] repo health check failed', error);
+    if (__DEV__) {console.log('[OTA] repo health check failed', error);}
   }
 };
 
 const ensureGitConfig = async (folderName: string) => {
   try {
-    if (!OtaHotUpdate.git?.setConfig) return;
+    if (!OtaHotUpdate.git?.setConfig) {return;}
     await OtaHotUpdate.git.setConfig(folderName, {
       userName: 'user.name',
       email: 'hotupdate',
@@ -179,7 +179,7 @@ const ensureGitConfig = async (folderName: string) => {
       email: 'hotupdate@example.com',
     });
   } catch (error) {
-    if (__DEV__) console.log('[OTA] setConfig failed', error);
+    if (__DEV__) {console.log('[OTA] setConfig failed', error);}
   }
 };
 
@@ -228,7 +228,7 @@ const queuePendingNotice = async (manifest: OtaManifest) => {
 export const consumePendingOtaNotice = async (): Promise<OtaManifest | null> => {
   try {
     const raw = await AsyncStorage.getItem(OTA_PENDING_NOTICE_KEY);
-    if (!raw) return null;
+    if (!raw) {return null;}
     await AsyncStorage.removeItem(OTA_PENDING_NOTICE_KEY);
     return JSON.parse(raw) as OtaManifest;
   } catch {
@@ -237,7 +237,7 @@ export const consumePendingOtaNotice = async (): Promise<OtaManifest | null> => 
 };
 
 const promptNotify = async (_manifest: OtaManifest) => {
-  if (otaPromptShown) return;
+  if (otaPromptShown) {return;}
   otaPromptShown = true;
   Alert.alert(
     'Actualizacion disponible',
@@ -262,14 +262,14 @@ type OtaCheckOptions = {
 
 const runSafeHotfixCheck = async (options?: OtaCheckOptions) => {
   try {
-    if (!GIT_OTA_CONFIG.enabled) return;
-    
+    if (!GIT_OTA_CONFIG.enabled) {return;}
+
     // TEMPORAL: Forzamos el chequeo para pruebas, ignorando el interval de 5 min.
     const isForced = options?.force === true;
     const now = Date.now();
     if (!isForced && (now - otaLastCheckAt < OTA_MIN_CHECK_INTERVAL_MS)) {
        // Si querés que ignore el cooldown siempre durante la prueba, comenta la linea de abajo.
-       // return; 
+       // return;
     }
     otaLastCheckAt = now;
 
@@ -285,10 +285,10 @@ const runSafeHotfixCheck = async (options?: OtaCheckOptions) => {
 
     const remoteEnabled = await isRemoteOtaEnabled();
     if (!remoteEnabled) {
-      if (__DEV__) console.log('[OTA] disabled by remote config');
+      if (__DEV__) {console.log('[OTA] disabled by remote config');}
       return;
     }
-    if (!GIT_OTA_CONFIG.url || !GIT_OTA_CONFIG.bundlePath) return;
+    if (!GIT_OTA_CONFIG.url || !GIT_OTA_CONFIG.bundlePath) {return;}
 
     otaRetryAttempted = false;
     if (__DEV__) {
@@ -307,7 +307,7 @@ const runSafeHotfixCheck = async (options?: OtaCheckOptions) => {
             OtaHotUpdate.git.getBranchName(folderName),
           ]);
         } catch (error) {
-          if (__DEV__) console.log('[OTA] read config failed', error);
+          if (__DEV__) {console.log('[OTA] read config failed', error);}
         }
 
         if (branch && config) {
@@ -323,7 +323,7 @@ const runSafeHotfixCheck = async (options?: OtaCheckOptions) => {
               return;
             }
             const shouldNotify = await shouldNotifyUpdate();
-            if (!shouldNotify) return;
+            if (!shouldNotify) {return;}
             const manifest = buildManifest();
             if (!notifyUi) {
               await queuePendingNotice(manifest);
@@ -363,7 +363,7 @@ const runSafeHotfixCheck = async (options?: OtaCheckOptions) => {
               return;
             }
             const shouldNotify = await shouldNotifyUpdate();
-            if (!shouldNotify) return;
+            if (!shouldNotify) {return;}
             const manifest = buildManifest();
             if (!notifyUi) {
               await queuePendingNotice(manifest);
@@ -400,7 +400,7 @@ const runSafeHotfixCheck = async (options?: OtaCheckOptions) => {
         if (notifyUi) {
           showAlert('OTA Git error', message);
         }
-        if (__DEV__) console.log('[OTA] git check failed', err);
+        if (__DEV__) {console.log('[OTA] git check failed', err);}
       }
     };
 

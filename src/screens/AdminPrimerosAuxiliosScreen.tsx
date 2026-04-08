@@ -64,21 +64,21 @@ const ICON_CHOICES = [
 
 const suggestIconFromText = (text: string) => {
   const value = text.toLowerCase();
-  if (value.includes('rcp') || value.includes('corazon')) return 'heart-pulse';
-  if (value.includes('quemadura')) return 'fire';
-  if (value.includes('fractura') || value.includes('hueso')) return 'bone';
-  if (value.includes('herida') || value.includes('corte') || value.includes('raspon')) return 'bandage';
-  if (value.includes('intoxic') || value.includes('veneno') || value.includes('poison')) return 'flask';
-  if (value.includes('convulsion') || value.includes('epile')) return 'brain';
-  if (value.includes('ojo') || value.includes('ocular')) return 'eye-outline';
-  if (value.includes('alerg')) return 'allergy';
-  if (value.includes('respir') || value.includes('asma')) return 'lungs';
-  if (value.includes('desmayo') || value.includes('desmay')) return 'face-man';
-  if (value.includes('hemorrag')) return 'water';
-  if (value.includes('mordedura') || value.includes('picadura')) return 'snake';
-  if (value.includes('asfixia') || value.includes('ahogo')) return 'gesture';
-  if (value.includes('quemadura quimica') || value.includes('quimic')) return 'beaker-outline';
-  if (value.includes('nino') || value.includes('bebe')) return 'baby-face-outline';
+  if (value.includes('rcp') || value.includes('corazon')) {return 'heart-pulse';}
+  if (value.includes('quemadura')) {return 'fire';}
+  if (value.includes('fractura') || value.includes('hueso')) {return 'bone';}
+  if (value.includes('herida') || value.includes('corte') || value.includes('raspon')) {return 'bandage';}
+  if (value.includes('intoxic') || value.includes('veneno') || value.includes('poison')) {return 'flask';}
+  if (value.includes('convulsion') || value.includes('epile')) {return 'brain';}
+  if (value.includes('ojo') || value.includes('ocular')) {return 'eye-outline';}
+  if (value.includes('alerg')) {return 'allergy';}
+  if (value.includes('respir') || value.includes('asma')) {return 'lungs';}
+  if (value.includes('desmayo') || value.includes('desmay')) {return 'face-man';}
+  if (value.includes('hemorrag')) {return 'water';}
+  if (value.includes('mordedura') || value.includes('picadura')) {return 'snake';}
+  if (value.includes('asfixia') || value.includes('ahogo')) {return 'gesture';}
+  if (value.includes('quemadura quimica') || value.includes('quimic')) {return 'beaker-outline';}
+  if (value.includes('nino') || value.includes('bebe')) {return 'baby-face-outline';}
   return 'alert-circle-outline';
 };
 
@@ -534,7 +534,7 @@ const AdminPrimerosAuxiliosScreen: React.FC = () => {
   }, []);
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return items;
+    if (!search.trim()) {return items;}
     const term = search.trim().toLowerCase();
     return items.filter((item) =>
       item.title.toLowerCase().includes(term) || item.description.toLowerCase().includes(term)
@@ -649,7 +649,7 @@ const AdminPrimerosAuxiliosScreen: React.FC = () => {
       .map((item, index) => {
         const title = typeof item?.title === 'string' ? item.title.trim() : '';
         const url = typeof item?.url === 'string' ? item.url.trim() : '';
-        if (!title || !url) return null;
+        if (!title || !url) {return null;}
 
         const description = typeof item?.description === 'string' ? item.description.trim() : '';
         const enabled = typeof item?.enabled === 'boolean' ? item.enabled : true;
@@ -674,7 +674,7 @@ const AdminPrimerosAuxiliosScreen: React.FC = () => {
 
   const clearCollection = async () => {
     const snapshot = await getDocs(collection(db, 'primerosAuxilios'));
-    if (snapshot.empty) return;
+    if (snapshot.empty) {return;}
     const batch = writeBatch(db);
     snapshot.docs.forEach((doc) => {
       batch.delete(doc.ref);

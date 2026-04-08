@@ -64,7 +64,7 @@ const getPermissionsGranted = async () => {
 const getNotificationChannels = async (): Promise<PushChannels> => {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_NOTIFICATION_CHANNELS);
-    if (!raw) return { ...DEFAULT_CHANNELS };
+    if (!raw) {return { ...DEFAULT_CHANNELS };}
     const parsed = JSON.parse(raw);
     return sanitizeChannels(parsed);
   } catch {
@@ -78,7 +78,7 @@ const setNotificationChannels = async (channels: PushChannels) => {
 
 const canShowNotification = async () => {
   const enabled = await getNotificationsEnabled();
-  if (!enabled) return false;
+  if (!enabled) {return false;}
   try {
     const settings = await notifee.getNotificationSettings();
     return settings.authorizationStatus >= 1;
@@ -112,7 +112,7 @@ const saveToken = async (
 };
 
 const displayRemoteNotification = async (remoteMessage: FirebaseMessagingTypes.RemoteMessage) => {
-  if (!(await canShowNotification())) return;
+  if (!(await canShowNotification())) {return;}
 
   await createNotificationChannels();
 
@@ -160,7 +160,7 @@ export const updateNotificationPreferences = async (
 
   try {
     const token = await getToken(messagingInstance);
-    if (!token) return;
+    if (!token) {return;}
     await saveToken(token, userId, options.enabled, channels);
   } catch {
     // ignore if token is unavailable
@@ -177,7 +177,7 @@ export const initPushNotifications = (userId: string | null, force = false) => {
   let unsubscribeToken: (() => void) | null = null;
 
   const init = async () => {
-    if (initializing) return;
+    if (initializing) {return;}
     initializing = true;
     const storedGranted = await getPermissionsGranted();
     if (!force && !storedGranted) {
@@ -188,8 +188,8 @@ export const initPushNotifications = (userId: string | null, force = false) => {
       initializing = false;
       return;
     }
-    if (activeUnsubscribeMessage) activeUnsubscribeMessage();
-    if (activeUnsubscribeToken) activeUnsubscribeToken();
+    if (activeUnsubscribeMessage) {activeUnsubscribeMessage();}
+    if (activeUnsubscribeToken) {activeUnsubscribeToken();}
     activeUnsubscribeMessage = null;
     activeUnsubscribeToken = null;
     activeUserId = userId;
@@ -246,11 +246,11 @@ export const initPushNotifications = (userId: string | null, force = false) => {
   init();
 
   return () => {
-    if (unsubscribeMessage) unsubscribeMessage();
-    if (unsubscribeToken) unsubscribeToken();
-    if (activeUnsubscribeMessage === unsubscribeMessage) activeUnsubscribeMessage = null;
-    if (activeUnsubscribeToken === unsubscribeToken) activeUnsubscribeToken = null;
-    if (activeUserId === userId) activeUserId = null;
+    if (unsubscribeMessage) {unsubscribeMessage();}
+    if (unsubscribeToken) {unsubscribeToken();}
+    if (activeUnsubscribeMessage === unsubscribeMessage) {activeUnsubscribeMessage = null;}
+    if (activeUnsubscribeToken === unsubscribeToken) {activeUnsubscribeToken = null;}
+    if (activeUserId === userId) {activeUserId = null;}
   };
 };
 

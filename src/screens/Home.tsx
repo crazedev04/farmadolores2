@@ -253,7 +253,7 @@ const Home = () => {
             await showPendingOtaNotice();
           }
         } catch {
-          if (active) setNotificationsEnabled(true);
+          if (active) {setNotificationsEnabled(true);}
         }
       };
       load();
@@ -264,17 +264,17 @@ const Home = () => {
   );
 
   const nextTurn = useMemo<{ pharmacy: Farmacia; start: DateTime } | null>(() => {
-    if (!farmacias || farmacias.length === 0) return null;
+    if (!farmacias || farmacias.length === 0) {return null;}
     const now = DateTime.local().setZone('America/Argentina/Buenos_Aires');
     let best: { pharmacy: Farmacia; start: DateTime } | null = null;
     for (const pharmacy of farmacias as Farmacia[]) {
-      if (!Array.isArray(pharmacy.turn)) continue;
+      if (!Array.isArray(pharmacy.turn)) {continue;}
       for (const t of pharmacy.turn) {
-        if (!t || typeof t.toDate !== 'function') continue;
+        if (!t || typeof t.toDate !== 'function') {continue;}
         const start = DateTime.fromJSDate(t.toDate())
           .setZone('America/Argentina/Buenos_Aires')
           .set({ hour: 8, minute: 30, second: 0, millisecond: 0 });
-        if (start < now) continue;
+        if (start < now) {continue;}
         if (!best || start < best.start) {
           best = { pharmacy, start };
         }
@@ -284,7 +284,7 @@ const Home = () => {
   }, [farmacias]);
 
   const featured = useMemo(() => {
-    if (!featuredConfig || featuredConfig.enabled === false) return null;
+    if (!featuredConfig || featuredConfig.enabled === false) {return null;}
     const pickImage = (image?: string, detail?: string) => {
       const detailValue = typeof detail === 'string' ? detail.trim() : '';
       return image || (detailValue.startsWith('http') ? detailValue : '');
@@ -337,7 +337,7 @@ const Home = () => {
   }, [mapConfig, featured]);
 
   const applyOrder = <T,>(items: T[], order: OrderMode) => {
-    if (order === 'newest') return [...items].reverse();
+    if (order === 'newest') {return [...items].reverse();}
     return items;
   };
 
@@ -423,14 +423,14 @@ const Home = () => {
   const todayLabel = DAYS_ES[dayIndex] || 'Hoy';
 
   const bannerColor = (type?: string) => {
-    if (type === 'error') return colors.error;
-    if (type === 'warning') return colors.warning;
+    if (type === 'error') {return colors.error;}
+    if (type === 'warning') {return colors.warning;}
     return colors.buttonBackground;
   };
 
   const bannerIcon = (type?: string) => {
-    if (type === 'error') return 'alert-circle-outline';
-    if (type === 'warning') return 'alert-outline';
+    if (type === 'error') {return 'alert-circle-outline';}
+    if (type === 'warning') {return 'alert-outline';}
     return 'information-outline';
   };
 
@@ -439,8 +439,8 @@ const Home = () => {
     : 'No hay proximos turnos cargados.';
 
   const normalizeNotes = (notes?: string | string[]) => {
-    if (!notes) return [];
-    if (Array.isArray(notes)) return notes.filter(Boolean);
+    if (!notes) {return [];}
+    if (Array.isArray(notes)) {return notes.filter(Boolean);}
     return notes.split('\n').map((item) => item.trim()).filter(Boolean);
   };
 
@@ -503,7 +503,7 @@ const Home = () => {
             <TouchableOpacity
               style={[styles.modalButton, styles.modalPrimaryButton, { backgroundColor: colors.buttonBackground }]}
               onPress={() => {
-                if (!otaManifest) return;
+                if (!otaManifest) {return;}
                 setOtaModalVisible(false);
               }}
             >
@@ -535,15 +535,15 @@ const Home = () => {
         )}
 
         {maintenance?.enabled && (
-          <View style={[styles.bannerCard, { backgroundColor: colors.card, borderColor: bannerColor(maintenance.type) }]}> 
-            <View style={[styles.bannerIconWrap, { backgroundColor: bannerColor(maintenance.type) }]}> 
+          <View style={[styles.bannerCard, { backgroundColor: colors.card, borderColor: bannerColor(maintenance.type) }]}>
+            <View style={[styles.bannerIconWrap, { backgroundColor: bannerColor(maintenance.type) }]}>
               <Icon name={bannerIcon(maintenance.type)} size={20} color={colors.buttonText || '#fff'} />
             </View>
             <View style={styles.bannerContent}>
               <Text style={[styles.bannerTitle, { color: colors.text }]}>
                 {maintenance.title || 'Estado del servicio'}
               </Text>
-              <Text style={[styles.bannerMessage, { color: colors.mutedText || colors.placeholderText }]}> 
+              <Text style={[styles.bannerMessage, { color: colors.mutedText || colors.placeholderText }]}>
                 {maintenance.message || 'Estamos realizando tareas de mantenimiento.'}
               </Text>
               {maintenance.ctaUrl && (
@@ -567,7 +567,7 @@ const Home = () => {
         )}
 
         {!notificationsEnabled && (
-          <View style={[styles.noticeCard, { backgroundColor: colors.card, borderColor: colors.border }]}> 
+          <View style={[styles.noticeCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.noticeRow}>
               <Icon name="bell-off-outline" size={20} color={colors.warning} />
               <Text style={[styles.noticeText, { color: colors.text }]}>
@@ -612,7 +612,7 @@ const Home = () => {
 
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Farmacia de turno</Text>
-          
+
           <View style={styles.dayRow}>
             <Icon name="calendar-blank" size={16} color={colors.text} />
             <Text style={[styles.dayText, { color: colors.text }]}>Hoy {todayLabel}</Text>
@@ -658,7 +658,7 @@ const Home = () => {
           </View>
         </View>
 
-        
+
 
         {newsEnabled && visibleNews.length > 0 && (
           <View style={styles.section}>
@@ -681,13 +681,13 @@ const Home = () => {
                   activeOpacity={0.85}
                   onPress={() => logEvent('news_click', { title: item.title || '', type: item.type || 'info', index: idx })}
                 >
-                  <View style={[styles.newsIcon, { backgroundColor: color }]}> 
+                  <View style={[styles.newsIcon, { backgroundColor: color }]}>
                     <Icon name={iconName} size={16} color={colors.buttonText || '#fff'} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.newsTitle, { color: colors.text }]}>{item.title || 'Aviso'}</Text>
                     {!!item.body && (
-                      <Text style={[styles.newsBody, { color: colors.mutedText || colors.placeholderText }]}> 
+                      <Text style={[styles.newsBody, { color: colors.mutedText || colors.placeholderText }]}>
                         {item.body}
                       </Text>
                     )}
@@ -711,7 +711,7 @@ const Home = () => {
                 >
                   <Text style={[styles.tipTitle, { color: colors.text }]}>{tip.title || 'Tip'}</Text>
                   {!!tip.body && (
-                    <Text style={[styles.tipBody, { color: colors.mutedText || colors.placeholderText }]}> 
+                    <Text style={[styles.tipBody, { color: colors.mutedText || colors.placeholderText }]}>
                       {tip.body}
                     </Text>
                   )}
@@ -726,13 +726,13 @@ const Home = () => {
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Promos y anuncios</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
               {visiblePromos.map((promo, idx) => (
-                <View key={`${promo.title || 'promo'}-${idx}`} style={[styles.promoCard, { backgroundColor: colors.card, borderColor: colors.border }]}> 
+                <View key={`${promo.title || 'promo'}-${idx}`} style={[styles.promoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   {promo.imageUrl && (
                     <Image source={{ uri: promo.imageUrl }} style={styles.promoImage} />
                   )}
                   <Text style={[styles.promoTitle, { color: colors.text }]}>{promo.title || 'Promo'}</Text>
                   {!!promo.body && (
-                    <Text style={[styles.promoBody, { color: colors.mutedText || colors.placeholderText }]}> 
+                    <Text style={[styles.promoBody, { color: colors.mutedText || colors.placeholderText }]}>
                       {promo.body}
                     </Text>
                   )}
@@ -758,7 +758,7 @@ const Home = () => {
         {mapData && (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Mapa rapido</Text>
-            <View style={[styles.mapCard, { backgroundColor: colors.card, borderColor: colors.border }]}> 
+            <View style={[styles.mapCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <MapView
                 style={styles.map}
                 scrollEnabled={false}

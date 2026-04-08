@@ -97,7 +97,7 @@ const AdminEmergenciasScreen: React.FC = () => {
   }, []);
 
   const filteredItems = useMemo(() => {
-    if (!search.trim()) return items;
+    if (!search.trim()) {return items;}
     const term = search.trim().toLowerCase();
     return items.filter((item) => item.name.toLowerCase().includes(term));
   }, [items, search]);

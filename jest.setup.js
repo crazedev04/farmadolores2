@@ -154,7 +154,7 @@ jest.mock('@react-native-firebase/messaging', () => {
     registerDeviceForRemoteMessages: jest.fn(),
     getToken: jest.fn().mockResolvedValue('mock-token'),
     onTokenRefresh: jest.fn((_messaging, cb) => {
-      if (cb) cb('mock-token');
+      if (cb) {cb('mock-token');}
       return jest.fn();
     }),
     onMessage: jest.fn(() => jest.fn()),
@@ -286,3 +286,16 @@ jest.mock('react-native-ota-hot-update', () => ({
   setupExactBundlePath: jest.fn(async () => undefined),
   resetApp: jest.fn(),
 }));
+
+jest.mock('sp-react-native-in-app-updates', () => {
+  return {
+    __esModule: true,
+    default: jest.fn(() => ({
+      checkNeedsUpdate: jest.fn().mockResolvedValue({ shouldUpdate: false }),
+      startUpdate: jest.fn().mockResolvedValue({}),
+      addStatusUpdateListener: jest.fn(),
+    })),
+    IAUUpdateKind: { FLEXIBLE: 0, IMMEDIATE: 1 },
+    IAUInstallStatus: { DOWNLOADED: 11, INSTALLING: 4 },
+  };
+});

@@ -111,7 +111,7 @@ const LocalesListScreen: React.FC = () => {
   useScreenLoadAnalytics('Locales', loading);
 
   const filteredLocales = useMemo(() => {
-    if (!debouncedQuery.trim()) return locales;
+    if (!debouncedQuery.trim()) {return locales;}
     const term = debouncedQuery.trim().toLowerCase();
     return locales.filter((item) => {
       return (

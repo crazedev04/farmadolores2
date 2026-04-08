@@ -21,7 +21,7 @@ const WelcomeScreen: React.FC = () => {
     { title: 'Welcome', text: 'Welcome to our app!' },
     { title: 'Features', text: 'Discover amazing features.' },
     { title: 'Get Started', text: 'Let\'s get started!' },
-    { title: 'Permissions', text: 'We need some permissions to proceed.' }
+    { title: 'Permissions', text: 'We need some permissions to proceed.' },
   ];
 
   const requestPermissions = async () => {
@@ -44,7 +44,7 @@ const WelcomeScreen: React.FC = () => {
     if (currentSlide === slides.length - 1) {
       const permissionsGranted = await requestPermissions();
       if (!permissionsGranted) {
-        Alert.alert("Permissions not granted", "You need to grant all permissions to proceed.");
+        Alert.alert('Permissions not granted', 'You need to grant all permissions to proceed.');
         return;
       }
       await AsyncStorage.setItem('hasOpenedBefore', 'true');

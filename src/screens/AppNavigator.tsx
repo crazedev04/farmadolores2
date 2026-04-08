@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { NavigationContainer, useNavigation, useNavigationContainerRef } from '@react-navigation/native';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
+import { Text, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BottomTabs from '../components/BottomTabs';
@@ -203,7 +203,7 @@ const AppNavigator: React.FC = () => {
 
   if (isFirstLaunch === null) {
     return null; // Puedes mostrar una pantalla de carga aquí
-  } 
+  }
 
   return (
     <NavigationContainer

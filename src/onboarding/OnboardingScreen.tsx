@@ -55,7 +55,7 @@ type OnboardingScreenProps = {
   };
 
   const handlePermissions = async () => {
-    if (permissionsLoading) return;
+    if (permissionsLoading) {return;}
     setPermissionsLoading(true);
     const granted = await requestPermissions();
     if (granted) {

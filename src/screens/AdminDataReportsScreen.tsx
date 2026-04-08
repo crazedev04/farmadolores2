@@ -16,7 +16,7 @@ const STATUS_OPTIONS: Array<DataReport['status'] | 'all'> = ['all', 'open', 'in_
 
 const toDateLabel = (value: any) => {
   const date = value?.toDate ? value.toDate() : null;
-  if (!date) return '';
+  if (!date) {return '';}
   return date.toLocaleString('es-AR');
 };
 
@@ -28,7 +28,7 @@ const AdminDataReportsScreen: React.FC = () => {
   const [savingId, setSavingId] = useState<string | null>(null);
 
   const visible = useMemo(() => {
-    if (statusFilter === 'all') return items;
+    if (statusFilter === 'all') {return items;}
     return items.filter((item) => item.status === statusFilter);
   }, [items, statusFilter]);
 

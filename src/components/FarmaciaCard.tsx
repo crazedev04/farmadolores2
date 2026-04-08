@@ -14,7 +14,7 @@ type Status = 'Abierto' | 'CierraPronto' | 'Cerrado';
 
 const ZONA = 'America/Argentina/Buenos_Aires';
 const AVISO_MINUTOS = 30;
-const DIAS = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"];
+const DIAS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
 
 function getHoyInfo(horarios: any) {
   const now = DateTime.local().setZone(ZONA);
@@ -31,7 +31,7 @@ function getStatus(horarios: any): Status {
   const { franjas } = getHoyInfo(horarios);
 
   for (const franja of franjas) {
-    if (!franja.abre || !franja.cierra) continue;
+    if (!franja.abre || !franja.cierra) {continue;}
     const [ah, am] = franja.abre.split(':').map(Number);
     const [ch, cm] = franja.cierra.split(':').map(Number);
 
@@ -39,21 +39,21 @@ function getStatus(horarios: any): Status {
     let cierra = now.set({ hour: ch, minute: cm, second: 0, millisecond: 0 });
 
     // Si cierra después de las 00:00, sumarle un día
-    if (cierra <= abre) cierra = cierra.plus({ days: 1 });
+    if (cierra <= abre) {cierra = cierra.plus({ days: 1 });}
 
     if (now >= abre && now < cierra) {
-      if (now >= cierra.minus({ minutes: AVISO_MINUTOS })) return "CierraPronto";
-      return "Abierto";
+      if (now >= cierra.minus({ minutes: AVISO_MINUTOS })) {return 'CierraPronto';}
+      return 'Abierto';
     }
   }
-  return "Cerrado";
+  return 'Cerrado';
 }
 
 function printFranjas(franjas: { abre: string, cierra: string }[]) {
-  if (!franjas.length) return "Cerrado";
+  if (!franjas.length) {return 'Cerrado';}
   return franjas.map(f =>
     `${f.abre} - ${f.cierra}`
-  ).join(" / ");
+  ).join(' / ');
 }
 
 type FarmaciaCardProps = {
@@ -67,9 +67,9 @@ type FarmaciaCardProps = {
 };
 
 const hexToRgba = (hex: string, alpha: number) => {
-  if (!hex || typeof hex !== 'string') return `rgba(0,0,0,${alpha})`;
+  if (!hex || typeof hex !== 'string') {return `rgba(0,0,0,${alpha})`;}
   const sanitized = hex.replace('#', '');
-  if (sanitized.length !== 6) return `rgba(0,0,0,${alpha})`;
+  if (sanitized.length !== 6) {return `rgba(0,0,0,${alpha})`;}
   const r = parseInt(sanitized.slice(0, 2), 16);
   const g = parseInt(sanitized.slice(2, 4), 16);
   const b = parseInt(sanitized.slice(4, 6), 16);
@@ -188,7 +188,7 @@ const FarmaciaCard: React.FC<FarmaciaCardProps> = ({
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { theme } = useTheme();
   const { colors } = theme;
-  const { name, dir, tel, detail, horarios,  } = item as any;
+  const { name, dir, tel, detail, horarios  } = item as any;
   const telLabel = Array.isArray(tel) ? tel.join(' / ') : tel;
   const detailIsUrl = typeof detail === 'string' && detail.trim().startsWith('http');
   const imageUri = item.image || (detailIsUrl ? detail : '');
@@ -225,13 +225,13 @@ const FarmaciaCard: React.FC<FarmaciaCardProps> = ({
   const turnoColor = colors.success || '#10b981';
 
   const isTurno = useMemo(() => {
-    if (!Array.isArray(item?.turn)) return false;
+    if (!Array.isArray(item?.turn)) {return false;}
     const now = DateTime.local().setZone(ZONA);
     return item.turn.some((t: any) => {
       const date = t && typeof t.toDate === 'function'
         ? t.toDate()
         : (t instanceof Date ? t : null);
-      if (!date) return false;
+      if (!date) {return false;}
       const start = DateTime.fromJSDate(date).setZone(ZONA).set({
         hour: 8,
         minute: 30,
@@ -244,7 +244,7 @@ const FarmaciaCard: React.FC<FarmaciaCardProps> = ({
   }, [item?.turn]);
 
   const distanceLabel = useMemo(() => {
-    if (distanceKm == null || Number.isNaN(distanceKm)) return null;
+    if (distanceKm == null || Number.isNaN(distanceKm)) {return null;}
     const mode = distanceDisplayMode || 'auto';
     const roundedKm = distanceKm < 10 ? distanceKm.toFixed(1) : distanceKm.toFixed(0);
 
@@ -256,7 +256,7 @@ const FarmaciaCard: React.FC<FarmaciaCardProps> = ({
     const speedToUse = (speedMps && speedMps > 0) ? speedMps : fallbackSpeed;
 
     if (mode === 'min') {
-      if (!speedToUse || speedToUse <= 0) return `${roundedKm} km`;
+      if (!speedToUse || speedToUse <= 0) {return `${roundedKm} km`;}
       const minutes = Math.max(1, Math.round((distanceKm * 1000) / speedToUse / 60));
       return `A ${minutes} min`;
     }
@@ -282,9 +282,9 @@ const FarmaciaCard: React.FC<FarmaciaCardProps> = ({
 
   const openPhone = () => {
     const raw = Array.isArray(tel) ? tel[0] : tel;
-    if (!raw) return;
+    if (!raw) {return;}
     const clean = String(raw).replace(/[^\d+]/g, '');
-    if (!clean) return;
+    if (!clean) {return;}
     logEvent('pharmacy_call', { source: 'farmacia_card', pharmacy_id: item.id, name: item.name });
     Linking.openURL(`tel:${clean}`);
   };

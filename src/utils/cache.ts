@@ -8,10 +8,10 @@ type CachePayload<T> = {
 export const readCache = async <T>(key: string, ttlMs: number): Promise<T | null> => {
   try {
     const raw = await AsyncStorage.getItem(key);
-    if (!raw) return null;
+    if (!raw) {return null;}
     const parsed = JSON.parse(raw) as CachePayload<T>;
-    if (!parsed?.ts) return null;
-    if (Date.now() - parsed.ts > ttlMs) return null;
+    if (!parsed?.ts) {return null;}
+    if (Date.now() - parsed.ts > ttlMs) {return null;}
     return parsed.data;
   } catch {
     return null;
@@ -60,7 +60,7 @@ export const serializeForCache = (value: any): any => {
 };
 
 export const rehydrateFromCache = (value: any): any => {
-  if (!value) return value;
+  if (!value) {return value;}
   if (typeof value === 'object' && !Array.isArray(value)) {
     if (typeof value.__ts === 'string') {
       const date = new Date(value.__ts);

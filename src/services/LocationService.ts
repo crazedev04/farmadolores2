@@ -25,11 +25,11 @@ export const getLocationInfo = async () => {
         : Platform.OS === 'ios'
           ? PERMISSIONS.IOS.LOCATION_WHEN_IN_USE
           : null;
-    
-    if (!permission) return null;
+
+    if (!permission) {return null;}
 
     const status = await check(permission);
-    if (status !== RESULTS.GRANTED) return null;
+    if (status !== RESULTS.GRANTED) {return null;}
 
     let coords: GeolocationResponse;
     try {

@@ -10,10 +10,10 @@ import { logEvent } from '../services/analytics';
 import { getCoordsFromPharmacyLike } from '../utils/geo';
 
 function printFranjas(franjas: { abre: string, cierra: string }[]) {
-  if (!franjas || !franjas.length) return "Cerrado";
+  if (!franjas || !franjas.length) {return 'Cerrado';}
   return franjas.map(f =>
     `${f.abre} - ${f.cierra}`
-  ).join(" / ");
+  ).join(' / ');
 }
 
 type TurnoCardProps = {
@@ -27,7 +27,7 @@ type TurnoCardProps = {
 };
 
 const DIAS = [
-  'domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'
+  'domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado',
 ];
 const DEFAULT_SPEED_THRESHOLD_MPS = 3;
 const DEFAULT_MIN_SPEED_MPS = 1.4;
@@ -70,16 +70,16 @@ const TurnoCard: React.FC<TurnoCardProps> = ({
   }, [item, diaHoy]);
 
   const status = useMemo(() => {
-    if (!hoyFranjas || hoyFranjas.length === 0) return 'Cerrado';
+    if (!hoyFranjas || hoyFranjas.length === 0) {return 'Cerrado';}
     const now = DateTime.local().setZone(ZONA);
     for (const franja of hoyFranjas) {
-      if (!franja.abre || !franja.cierra) continue;
+      if (!franja.abre || !franja.cierra) {continue;}
       const [ah, am] = franja.abre.split(':').map(Number);
       const [ch, cm] = franja.cierra.split(':').map(Number);
       let abre = now.set({ hour: ah, minute: am, second: 0, millisecond: 0 });
       let cierra = now.set({ hour: ch, minute: cm, second: 0, millisecond: 0 });
-      if (cierra <= abre) cierra = cierra.plus({ days: 1 });
-      if (now >= abre && now < cierra) return 'Abierto';
+      if (cierra <= abre) {cierra = cierra.plus({ days: 1 });}
+      if (now >= abre && now < cierra) {return 'Abierto';}
     }
     return 'Cerrado';
   }, [hoyFranjas]);
@@ -89,7 +89,7 @@ const TurnoCard: React.FC<TurnoCardProps> = ({
   const statusBorder = status === 'Abierto' ? 'rgba(34, 197, 94, 0.35)' : 'rgba(239, 68, 68, 0.35)';
 
   const distanceLabel = useMemo(() => {
-    if (distanceKm == null || Number.isNaN(distanceKm)) return null;
+    if (distanceKm == null || Number.isNaN(distanceKm)) {return null;}
     const mode = distanceDisplayMode || 'auto';
     const roundedKm = distanceKm < 10 ? distanceKm.toFixed(1) : distanceKm.toFixed(0);
 
@@ -101,7 +101,7 @@ const TurnoCard: React.FC<TurnoCardProps> = ({
     const speedToUse = (speedMps && speedMps > 0) ? speedMps : fallbackSpeed;
 
     if (mode === 'min') {
-      if (!speedToUse || speedToUse <= 0) return `${roundedKm} km`;
+      if (!speedToUse || speedToUse <= 0) {return `${roundedKm} km`;}
       const minutes = Math.max(1, Math.round((distanceKm * 1000) / speedToUse / 60));
       return `A ${minutes} min`;
     }
@@ -121,7 +121,7 @@ const TurnoCard: React.FC<TurnoCardProps> = ({
     try {
       return t?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } catch {
-      return "-";
+      return '-';
     }
   };
 
@@ -159,9 +159,9 @@ const TurnoCard: React.FC<TurnoCardProps> = ({
 
   const openPhone = () => {
     const raw = Array.isArray(item.tel) ? item.tel[0] : item.tel;
-    if (!raw) return;
+    if (!raw) {return;}
     const clean = String(raw).replace(/[^\d+]/g, '');
-    if (!clean) return;
+    if (!clean) {return;}
     logEvent('pharmacy_call', { source: 'turno_card', pharmacy_id: item.id, name: item.name });
     Linking.openURL(`tel:${clean}`);
   };

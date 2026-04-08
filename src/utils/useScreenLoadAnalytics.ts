@@ -15,8 +15,8 @@ export const useScreenLoadAnalytics = (
   }, []);
 
   useEffect(() => {
-    if (sentRef.current) return;
-    if (loading) return;
+    if (sentRef.current) {return;}
+    if (loading) {return;}
     const start = startRef.current ?? Date.now();
     const durationMs = Math.max(0, Date.now() - start);
     sentRef.current = true;

@@ -22,7 +22,7 @@ const AdBanner: React.FC<AdBannerProps> = ({ size }) => {
 
 const styles = StyleSheet.create({
   bannerContainer: {
-    
+
     alignItems: 'center',
     marginBottom: 5,
   },

@@ -5,8 +5,8 @@ import { logEvent } from '../services/analytics';
 
 export const normalizeWebUrl = (url?: string) => {
   const trimmed = (url || '').trim();
-  if (!trimmed) return '';
-  if (/^(https?:\/\/|mailto:|tel:)/i.test(trimmed)) return trimmed;
+  if (!trimmed) {return '';}
+  if (/^(https?:\/\/|mailto:|tel:)/i.test(trimmed)) {return trimmed;}
   return `https://${trimmed}`;
 };
 
@@ -17,7 +17,7 @@ export const openWebLink = async (
   meta?: Record<string, unknown>
 ) => {
   const target = normalizeWebUrl(url);
-  if (!target) return false;
+  if (!target) {return false;}
   const host = (() => {
     try {
       return new URL(target).host.replace(/^www\./, '');

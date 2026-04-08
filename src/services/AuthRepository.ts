@@ -84,7 +84,7 @@ export const AuthRepository = {
     // Non-blocking location enrichment
     getLocationInfo()
       .then((location) => {
-        if (!location) return;
+        if (!location) {return;}
         return setDoc(
           userRef,
           {
@@ -152,7 +152,7 @@ export const AuthRepository = {
    */
   async submitAccountRequest(uid: string, email: string, type: 'disable' | 'delete', reason: string) {
     const now = serverTimestamp();
-    
+
     // Update user doc status
     await setDoc(
       doc(db, 'users', uid),

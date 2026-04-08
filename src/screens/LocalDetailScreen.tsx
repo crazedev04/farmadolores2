@@ -55,9 +55,9 @@ const LocalDetailScreen: React.FC = () => {
 
   const makeCall = (phoneNumber?: string | string[] | number) => {
     const raw = Array.isArray(phoneNumber) ? phoneNumber[0] : phoneNumber;
-    if (!raw) return;
+    if (!raw) {return;}
     const clean = String(raw).replace(/[^\d+]/g, '');
-    if (!clean) return;
+    if (!clean) {return;}
     logEvent('local_call', { local_id: local.id, name: local.name });
     Linking.openURL(`tel:${clean}`);
   };

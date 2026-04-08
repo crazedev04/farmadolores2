@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Linking,
   StatusBar,
-  Image,
 } from 'react-native';
 import { BlurView } from '@react-native-community/blur';
 import Icon from '@react-native-vector-icons/material-design-icons';
@@ -28,7 +27,7 @@ const ForceUpdateScreen = () => {
   return (
     <View style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
-      
+
       {/* Fondo con gradiente o imagen abstracta (puedes usar el logo desenfocado) */}
       <View style={styles.background}>
         <View style={[styles.circle, { top: -50, left: -50, backgroundColor: '#4a90e2' }]} />
@@ -53,7 +52,7 @@ const ForceUpdateScreen = () => {
           <Text style={styles.description}>
             Lanzamos una nueva versión de Farmadolores con mejoras críticas de seguridad y nuevas funciones del Panel Administrativo.
           </Text>
-          
+
           <Text style={styles.infoText}>
             Para seguir cuidando de tu salud con la mejor experiencia, necesitás actualizar a la última versión.
           </Text>

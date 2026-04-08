@@ -15,12 +15,12 @@ interface GlassCardProps {
  * Premium Glassmorphism Card Component.
  * Supports iOS/Android blur natively with fallback styled view.
  */
-export const GlassCard: React.FC<GlassCardProps> = ({ 
-  children, 
-  style, 
+export const GlassCard: React.FC<GlassCardProps> = ({
+  children,
+  style,
   contentStyle,
-  blurType, 
-  blurAmount = 15 
+  blurType,
+  blurAmount = 15,
 }) => {
   const { theme } = useTheme();
   const { colors, shadows, dark } = theme as any;
@@ -38,12 +38,12 @@ export const GlassCard: React.FC<GlassCardProps> = ({
         />
       )}
       <View style={[
-        styles.content, 
-        { 
-          backgroundColor: Platform.OS === 'ios' ? colors.glassBackground : (theme.dark ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.9)'), 
-          borderColor: colors.glassBorder 
+        styles.content,
+        {
+          backgroundColor: Platform.OS === 'ios' ? colors.glassBackground : (theme.dark ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.9)'),
+          borderColor: colors.glassBorder,
         },
-        contentStyle
+        contentStyle,
       ]}>
         {children}
       </View>

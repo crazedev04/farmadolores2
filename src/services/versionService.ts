@@ -15,12 +15,12 @@ const db = getFirestore();
 export const compareVersions = (v1: string, v2: string) => {
   const parts1 = v1.split('.').map(p => parseInt(p, 10) || 0);
   const parts2 = v2.split('.').map(p => parseInt(p, 10) || 0);
-  
+
   for (let i = 0; i < 3; i++) {
     const p1 = parts1[i] || 0;
     const p2 = parts2[i] || 0;
-    if (p1 > p2) return 1;
-    if (p1 < p2) return -1;
+    if (p1 > p2) {return 1;}
+    if (p1 < p2) {return -1;}
   }
   return 0;
 };
@@ -37,7 +37,7 @@ export const checkAppVersionStatus = async (): Promise<{
     const currentVersion = DeviceInfo.getVersion();
     const snap = await getDoc(doc(db, 'config', 'app'));
     const data = snap.data();
-    
+
     // El campo en Firestore debería llamarse 'minAppVersion'
     const minVersion = data?.minAppVersion || '0.0.0';
 
@@ -50,10 +50,10 @@ export const checkAppVersionStatus = async (): Promise<{
     };
   } catch (error) {
     console.error('[VersionService] Error checking version from Firestore:', error);
-    return { 
-      isOutdated: false, 
-      currentVersion: DeviceInfo.getVersion(), 
-      minVersion: '0.0.0' 
+    return {
+      isOutdated: false,
+      currentVersion: DeviceInfo.getVersion(),
+      minVersion: '0.0.0',
     };
   }
 };
@@ -64,7 +64,7 @@ export const checkAppVersionStatus = async (): Promise<{
 export const startInAppUpdate = async (priority: 'flexible' | 'immediate' = 'flexible') => {
   try {
     const inAppUpdates = new SpInAppUpdates(false); // isDebug = false
-    
+
     // Verificamos si Google Play tiene una versión superior a la instalada
     const result = await inAppUpdates.checkNeedsUpdate();
 

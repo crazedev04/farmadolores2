@@ -149,7 +149,7 @@ const AdminHomeConfigScreen: React.FC = () => {
           getDoc(doc(db, 'config', 'app')),
         ]);
 
-        if (!mounted) return;
+        if (!mounted) {return;}
 
         const statusData = statusSnap.data() || {};
         setMaintenance({
@@ -237,7 +237,7 @@ const AdminHomeConfigScreen: React.FC = () => {
       } catch (error) {
         Alert.alert('Error', 'No se pudo cargar la configuracion.');
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted) {setLoading(false);}
       }
     };
 
@@ -291,7 +291,7 @@ const AdminHomeConfigScreen: React.FC = () => {
     const payload: any = { enabled: featured.enabled };
     const add = (key: string, value: string) => {
       const trimmed = value.trim();
-      if (trimmed) payload[key] = trimmed;
+      if (trimmed) {payload[key] = trimmed;}
     };
     add('pharmacyId', featured.pharmacyId);
     add('name', featured.name);
@@ -302,19 +302,19 @@ const AdminHomeConfigScreen: React.FC = () => {
     add('badge', featured.badge);
     const lat = parseNumber(featured.lat);
     const lng = parseNumber(featured.lng);
-    if (lat != null) payload.lat = lat;
-    if (lng != null) payload.lng = lng;
+    if (lat != null) {payload.lat = lat;}
+    if (lng != null) {payload.lng = lng;}
     return payload;
   };
 
   const buildMapPayload = () => {
     const payload: any = { enabled: mapConfig.enabled };
     const title = mapConfig.title.trim();
-    if (title) payload.title = title;
+    if (title) {payload.title = title;}
     const lat = parseNumber(mapConfig.lat);
     const lng = parseNumber(mapConfig.lng);
-    if (lat != null) payload.lat = lat;
-    if (lng != null) payload.lng = lng;
+    if (lat != null) {payload.lat = lat;}
+    if (lng != null) {payload.lng = lng;}
     return payload;
   };
 
@@ -413,7 +413,7 @@ const AdminHomeConfigScreen: React.FC = () => {
 
   const handleRemovePromoImage = async (index: number) => {
     const current = promos[index]?.imageUrl;
-    if (!current) return;
+    if (!current) {return;}
     await deleteImageByUrl(current);
     updatePromo(index, { imageUrl: '' });
   };
@@ -437,7 +437,7 @@ const AdminHomeConfigScreen: React.FC = () => {
   };
 
   const handleRemoveFeaturedImage = async () => {
-    if (!featured.imageUrl) return;
+    if (!featured.imageUrl) {return;}
     await deleteImageByUrl(featured.imageUrl);
     setFeatured(prev => ({ ...prev, imageUrl: '' }));
   };

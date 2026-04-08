@@ -11,11 +11,11 @@ const validateEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value
 
 const validatePassword = (pwd: string) => {
   const errors: string[] = [];
-  if (pwd.length < 8) errors.push('Minimo 8 caracteres');
-  if (!/[A-Z]/.test(pwd)) errors.push('1 mayuscula');
-  if (!/[a-z]/.test(pwd)) errors.push('1 minuscula');
-  if (!/[0-9]/.test(pwd)) errors.push('1 numero');
-  if (!/[^A-Za-z0-9]/.test(pwd)) errors.push('1 simbolo');
+  if (pwd.length < 8) {errors.push('Minimo 8 caracteres');}
+  if (!/[A-Z]/.test(pwd)) {errors.push('1 mayuscula');}
+  if (!/[a-z]/.test(pwd)) {errors.push('1 minuscula');}
+  if (!/[0-9]/.test(pwd)) {errors.push('1 numero');}
+  if (!/[^A-Za-z0-9]/.test(pwd)) {errors.push('1 simbolo');}
   return errors;
 };
 
@@ -48,9 +48,9 @@ const RegisterScreen: React.FC = () => {
     const warmGoogle = async () => {
       try {
         await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: false });
-        if (active) setGoogleReady(true);
+        if (active) {setGoogleReady(true);}
       } catch {
-        if (active) setGoogleReady(false);
+        if (active) {setGoogleReady(false);}
       }
     };
     warmGoogle();

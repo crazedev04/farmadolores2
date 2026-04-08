@@ -36,13 +36,13 @@ const haversineKm = (a: Coords, b: Coords) => {
 const ZONA = 'America/Argentina/Buenos_Aires';
 
 const isOnDuty = (item: any) => {
-  if (!Array.isArray(item?.turn)) return false;
+  if (!Array.isArray(item?.turn)) {return false;}
   const now = DateTime.local().setZone(ZONA);
   return item.turn.some((t: any) => {
     const date = t && typeof t.toDate === 'function'
       ? t.toDate()
       : (t instanceof Date ? t : null);
-    if (!date) return false;
+    if (!date) {return false;}
     const start = DateTime.fromJSDate(date).setZone(ZONA).set({
       hour: 8,
       minute: 30,
@@ -74,7 +74,7 @@ const Farmacias: React.FC = () => {
         android: PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
         ios: PERMISSIONS.IOS.LOCATION_WHEN_IN_USE,
       });
-      if (!permission) return;
+      if (!permission) {return;}
 
       try {
         let status = await check(permission);
@@ -91,7 +91,7 @@ const Farmacias: React.FC = () => {
 
         Geolocation.getCurrentPosition(
           (position) => {
-            if (!active) return;
+            if (!active) {return;}
             setUserLocation({
               lat: position.coords.latitude,
               lng: position.coords.longitude,
@@ -123,7 +123,7 @@ const Farmacias: React.FC = () => {
     const HOME_CACHE_TTL_MS = 1000 * 60 * 5;
     const loadCache = async () => {
       const cachedHome = await readCache<any>(HOME_CACHE_KEY, HOME_CACHE_TTL_MS);
-      if (!cachedHome || !mounted) return;
+      if (!cachedHome || !mounted) {return;}
       if (typeof cachedHome.speedThresholdMps === 'number') {
         setSpeedThresholdMps(cachedHome.speedThresholdMps);
       }
@@ -151,11 +151,11 @@ const Farmacias: React.FC = () => {
   }, []);
 
   const distanceMap = useMemo(() => {
-    if (!userLocation) return {};
+    if (!userLocation) {return {};}
     const map: Record<string, number> = {};
     farmacias.forEach((item) => {
       const { lat, lng } = getCoordsFromPharmacyLike(item);
-      if (lat == null || lng == null) return;
+      if (lat == null || lng == null) {return;}
       map[item.id] = haversineKm(userLocation, { lat, lng });
     });
     return map;
@@ -174,14 +174,14 @@ const Farmacias: React.FC = () => {
     copy.sort((a, b) => {
       const aTurn = turnoMap[a.id];
       const bTurn = turnoMap[b.id];
-      if (aTurn !== bTurn) return aTurn ? -1 : 1;
+      if (aTurn !== bTurn) {return aTurn ? -1 : 1;}
       const da = distanceMap[a.id];
       const db = distanceMap[b.id];
       if (da == null && db == null) {
         return (a.name || '').localeCompare(b.name || '');
       }
-      if (da == null) return 1;
-      if (db == null) return -1;
+      if (da == null) {return 1;}
+      if (db == null) {return -1;}
       return da - db;
     });
     return copy;

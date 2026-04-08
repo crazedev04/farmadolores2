@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     width: screenWidth - 32,
     height: 320,
-    
+
   },
   imagePlaceholder: {
     width: '100%',
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     height: 180,
     borderBottomLeftRadius: 10,
     borderBottomRightRadius: 10,
-   
+
   },
   textPlaceholder: {
     height: 20,

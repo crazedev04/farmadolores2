@@ -25,7 +25,7 @@ const Profile: React.FC = () => {
   const hasCafecito = Boolean(cafecitoUrl && cafecitoUrl.trim().length > 0);
 
   const handleCafecitoPress = () => {
-    if (!hasCafecito) return;
+    if (!hasCafecito) {return;}
     openWebLink(navigation, cafecitoUrl.trim(), 'Cafecito');
   };
 
@@ -118,7 +118,7 @@ const Profile: React.FC = () => {
           </GlassCard>
         )}
 
-        
+
 
         {Platform.OS !== 'android' && (
           <View style={styles.drawerContent}>

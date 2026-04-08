@@ -69,7 +69,7 @@ const AdminPushBroadcastScreen: React.FC = () => {
   };
 
   return (
-    <ScrollView 
+    <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.scrollContent}
     >
@@ -133,7 +133,7 @@ const AdminPushBroadcastScreen: React.FC = () => {
           style={[
             styles.submitButton,
             { backgroundColor: '#4a90e2' },
-            (!title.trim() || !body.trim() || loading) && { backgroundColor: '#BDBDBD', opacity: 0.5 }
+            (!title.trim() || !body.trim() || loading) && { backgroundColor: '#BDBDBD', opacity: 0.5 },
           ]}
           onPress={handleSend}
           disabled={!title.trim() || !body.trim() || loading}

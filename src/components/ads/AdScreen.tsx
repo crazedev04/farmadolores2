@@ -26,7 +26,7 @@ const AdScreen = () => {
       const currentAd = ad;
 
       const handleAdLoaded = async () => {
-        if (!currentAd) return;
+        if (!currentAd) {return;}
         await currentAd.show();
         await AsyncStorage.setItem(LAST_AD_SHOWN_KEY, String(Date.now()));
       };

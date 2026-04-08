@@ -72,18 +72,18 @@ const resolveActiveTurn = (farmacias: Farmacia[], now: DateTime): ActiveTurn | n
   let best: ActiveTurn | null = null;
 
   for (const pharmacy of farmacias) {
-    if (!Array.isArray(pharmacy.turn) || pharmacy.turn.length === 0) continue;
+    if (!Array.isArray(pharmacy.turn) || pharmacy.turn.length === 0) {continue;}
 
     for (const turnValue of pharmacy.turn) {
       const timestamp = parseTurnTimestamp(turnValue);
-      if (!timestamp) continue;
+      if (!timestamp) {continue;}
 
       const start = toTurnStart(timestamp);
-      if (!start.isValid) continue;
+      if (!start.isValid) {continue;}
 
       const end = start.plus({ hours: 24 });
       const isActive = now >= start && now < end;
-      if (!isActive) continue;
+      if (!isActive) {continue;}
 
       if (!best || start.toMillis() > best.start.toMillis()) {
         best = { pharmacy, start };

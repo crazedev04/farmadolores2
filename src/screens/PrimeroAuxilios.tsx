@@ -133,13 +133,13 @@ const PrimerosAuxilios = () => {
     const sorted = [...visible].sort((a, b) => {
       const aOrder = Number.isFinite(a.order) ? (a.order as number) : null;
       const bOrder = Number.isFinite(b.order) ? (b.order as number) : null;
-      if (aOrder != null && bOrder != null) return aOrder - bOrder;
-      if (aOrder != null) return -1;
-      if (bOrder != null) return 1;
+      if (aOrder != null && bOrder != null) {return aOrder - bOrder;}
+      if (aOrder != null) {return -1;}
+      if (bOrder != null) {return 1;}
       return a.title.localeCompare(b.title);
     });
 
-    if (!debouncedQuery.trim()) return sorted;
+    if (!debouncedQuery.trim()) {return sorted;}
     const term = debouncedQuery.trim().toLowerCase();
     return sorted.filter((item) => {
       return (
@@ -151,28 +151,28 @@ const PrimerosAuxilios = () => {
 
   const suggestIcon = (text: string) => {
     const value = text.toLowerCase();
-    if (value.includes('rcp') || value.includes('corazon')) return 'heart-pulse';
-    if (value.includes('quemadura')) return 'fire';
-    if (value.includes('fractura') || value.includes('hueso')) return 'bone';
-    if (value.includes('herida') || value.includes('corte') || value.includes('raspon')) return 'bandage';
-    if (value.includes('intoxic') || value.includes('veneno') || value.includes('poison')) return 'flask';
-    if (value.includes('convulsion') || value.includes('epile')) return 'brain';
-    if (value.includes('ojo') || value.includes('ocular')) return 'eye-outline';
-    if (value.includes('alerg')) return 'allergy';
-    if (value.includes('respir') || value.includes('asma')) return 'lungs';
-    if (value.includes('desmayo') || value.includes('desmay')) return 'face-man';
-    if (value.includes('hemorrag')) return 'water';
-    if (value.includes('mordedura') || value.includes('picadura')) return 'snake';
-    if (value.includes('asfixia') || value.includes('ahogo')) return 'gesture';
-    if (value.includes('quimic')) return 'beaker-outline';
-    if (value.includes('nino') || value.includes('bebe')) return 'baby-face-outline';
+    if (value.includes('rcp') || value.includes('corazon')) {return 'heart-pulse';}
+    if (value.includes('quemadura')) {return 'fire';}
+    if (value.includes('fractura') || value.includes('hueso')) {return 'bone';}
+    if (value.includes('herida') || value.includes('corte') || value.includes('raspon')) {return 'bandage';}
+    if (value.includes('intoxic') || value.includes('veneno') || value.includes('poison')) {return 'flask';}
+    if (value.includes('convulsion') || value.includes('epile')) {return 'brain';}
+    if (value.includes('ojo') || value.includes('ocular')) {return 'eye-outline';}
+    if (value.includes('alerg')) {return 'allergy';}
+    if (value.includes('respir') || value.includes('asma')) {return 'lungs';}
+    if (value.includes('desmayo') || value.includes('desmay')) {return 'face-man';}
+    if (value.includes('hemorrag')) {return 'water';}
+    if (value.includes('mordedura') || value.includes('picadura')) {return 'snake';}
+    if (value.includes('asfixia') || value.includes('ahogo')) {return 'gesture';}
+    if (value.includes('quimic')) {return 'beaker-outline';}
+    if (value.includes('nino') || value.includes('bebe')) {return 'baby-face-outline';}
     return '';
   };
 
   const getGuideIcon = (item: GuideItem, index: number) => {
-    if (item.icon && item.icon.trim()) return item.icon;
+    if (item.icon && item.icon.trim()) {return item.icon;}
     const suggested = suggestIcon(`${item.title} ${item.description || ''}`);
-    if (suggested) return suggested;
+    if (suggested) {return suggested;}
     return ICONS[index % ICONS.length];
   };
 

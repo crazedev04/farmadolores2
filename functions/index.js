@@ -49,7 +49,7 @@ const normalizeChannels = (channels) => {
 };
 
 const canReceiveChannel = (docData, channel) => {
-  if (docData?.notificationsEnabled === false) return false;
+  if (docData?.notificationsEnabled === false) {return false;}
   const channels = normalizeChannels(docData?.channels);
   return channels[channel] !== false;
 };
@@ -70,13 +70,13 @@ const getTokensForChannel = async (channel) => {
 };
 
 const removeTokenDocs = async (tokens) => {
-  if (!tokens || tokens.length === 0) return;
+  if (!tokens || tokens.length === 0) {return;}
   const tasks = tokens.map((token) => db.collection('fcmTokens').doc(token).delete().catch(() => null));
   await Promise.all(tasks);
 };
 
 const sendToTokens = async (tokens, payload) => {
-  if (!tokens || tokens.length === 0) return { sent: 0, batches: 0 };
+  if (!tokens || tokens.length === 0) {return { sent: 0, batches: 0 };}
   let sent = 0;
   const batches = chunk(tokens, MAX_BATCH);
   for (const batch of batches) {
@@ -170,7 +170,7 @@ const deleteCollectionDocs = async (queryRef) => {
   let total = 0;
   while (true) {
     const snap = await queryRef.get();
-    if (snap.empty) return total;
+    if (snap.empty) {return total;}
     const batches = chunk(snap.docs, 450);
     for (const docs of batches) {
       const batch = db.batch();
@@ -287,16 +287,16 @@ exports.scheduleAccountDeletion = functions.pubsub
       .where('deleteStatus', 'in', ['requested', 'scheduled'])
       .get();
 
-    if (candidates.empty) return null;
+    if (candidates.empty) {return null;}
 
     const nowMs = Date.now();
     for (const doc of candidates.docs) {
       const data = doc.data() || {};
       const uid = asTrimmed(doc.id);
-      if (!uid) continue;
+      if (!uid) {continue;}
       const deleteRequestedAt = data.deleteRequestedAt?.toDate ? data.deleteRequestedAt.toDate() : null;
       const deleteAfterDays = Number(data.deleteAfterDays) || DEFAULT_DELETE_AFTER_DAYS;
-      if (!deleteRequestedAt) continue;
+      if (!deleteRequestedAt) {continue;}
       const deleteAfterMs = deleteAfterDays * 24 * 60 * 60 * 1000;
       const elapsed = nowMs - deleteRequestedAt.getTime();
 
@@ -327,15 +327,15 @@ exports.scheduleAccountDeletion = functions.pubsub
 exports.onMaintenanceUpdate = functions.firestore
   .document('config/appStatus')
   .onWrite(async (change) => {
-    if (!change.after.exists) return null;
+    if (!change.after.exists) {return null;}
 
     const after = change.after.data() || {};
     const before = change.before.exists ? change.before.data() || {} : {};
-    if (!after.enabled) return null;
+    if (!after.enabled) {return null;}
 
     const keyAfter = buildKey('maintenance', after);
     const keyBefore = buildKey('maintenance', before);
-    if (change.before.exists && keyAfter === keyBefore && before.enabled) return null;
+    if (change.before.exists && keyAfter === keyBefore && before.enabled) {return null;}
 
     const title = 'Estado del servicio';
     const body = after.message || 'Hay un nuevo aviso de mantenimiento.';
@@ -349,7 +349,7 @@ exports.onMaintenanceUpdate = functions.firestore
 exports.onHomeUpdate = functions.firestore
   .document('config/home')
   .onWrite(async (change) => {
-    if (!change.after.exists) return null;
+    if (!change.after.exists) {return null;}
 
     const after = change.after.data() || {};
     const before = change.before.exists ? change.before.data() || {} : {};

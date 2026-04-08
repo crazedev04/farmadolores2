@@ -15,7 +15,7 @@ type HorariosPorDia = {
 };
 
 const dias: (keyof HorariosPorDia)[] = [
-  'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'
+  'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo',
 ];
 
 interface Farmacia {
@@ -34,23 +34,23 @@ export const BotonActualizarHorariosTodos: React.FC = () => {
   const [farmaciaSeleccionada, setFarmaciaSeleccionada] = useState<Farmacia | null>(null);
   const [farmacias, setFarmacias] = useState<Farmacia[]>([]);
   const [horarios, setHorarios] = useState<HorariosPorDia>({
-    lunes:    [{ abre: "08:00", cierra: "12:30" }, { abre: "16:30", cierra: "20:30" }],
-    martes:   [{ abre: "08:00", cierra: "12:30" }, { abre: "16:30", cierra: "20:30" }],
-    miercoles:[{ abre: "08:00", cierra: "12:30" }, { abre: "16:30", cierra: "20:30" }],
-    jueves:   [{ abre: "08:00", cierra: "12:30" }, { abre: "16:30", cierra: "20:30" }],
-    viernes:  [{ abre: "08:00", cierra: "12:30" }, { abre: "16:30", cierra: "20:30" }],
-    sabado:   [{ abre: "08:00", cierra: "12:30" }],
-    domingo:  []
+    lunes:    [{ abre: '08:00', cierra: '12:30' }, { abre: '16:30', cierra: '20:30' }],
+    martes:   [{ abre: '08:00', cierra: '12:30' }, { abre: '16:30', cierra: '20:30' }],
+    miercoles:[{ abre: '08:00', cierra: '12:30' }, { abre: '16:30', cierra: '20:30' }],
+    jueves:   [{ abre: '08:00', cierra: '12:30' }, { abre: '16:30', cierra: '20:30' }],
+    viernes:  [{ abre: '08:00', cierra: '12:30' }, { abre: '16:30', cierra: '20:30' }],
+    sabado:   [{ abre: '08:00', cierra: '12:30' }],
+    domingo:  [],
   });
 
-    const {theme} = useTheme()
-    const colors = theme.colors
+    const {theme} = useTheme();
+    const colors = theme.colors;
 
   // Buscar farmacias por nombre
   const buscarFarmaciasPorNombre = async (busqueda: string) => {
     setFarmaciaSeleccionada(null);
     setFarmacias([]);
-    if (busqueda.length < 2) return;
+    if (busqueda.length < 2) {return;}
     setLoading(true);
     try {
       const snap = await getDocs(
@@ -95,7 +95,7 @@ export const BotonActualizarHorariosTodos: React.FC = () => {
   const addFranja = (dia: keyof HorariosPorDia) => {
     setHorarios(prev => ({
       ...prev,
-      [dia]: [...prev[dia], { abre: '', cierra: '' }]
+      [dia]: [...prev[dia], { abre: '', cierra: '' }],
     }));
   };
 
@@ -103,7 +103,7 @@ export const BotonActualizarHorariosTodos: React.FC = () => {
   const removeFranja = (dia: keyof HorariosPorDia, idx: number) => {
     setHorarios(prev => ({
       ...prev,
-      [dia]: prev[dia].filter((_, i) => i !== idx)
+      [dia]: prev[dia].filter((_, i) => i !== idx),
     }));
   };
 
@@ -115,12 +115,12 @@ export const BotonActualizarHorariosTodos: React.FC = () => {
     }
     Alert.alert(
       `¿Actualizar horarios ${toAll ? 'en TODAS las farmacias' : `en ${capitalizar(farmaciaSeleccionada?.name || '')}` }?`,
-      toAll ? "Esta acción cambiará los horarios en TODAS las farmacias. ¿Seguro?" : `Esta acción cambiará los horarios solo en "${capitalizar(farmaciaSeleccionada?.name || '')}".`,
+      toAll ? 'Esta acción cambiará los horarios en TODAS las farmacias. ¿Seguro?' : `Esta acción cambiará los horarios solo en "${capitalizar(farmaciaSeleccionada?.name || '')}".`,
       [
-        { text: "Cancelar", style: "cancel" },
+        { text: 'Cancelar', style: 'cancel' },
         {
-          text: "Actualizar",
-          style: "destructive",
+          text: 'Actualizar',
+          style: 'destructive',
           onPress: async () => {
             setLoading(true);
             try {
@@ -131,26 +131,26 @@ export const BotonActualizarHorariosTodos: React.FC = () => {
                   batch.update(doc.ref, { horarios });
                 });
                 await batch.commit();
-                Alert.alert("¡Listo!", "Se actualizaron los horarios en todas las farmacias.");
+                Alert.alert('¡Listo!', 'Se actualizaron los horarios en todas las farmacias.');
               } else {
                 await updateDoc(doc(db, 'farmacias', farmaciaSeleccionada!.id), { horarios });
-                Alert.alert("¡Listo!", `Se actualizaron los horarios de "${capitalizar(farmaciaSeleccionada!.name)}".`);
+                Alert.alert('¡Listo!', `Se actualizaron los horarios de "${capitalizar(farmaciaSeleccionada!.name)}".`);
               }
               setFarmaciaNombre('');
               setFarmaciaSeleccionada(null);
               setFarmacias([]);
             } catch (e: any) {
-              Alert.alert("Error", e.message || "Ocurrió un error.");
+              Alert.alert('Error', e.message || 'Ocurrió un error.');
             } finally {
               setLoading(false);
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
 
- 
+
   return (
     <ScrollView contentContainerStyle={[{backgroundColor: colors.background},styles.scrollContainer]}>
       <View style={[styles.form, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -175,12 +175,12 @@ export const BotonActualizarHorariosTodos: React.FC = () => {
         key={item.id}
         style={[
           styles.suggestionItem,
-          farmaciaSeleccionada?.id === item.id && styles.suggestionItemActive
+          farmaciaSeleccionada?.id === item.id && styles.suggestionItemActive,
         ]}
         onPress={() => setFarmaciaSeleccionada(item)}
       >
         <Text style={{
-          color: farmaciaSeleccionada?.id === item.id ? '#fff' : colors.text
+          color: farmaciaSeleccionada?.id === item.id ? '#fff' : colors.text,
         }}>
           {item.name.charAt(0).toUpperCase() + item.name.slice(1)}
         </Text>
@@ -265,7 +265,7 @@ export const BotonActualizarHorariosTodos: React.FC = () => {
 
 const styles = StyleSheet.create({
   scrollContainer: {
-    paddingBottom: 32
+    paddingBottom: 32,
   },
   form: {
     borderRadius: 12,
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#2d6cdf',
-    marginBottom: 4
+    marginBottom: 4,
   },
   franjaRow: {
     flexDirection: 'row',
@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: '#eee',
     borderBottomWidth: 1,
-    borderBottomColor: '#ccc'
+    borderBottomColor: '#ccc',
   },
   suggestionItemActive: {
     backgroundColor: '#2d6cdf',
@@ -333,12 +333,12 @@ const styles = StyleSheet.create({
   },
   addBtn: {
     marginVertical: 4,
-    alignSelf: 'flex-start'
+    alignSelf: 'flex-start',
   },
   btnRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 10
+    gap: 10,
   },
   button: {
     backgroundColor: '#2d6cdf',
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
     minWidth: 120,
   },
   buttonIndividual: {
-    backgroundColor: '#28a745'
+    backgroundColor: '#28a745',
   },
   buttonDisabled: {
     opacity: 0.7,
@@ -360,6 +360,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 15,
-    textAlign: 'center'
-  }
+    textAlign: 'center',
+  },
 });

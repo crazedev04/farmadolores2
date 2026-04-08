@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { FirebaseAuthTypes, onAuthStateChanged, getIdTokenResult } from '@react-native-firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
@@ -54,14 +54,14 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   };
 
-  const handleSignOut = async (message?: string) => {
+  const handleSignOut = useCallback(async (message?: string) => {
     await AuthRepository.signOut();
     await AsyncStorage.removeItem('user');
     setUser(null);
     setIsAuth(false);
     setUserId(null);
-    if (message) notify(message, true);
-  };
+    if (message) {notify(message, true);}
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(AuthRepository.authInstance, async (currentUser) => {
@@ -72,14 +72,14 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
           await handleSignOut('Cuenta desactivada. Contacta soporte si fue un error.');
           return;
         }
-        
+
         setDisabledAccount(false);
         setUser(currentUser);
         setIsAuth(true);
         setUserId(currentUser.uid);
         logEvent('auth_state', { state: 'signed_in' });
-        
-        AuthRepository.ensureUserDoc(currentUser).catch(err => 
+
+        AuthRepository.ensureUserDoc(currentUser).catch(err =>
           console.error('[AuthContext] sync failed:', err)
         );
       } else {
@@ -92,7 +92,7 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [handleSignOut]);
 
   useEffect(() => {
     const fetchRole = async () => {
@@ -121,7 +121,7 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [user]);
 
   const login = async (email: string, password: string) => {
-    if (!email || !password) return notify('Email y contraseña requeridos');
+    if (!email || !password) {return notify('Email y contraseña requeridos');}
     setLoading(true);
     try {
       const cred = await AuthRepository.signIn(email, password);
@@ -143,7 +143,7 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const register = async (email: string, password: string) => {
-    if (!email || !password) return notify('Email y contraseña requeridos');
+    if (!email || !password) {return notify('Email y contraseña requeridos');}
     setLoading(true);
     try {
       const cred = await AuthRepository.signUp(email, password);
@@ -162,7 +162,7 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const resetPassword = async (email: string) => {
-    if (!email) return notify('Ingresa tu email');
+    if (!email) {return notify('Ingresa tu email');}
     try {
       await AuthRepository.sendResetEmail(email);
       notify('Email de recuperación enviado.', true);
@@ -173,19 +173,19 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const getSignInMethods = async (email: string) => {
-    if (!email) return [];
+    if (!email) {return [];}
     return await AuthRepository.getMethodsForEmail(email);
   };
 
   const handleAccountRequest = async (type: 'disable' | 'delete', reason?: string) => {
-    if (!user) return notify('No hay usuario logueado');
+    if (!user) {return notify('No hay usuario logueado');}
     try {
       await AuthRepository.submitAccountRequest(user.uid, user.email || '', type, reason || '');
-      
+
       const subject = encodeURIComponent(type === 'delete' ? 'Eliminación total de cuenta' : 'Baja de cuenta');
       const body = encodeURIComponent(`UID: ${user.uid}\nEmail: ${user.email}\nMotivo: ${reason || 'No especificado'}`);
       Linking.openURL(`mailto:crazedevs@gmail.com?subject=${subject}&body=${body}`).catch(() => {});
-      
+
       await handleSignOut(type === 'delete' ? 'Solicitud de eliminación enviada' : 'Cuenta desactivada temporalmente');
       setDisabledAccount(true);
       logEvent(type === 'delete' ? 'account_deletion_requested' : 'account_disabled');
@@ -201,9 +201,9 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const userInfo: any = await GoogleSignin.signIn();
       const tokens = await GoogleSignin.getTokens();
       const idToken = userInfo?.idToken || tokens?.idToken;
-      
-      if (!idToken) throw new Error('No se pudo obtener el token de Google.');
-      
+
+      if (!idToken) {throw new Error('No se pudo obtener el token de Google.');}
+
       const cred = await AuthRepository.signInWithGoogle(idToken);
       if (cred.user) {
         const status = await AuthRepository.checkUserStatus(cred.user.uid);
@@ -269,6 +269,6 @@ export const AuthContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within an AuthContextProvider');
+  if (!context) {throw new Error('useAuth must be used within an AuthContextProvider');}
   return context;
 };

@@ -12,7 +12,7 @@ const formatKey = (value: string) =>
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
 const toList = (map: CounterMap | undefined) => {
-  if (!map) return [];
+  if (!map) {return [];}
   return Object.entries(map)
     .map(([key, count]) => ({ key, count }))
     .sort((a, b) => b.count - a.count);
@@ -63,7 +63,7 @@ const AdminAnalyticsScreen: React.FC = () => {
           const data = snapshot.data() || {};
           const next: Record<string, CounterMap> = {};
           Object.entries(data).forEach(([key, value]) => {
-            if (key === 'updatedAt') return;
+            if (key === 'updatedAt') {return;}
             if (value && typeof value === 'object') {
               next[key] = value as CounterMap;
             }

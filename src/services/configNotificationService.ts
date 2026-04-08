@@ -22,7 +22,7 @@ const getNotificationsEnabled = async () => {
 
 const canShowNotification = async () => {
   const enabled = await getNotificationsEnabled();
-  if (!enabled) return false;
+  if (!enabled) {return false;}
   try {
     const settings = await notifee.getNotificationSettings();
     return settings.authorizationStatus >= 1;
@@ -49,7 +49,7 @@ const buildKey = (parts: Array<string | undefined | null>) =>
 const readSeen = async () => {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_SEEN_HOME);
-    if (!raw) return [] as string[];
+    if (!raw) {return [] as string[];}
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
   } catch {
@@ -74,17 +74,17 @@ export const startConfigNotifications = () => {
     const homeRef = doc(db, 'config', 'home');
 
     unsubMaintenance = onSnapshot(maintenanceRef, async snapshot => {
-      if (cancelled || !snapshot.exists()) return;
+      if (cancelled || !snapshot.exists()) {return;}
       const data = snapshot.data() || {};
-      if (!data.enabled) return;
+      if (!data.enabled) {return;}
 
       const key = buildKey([data.type, data.message, data.ctaText, data.ctaUrl]);
-      if (!key) return;
+      if (!key) {return;}
 
       const last = await AsyncStorage.getItem(STORAGE_MAINTENANCE);
-      if (last === key) return;
+      if (last === key) {return;}
 
-      if (!(await canShowNotification())) return;
+      if (!(await canShowNotification())) {return;}
 
       const title = 'Estado del servicio';
       const body = data.message || 'Hay un nuevo aviso de mantenimiento.';
@@ -93,7 +93,7 @@ export const startConfigNotifications = () => {
     });
 
     unsubHome = onSnapshot(homeRef, async snapshot => {
-      if (cancelled || !snapshot.exists()) return;
+      if (cancelled || !snapshot.exists()) {return;}
       const data = snapshot.data() || {};
       const newsEnabled = data.newsEnabled !== false;
       const promosEnabled = data.promosEnabled !== false;
@@ -122,8 +122,8 @@ export const startConfigNotifications = () => {
         return;
       }
 
-      if (newKeys.length === 0) return;
-      if (!(await canShowNotification())) return;
+      if (newKeys.length === 0) {return;}
+      if (!(await canShowNotification())) {return;}
 
       const batch = newKeys.slice(0, MAX_BATCH);
       let sentCount = 0;
@@ -132,7 +132,7 @@ export const startConfigNotifications = () => {
         const source = enabledNews.find(item => buildKey(['news', item?.title, item?.body]) === key)
           || enabledPromos.find(item => buildKey(['promo', item?.title, item?.body, item?.ctaUrl]) === key);
 
-        if (!source) continue;
+        if (!source) {continue;}
         const isPromo = enabledPromos.includes(source);
         const title = source?.title || (isPromo ? 'Nueva promo' : 'Nuevo aviso');
         const body = source?.body || (isPromo ? 'Hay una nueva promo disponible.' : 'Hay un nuevo aviso disponible.');
@@ -151,7 +151,7 @@ export const startConfigNotifications = () => {
 
   return () => {
     cancelled = true;
-    if (unsubMaintenance) unsubMaintenance();
-    if (unsubHome) unsubHome();
+    if (unsubMaintenance) {unsubMaintenance();}
+    if (unsubHome) {unsubHome();}
   };
 };

@@ -23,7 +23,7 @@ type UploadOptions = {
 
 const getAsset = (response: ImagePickerResponse) => {
   const asset = response?.assets && response.assets.length > 0 ? response.assets[0] : undefined;
-  if (!asset || !asset.uri) return null;
+  if (!asset || !asset.uri) {return null;}
   return asset;
 };
 
@@ -64,7 +64,7 @@ export const pickAndUploadImage = async (
     quality: 1,
   });
 
-  if (result.didCancel) return null;
+  if (result.didCancel) {return null;}
   if (result.errorCode) {
     throw new Error(result.errorMessage || 'No se pudo seleccionar la imagen.');
   }
@@ -96,7 +96,7 @@ export const pickAndUploadImage = async (
 
 export const deleteImageByUrl = async (url?: string) => {
   const trimmed = (url || '').trim();
-  if (!trimmed) return;
+  if (!trimmed) {return;}
   try {
     await deleteObject(refFromURL(storageInstance, trimmed));
   } catch {

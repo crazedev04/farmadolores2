@@ -75,7 +75,7 @@ const EditProfileScreen: React.FC = () => {
   };
 
   const handleRemovePhoto = async () => {
-    if (!photoUrl) return;
+    if (!photoUrl) {return;}
     await deleteImageByUrl(photoUrl);
     setPhotoUrl('');
   };

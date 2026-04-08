@@ -30,9 +30,9 @@ const DetailE = () => {
   const telLabel = Array.isArray(emergencia.tel) ? emergencia.tel.join(' / ') : emergencia.tel;
   const makeCall = (phoneNumber?: string | string[] | number) => {
     const raw = Array.isArray(phoneNumber) ? phoneNumber[0] : phoneNumber;
-    if (!raw) return;
+    if (!raw) {return;}
     const clean = String(raw).replace(/[^\d+]/g, '');
-    if (!clean) return;
+    if (!clean) {return;}
     logEvent('emergency_call', { emergency_id: emergencia.id, name: emergencia.name, source: 'detail' });
     Linking.openURL(`tel:${clean}`);
   };
@@ -61,7 +61,7 @@ const DetailE = () => {
             <Text style={[styles.reportButtonText, { color: colors.text }]}>Reportar datos</Text>
           </TouchableOpacity>
         )}
-       
+
       </View>
       {latitude !== 0 && longitude !== 0 && (
         <View style={styles.mapContainer}>

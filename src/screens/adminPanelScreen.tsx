@@ -10,16 +10,16 @@ import { getFirestore, onSnapshot, collection, query, where, doc, setDoc } from 
 
 const AnimatedPressable = Animated.createAnimatedComponent(TouchableOpacity);
 
-const DashboardButton = ({ 
-  title, 
-  subtitle, 
-  icon, 
-  onPress, 
-  badgeCount = 0 
-}: { 
-  title: string, 
-  subtitle: string, 
-  icon: string, 
+const DashboardButton = ({
+  title,
+  subtitle,
+  icon,
+  onPress,
+  badgeCount = 0,
+}: {
+  title: string,
+  subtitle: string,
+  icon: string,
   onPress: () => void,
   badgeCount?: number
 }) => {
@@ -71,7 +71,7 @@ const AdminPanelScreen: React.FC = () => {
 
   useEffect(() => {
     const db = getFirestore();
-    
+
     // Listen to pending account requests
     const qRequests = query(collection(db, 'account_requests'), where('status', '==', 'pending'));
     const unsubReq = onSnapshot(qRequests, snap => setPendingRequests(snap?.size || 0), () => {});
@@ -87,7 +87,7 @@ const AdminPanelScreen: React.FC = () => {
     // Listen to Min App Version
     const unsubVer = onSnapshot(doc(db, 'config', 'app'), snap => {
       const data = snap.data();
-      if (data?.minAppVersion) setMinVersion(data.minAppVersion);
+      if (data?.minAppVersion) {setMinVersion(data.minAppVersion);}
     });
 
     return () => {
@@ -136,7 +136,7 @@ const AdminPanelScreen: React.FC = () => {
       </View>
 
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Métricas Activas</Text>
-      
+
       <View style={styles.metricsRow}>
         <GlassCard style={[styles.metricCardOuter, { borderColor: pendingRequests > 0 ? colors.warning : colors.border }]} contentStyle={styles.metricCardInner}>
           <Text style={[styles.metricCount, { color: pendingRequests > 0 ? colors.warning : colors.text }]}>{pendingRequests}</Text>
@@ -156,7 +156,7 @@ const AdminPanelScreen: React.FC = () => {
 
       <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 24 }]}>Acciones Principales</Text>
       <View style={styles.quickActions}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.quickCard, { backgroundColor: colors.primary + '20', borderColor: colors.primary }]}
           onPress={() => navigation.navigate('AdminPushBroadcast')}
         >
@@ -172,65 +172,65 @@ const AdminPanelScreen: React.FC = () => {
       </View>
 
       <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 24 }]}>Operaciones de Datos</Text>
-      
+
       <View style={styles.grid}>
-        <DashboardButton 
+        <DashboardButton
           title="Horarios" subtitle="Actualizar atención masivamente." icon="calendar-month-outline"
-          onPress={() => navigation.navigate('ActualizarHorarios')} 
+          onPress={() => navigation.navigate('ActualizarHorarios')}
         />
-        <DashboardButton 
+        <DashboardButton
           title="Turnos" subtitle="Asignar cronograma mensual." icon="calendar-clock"
-          onPress={() => navigation.navigate('ActualizarTurnos')} 
+          onPress={() => navigation.navigate('ActualizarTurnos')}
         />
-        <DashboardButton 
+        <DashboardButton
           title="Farmacias" subtitle="Agregar o modificar datos." icon="hospital-box-outline"
-          onPress={() => navigation.navigate('AdminFarmacias')} 
+          onPress={() => navigation.navigate('AdminFarmacias')}
         />
-        <DashboardButton 
+        <DashboardButton
           title="Emergencias" subtitle="Guardias y teléfonos." icon="car-emergency"
-          onPress={() => navigation.navigate('AdminEmergenciasCrud')} 
+          onPress={() => navigation.navigate('AdminEmergenciasCrud')}
         />
-        <DashboardButton 
+        <DashboardButton
           title="Negocios" subtitle="Directorio comercial." icon="storefront-outline"
-          onPress={() => navigation.navigate('AdminLocales')} 
+          onPress={() => navigation.navigate('AdminLocales')}
         />
-        <DashboardButton 
+        <DashboardButton
           title="Top Badges" subtitle="Destacar alertas globales." icon="alert-decagram-outline"
-          onPress={() => navigation.navigate('AdminEmergencias')} 
+          onPress={() => navigation.navigate('AdminEmergencias')}
         />
       </View>
 
       <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 24 }]}>Monitoreo y Reportes</Text>
 
       <View style={styles.grid}>
-        <DashboardButton 
+        <DashboardButton
           title="Sugerencias" subtitle="Feedback de los usuarios." icon="message-alert-outline"
-          onPress={() => navigation.navigate('AdminSuggestions')} 
+          onPress={() => navigation.navigate('AdminSuggestions')}
           badgeCount={unreadSuggestions}
         />
-        <DashboardButton 
+        <DashboardButton
           title="Cuentas" subtitle="Reactivaciones y eliminaciones." icon="account-cog-outline"
-          onPress={() => navigation.navigate('AdminAccountRequests')} 
+          onPress={() => navigation.navigate('AdminAccountRequests')}
           badgeCount={pendingRequests}
         />
         {flags.dataReports && (
-          <DashboardButton 
+          <DashboardButton
             title="Reportes Errores" subtitle="Data flaggeada." icon="clipboard-alert-outline"
-            onPress={() => navigation.navigate('AdminDataReports')} 
+            onPress={() => navigation.navigate('AdminDataReports')}
             badgeCount={activeReports}
           />
         )}
-        <DashboardButton 
+        <DashboardButton
           title="Estadísticas" subtitle="Tráfico y demografía." icon="chart-line"
-          onPress={() => navigation.navigate('AdminAnalytics')} 
+          onPress={() => navigation.navigate('AdminAnalytics')}
         />
-        <DashboardButton 
+        <DashboardButton
           title="Guías" subtitle="Primeros auxilios." icon="medical-bag"
-          onPress={() => navigation.navigate('AdminPrimerosAuxilios')} 
+          onPress={() => navigation.navigate('AdminPrimerosAuxilios')}
         />
-        <DashboardButton 
+        <DashboardButton
           title="Banners" subtitle="Configurar Home." icon="home-variant-outline"
-          onPress={() => navigation.navigate('AdminHomeConfig')} 
+          onPress={() => navigation.navigate('AdminHomeConfig')}
         />
       </View>
 
@@ -243,7 +243,7 @@ const AdminPanelScreen: React.FC = () => {
             <Text style={[styles.versionSub, { color: colors.mutedText }]}>Bloquea el acceso a versiones inferiores.</Text>
           </View>
         </View>
-        
+
         <View style={styles.versionInputContainer}>
           <TextInput
             style={[styles.versionInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background + '80' }]}
@@ -253,11 +253,11 @@ const AdminPanelScreen: React.FC = () => {
             placeholderTextColor={colors.mutedText}
             keyboardType="default"
           />
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[
-              styles.saveButton, 
-              { backgroundColor: minVersion ? '#4a90e2' : '#BDBDBD' }
-            ]} 
+              styles.saveButton,
+              { backgroundColor: minVersion ? '#4a90e2' : '#BDBDBD' },
+            ]}
             onPress={handleUpdateMinVersion}
             disabled={loadingVersion || !minVersion}
             activeOpacity={0.7}

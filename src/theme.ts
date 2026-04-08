@@ -42,7 +42,7 @@ export const lightTheme = {
     h3: { fontSize: 20, fontWeight: '600' as const },
     body: { fontSize: 16, fontWeight: '400' as const },
     small: { fontSize: 13, fontWeight: '400' as const },
-  }
+  },
 };
 
 export const darkTheme = {

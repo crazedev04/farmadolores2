@@ -14,7 +14,7 @@ interface State {
 export class OTAErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
-    errorMsg: ''
+    errorMsg: '',
   };
 
   public static getDerivedStateFromError(error: Error): State {

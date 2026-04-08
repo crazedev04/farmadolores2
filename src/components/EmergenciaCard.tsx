@@ -35,9 +35,9 @@ const EmergenciaCard: React.FC<EmergenciaCardProps> = ({ item, onPress }) => {
 
   const openPhone = () => {
     const raw = Array.isArray(tel) ? tel[0] : tel;
-    if (!raw) return;
+    if (!raw) {return;}
     const clean = String(raw).replace(/[^\d+]/g, '');
-    if (!clean) return;
+    if (!clean) {return;}
     logEvent('emergency_call', { emergency_id: item.id, name: item.name });
     Linking.openURL(`tel:${clean}`);
   };

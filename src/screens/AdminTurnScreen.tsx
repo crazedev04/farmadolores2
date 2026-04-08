@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Alert, ScrollView, ToastAndroid, Platform
+  ActivityIndicator, Alert, ScrollView, ToastAndroid, Platform,
 } from 'react-native';
 import { getFirestore, collection, query, orderBy, limit, startAfter, where, getDocs, updateDoc, doc } from '@react-native-firebase/firestore';
 import PickerTurno from '../components/PikerTurno'; // Cambia ruta si es necesario
@@ -35,7 +35,7 @@ const AdminCambiarTurnoFarmacia: React.FC = () => {
 
   // Listado inicial de farmacias
   const fetchFarmaciasListado = async (reset = false) => {
-    if (loadingListado) return;
+    if (loadingListado) {return;}
     setLoadingListado(true);
     try {
       let farmaciasQuery = query(collection(db, 'farmacias'), orderBy('name'), limit(12));
@@ -56,13 +56,13 @@ const AdminCambiarTurnoFarmacia: React.FC = () => {
         return {
           id: doc.id,
           name: data.name,
-          turn: turnArr
+          turn: turnArr,
         };
       });
       setLastFarmaciaDoc(snap.docs[snap.docs.length - 1] ?? null);
       setFarmaciasListado(prev => (reset ? results : [...prev, ...results]));
     } catch {
-      if (reset) setFarmaciasListado([]);
+      if (reset) {setFarmaciasListado([]);}
     } finally {
       setLoadingListado(false);
     }
@@ -73,7 +73,7 @@ const AdminCambiarTurnoFarmacia: React.FC = () => {
     setFarmaciaSeleccionada(null);
     setTurnos([]);
     setFarmacias([]);
-    if (nombre.length < 2) return;
+    if (nombre.length < 2) {return;}
     setLoading(true);
     try {
       const inicio = nombre.charAt(0).toUpperCase() + nombre.slice(1);
@@ -100,7 +100,7 @@ const AdminCambiarTurnoFarmacia: React.FC = () => {
         return {
           id: doc.id,
           name: data.name,
-          turn: turnArr
+          turn: turnArr,
         };
       });
       setFarmacias(results);
@@ -149,8 +149,8 @@ const AdminCambiarTurnoFarmacia: React.FC = () => {
     }
     setLoading(true);
     try {
-      await updateDoc(doc(db, 'farmacias', farmaciaSeleccionada.id), { turn: turnos }); 
-      
+      await updateDoc(doc(db, 'farmacias', farmaciaSeleccionada.id), { turn: turnos });
+
       const updatedFarmacia = { ...farmaciaSeleccionada, turn: turnos };
       setFarmaciaSeleccionada(updatedFarmacia);
       setFarmacias(prev => prev.map(f => f.id === updatedFarmacia.id ? updatedFarmacia : f));
@@ -202,12 +202,12 @@ const AdminCambiarTurnoFarmacia: React.FC = () => {
                 style={[
                   styles.suggestionItem,
                   { borderColor: colors.border, backgroundColor: colors.inputBackground },
-                  farmaciaSeleccionada?.id === item.id && styles.suggestionItemActive
+                  farmaciaSeleccionada?.id === item.id && styles.suggestionItemActive,
                 ]}
                 onPress={() => handleSelectFarmacia(item)}
               >
                 <Text style={{
-                  color: farmaciaSeleccionada?.id === item.id ? '#fff' : colors.text
+                  color: farmaciaSeleccionada?.id === item.id ? '#fff' : colors.text,
                 }}>
                   {item.name.charAt(0).toUpperCase() + item.name.slice(1)}
                 </Text>
@@ -236,7 +236,7 @@ const AdminCambiarTurnoFarmacia: React.FC = () => {
                 >
                   <Text style={[
                     styles.filterText,
-                    { color: turnoFilter === option ? colors.buttonText : colors.text }
+                    { color: turnoFilter === option ? colors.buttonText : colors.text },
                   ]}>
                     {option === 'all' ? 'Todos' : option === 'future' ? 'Futuros' : 'Pasados'}
                   </Text>
@@ -312,12 +312,12 @@ const AdminCambiarTurnoFarmacia: React.FC = () => {
               style={[
                 styles.suggestionItem,
                 { borderColor: colors.border, backgroundColor: colors.inputBackground },
-                farmaciaSeleccionada?.id === item.id && styles.suggestionItemActive
+                farmaciaSeleccionada?.id === item.id && styles.suggestionItemActive,
               ]}
               onPress={() => handleSelectFarmacia(item)}
             >
               <Text style={{
-                color: farmaciaSeleccionada?.id === item.id ? '#fff' : colors.text
+                color: farmaciaSeleccionada?.id === item.id ? '#fff' : colors.text,
               }}>
                 {item.name.charAt(0).toUpperCase() + item.name.slice(1)}
               </Text>
@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
   },
   addBtn: {
     marginVertical: 8,
-    alignSelf: 'flex-start'
+    alignSelf: 'flex-start',
   },
   button: {
     paddingVertical: 13,
@@ -457,8 +457,8 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
-    textAlign: 'center'
-  }
+    textAlign: 'center',
+  },
 });
 
 export default AdminCambiarTurnoFarmacia;

@@ -45,9 +45,6 @@ const AppContent = () => {
     performVersionCheck();
   }, []);
 
-  if (isOutdated) {
-    return <ForceUpdateScreen />;
-  }
   const style = StyleSheet.create({
     container: {
       flex: 1,
@@ -113,9 +110,13 @@ const AppContent = () => {
   useEffect(() => {
     const stop = initPushNotifications(user?.uid || null);
     return () => {
-      if (stop) stop();
+      if (stop) {stop();}
     };
   }, [user?.uid]);
+
+  if (isOutdated) {
+    return <ForceUpdateScreen />;
+  }
 
   return (
     <SafeAreaView style={style.container} edges={['top', 'bottom']}>

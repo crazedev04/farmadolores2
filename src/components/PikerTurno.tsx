@@ -6,7 +6,7 @@ import { useTheme } from '../context/ThemeContext';
 export default function PickerTurno({
   value,
   onChange,
-  label = 'Seleccionar turno'
+  label = 'Seleccionar turno',
 }: {
   value?: Date | null,
   onChange: (date: Date) => void,

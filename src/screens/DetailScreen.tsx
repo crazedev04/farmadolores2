@@ -40,7 +40,7 @@ function HorarioTable({ horarios }: { horarios?: any }) {
         color: colors.error || '#dc3545',
         fontWeight: 'bold',
         textAlign: 'center',
-        marginVertical: 10
+        marginVertical: 10,
       }}>
         Sin horarios registrados
       </Text>
@@ -49,7 +49,7 @@ function HorarioTable({ horarios }: { horarios?: any }) {
   return (
     <View style={[
       styles.horarioTable,
-      { backgroundColor: colors.card, borderColor: colors.border }
+      { backgroundColor: colors.card, borderColor: colors.border },
     ]}>
       <View style={[styles.horarioRow, { backgroundColor: colors.primary + '11' }]}>
         <Text style={[styles.horarioDia, styles.horarioHeader, { color: colors.primary }]}>Día</Text>
@@ -86,7 +86,7 @@ const DetailScreen = () => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [favorite, setFavorite] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
-  
+
   useEffect(() => {
     logEvent('pharmacy_view', { pharmacy_id: farmacia.id, name: farmacia.name });
   }, [farmacia.id, farmacia.name]);
@@ -95,14 +95,14 @@ const DetailScreen = () => {
     let active = true;
     const loadFavorite = async () => {
       if (!user?.uid) {
-        if (active) setFavorite(false);
+        if (active) {setFavorite(false);}
         return;
       }
       try {
         const value = await isFavoritePharmacy(user.uid, farmacia.id);
-        if (active) setFavorite(value);
+        if (active) {setFavorite(value);}
       } catch {
-        if (active) setFavorite(false);
+        if (active) {setFavorite(false);}
       }
     };
     loadFavorite();
@@ -134,15 +134,15 @@ const DetailScreen = () => {
   const telLabel = Array.isArray(farmacia.tel) ? farmacia.tel.join(' / ') : farmacia.tel;
   const makeCall = (phoneNumber?: string | string[] | number) => {
     const raw = Array.isArray(phoneNumber) ? phoneNumber[0] : phoneNumber;
-    if (!raw) return;
+    if (!raw) {return;}
     const clean = String(raw).replace(/[^\d+]/g, '');
-    if (!clean) return;
+    if (!clean) {return;}
     logEvent('pharmacy_call', { source: 'detail', pharmacy_id: farmacia.id, name: farmacia.name });
     Linking.openURL(`tel:${clean}`);
   };
 
   const onToggleFavorite = async () => {
-    if (!user?.uid || favoriteLoading) return;
+    if (!user?.uid || favoriteLoading) {return;}
     setFavoriteLoading(true);
     try {
       const next = await toggleFavoritePharmacy(user.uid, farmacia);

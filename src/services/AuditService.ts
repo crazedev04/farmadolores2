@@ -27,5 +27,5 @@ export const AuditService = {
       console.error('[AuditService] Failed to log action:', error);
       // We don't throw here to avoid breaking the main operation if logging fails.
     }
-  }
+  },
 };

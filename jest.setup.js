@@ -154,7 +154,7 @@ jest.mock('@react-native-firebase/messaging', () => {
     registerDeviceForRemoteMessages: jest.fn(),
     getToken: jest.fn().mockResolvedValue('mock-token'),
     onTokenRefresh: jest.fn((_messaging, cb) => {
-      if (cb) cb('mock-token');
+      if (cb) {cb('mock-token');}
       return jest.fn();
     }),
     onMessage: jest.fn(() => jest.fn()),

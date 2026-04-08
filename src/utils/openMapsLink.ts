@@ -13,10 +13,10 @@ type MapOpenOptions = {
 };
 
 const tryOpen = async (url?: string) => {
-  if (!url) return false;
+  if (!url) {return false;}
   try {
     const can = await Linking.canOpenURL(url);
-    if (!can) return false;
+    if (!can) {return false;}
     await Linking.openURL(url);
     return true;
   } catch {
@@ -34,10 +34,10 @@ export const openMapsLink = async (
 
   if (encodedQuery) {
     if (Platform.OS === 'android') {
-      if (await tryOpen(`google.navigation:q=${encodedQuery}`)) return true;
-      if (await tryOpen(`geo:0,0?q=${encodedQuery}`)) return true;
+      if (await tryOpen(`google.navigation:q=${encodedQuery}`)) {return true;}
+      if (await tryOpen(`geo:0,0?q=${encodedQuery}`)) {return true;}
     } else {
-      if (await tryOpen(`maps:0,0?q=${encodedQuery}`)) return true;
+      if (await tryOpen(`maps:0,0?q=${encodedQuery}`)) {return true;}
     }
   }
 
@@ -45,6 +45,6 @@ export const openMapsLink = async (
     ? normalizeWebUrl(mapUrl)
     : (encodedQuery ? `https://www.google.com/maps/search/?api=1&query=${encodedQuery}` : '');
 
-  if (!fallbackUrl) return false;
+  if (!fallbackUrl) {return false;}
   return openWebLink(navigation, fallbackUrl, title || 'Mapa', meta);
 };

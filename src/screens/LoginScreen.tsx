@@ -43,9 +43,9 @@ const Login: React.FC = () => {
     const warmGoogle = async () => {
       try {
         await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-        if (active) setGoogleReady(true);
+        if (active) {setGoogleReady(true);}
       } catch {
-        if (active) setGoogleReady(false);
+        if (active) {setGoogleReady(false);}
       }
     };
     warmGoogle();

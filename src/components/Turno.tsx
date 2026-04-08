@@ -42,9 +42,9 @@ const Turno: React.FC = () => {
     try {
       const now = DateTime.local().setZone('America/Argentina/Buenos_Aires');
       const match = farmacias?.find((pharmacy) => {
-        if (!Array.isArray(pharmacy?.turn)) return false;
+        if (!Array.isArray(pharmacy?.turn)) {return false;}
         return pharmacy.turn.some((t) => {
-          if (!t || typeof t.toDate !== 'function') return false;
+          if (!t || typeof t.toDate !== 'function') {return false;}
           let turnStart;
           try {
             turnStart = DateTime.fromJSDate(t.toDate()).set({
@@ -73,7 +73,7 @@ const Turno: React.FC = () => {
         android: PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
         ios: PERMISSIONS.IOS.LOCATION_WHEN_IN_USE,
       });
-      if (!permission) return;
+      if (!permission) {return;}
 
       try {
         let status = await check(permission);
@@ -90,7 +90,7 @@ const Turno: React.FC = () => {
 
         Geolocation.getCurrentPosition(
           (position) => {
-            if (!active) return;
+            if (!active) {return;}
             setUserLocation({
               lat: position.coords.latitude,
               lng: position.coords.longitude,
@@ -131,9 +131,9 @@ const Turno: React.FC = () => {
   }, []);
 
   const distanceKm = useMemo(() => {
-    if (!userLocation || !matchingPharmacy) return null;
+    if (!userLocation || !matchingPharmacy) {return null;}
     const { lat, lng } = getCoordsFromPharmacyLike(matchingPharmacy);
-    if (lat == null || lng == null) return null;
+    if (lat == null || lng == null) {return null;}
     return haversineKm(userLocation, { lat, lng });
   }, [userLocation, matchingPharmacy]);
 

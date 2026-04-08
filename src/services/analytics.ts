@@ -17,14 +17,14 @@ const logEventAny = logEventNative as unknown as (
 const MAX_PARAM_LENGTH = 100;
 
 const sanitizeValue = (value: unknown) => {
-  if (value === null || value === undefined) return undefined;
+  if (value === null || value === undefined) {return undefined;}
   if (typeof value === 'string') {
     const trimmed = value.trim();
-    if (!trimmed) return undefined;
+    if (!trimmed) {return undefined;}
     return trimmed.length > MAX_PARAM_LENGTH ? trimmed.slice(0, MAX_PARAM_LENGTH) : trimmed;
   }
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number' && Number.isFinite(value)) {return value;}
+  if (typeof value === 'boolean') {return value;}
   try {
     const text = JSON.stringify(value);
     return text.length > MAX_PARAM_LENGTH ? text.slice(0, MAX_PARAM_LENGTH) : text;
@@ -34,7 +34,7 @@ const sanitizeValue = (value: unknown) => {
 };
 
 const sanitizeParams = (params?: Record<string, unknown>) => {
-  if (!params) return undefined;
+  if (!params) {return undefined;}
   const cleaned: Record<string, string | number | boolean> = {};
   Object.entries(params).forEach(([key, value]) => {
     const sanitized = sanitizeValue(value);
@@ -47,7 +47,7 @@ const sanitizeParams = (params?: Record<string, unknown>) => {
 
 const toKey = (value?: string) => {
   const raw = (value || '').toString().trim().toLowerCase();
-  if (!raw) return 'unknown';
+  if (!raw) {return 'unknown';}
   return raw
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '')
@@ -55,7 +55,7 @@ const toKey = (value?: string) => {
 };
 
 const incrementCounter = async (group: string, key?: string) => {
-  if (!group) return;
+  if (!group) {return;}
   const safeGroup = toKey(group);
   const safeKey = toKey(key);
   try {

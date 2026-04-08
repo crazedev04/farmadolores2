@@ -70,7 +70,7 @@ const Emergencias: React.FC<Props> = () => {
       setLoading(false);
       setLastUpdated(new Date());
     }, error => {
-      console.error("Error fetching emergencias: ", error);
+      console.error('Error fetching emergencias: ', error);
     });
 
     return () => {
@@ -187,7 +187,7 @@ export default Emergencias;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    
+
   },
   listContainer: {
     paddingVertical: 6,
